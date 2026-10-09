@@ -41,5 +41,9 @@ dist-ssr
 mobile/.expo/
 mobile/ios/
 mobile/android/
+mobile-ui/.expo/
+mobile-ui/.export/
+mobile-ui/ios/
+mobile-ui/android/
 
 supabase/.temp/

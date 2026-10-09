@@ -1,0 +1,41 @@
+{
+  "name": "shiftline-mobile-ui",
+  "version": "0.1.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "ios": "expo start --ios",
+    "android": "expo start --android",
+    "typecheck": "tsc --noEmit",
+    "export": "expo export --platform ios --platform android --output-dir .export"
+  },
+  "dependencies": {
+    "@expo/vector-icons": "^15.1.1",
+    "@gorhom/bottom-sheet": "^5.2.14",
+    "@react-native-community/datetimepicker": "9.1.0",
+    "@react-native-segmented-control/segmented-control": "^2.5.7",
+    "@react-navigation/bottom-tabs": "^7.20.0",
+    "@react-navigation/native": "^7.5.0",
+    "@react-navigation/native-stack": "^7.20.0",
+    "expo": "57.0.27",
+    "expo-blur": "^57.0.3",
+    "expo-font": "^57.0.4",
+    "expo-haptics": "^57.0.3",
+    "expo-router": "^57.0.25",
+    "expo-status-bar": "^57.0.1",
+    "expo-symbols": "^57.0.3",
+    "react": "19.2.3",
+    "react-dom": "^19.2.3",
+    "react-native": "0.86.3",
+    "react-native-gesture-handler": "~2.32.0",
+    "react-native-reanimated": "4.5.1",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.26.0",
+    "react-native-worklets": "0.10.1"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.14",
+    "typescript": "~6.0.3"
+  }
+}
