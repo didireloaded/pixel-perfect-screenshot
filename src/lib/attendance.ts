@@ -26,7 +26,7 @@ export interface AttendanceEvent {
   employeeId: string;
   type: EventType;
   capturedAt: number; // device clock
-  receivedAt?: number; // server receipt
+  receivedAt?: number | undefined; // server receipt
   sync: SyncStatus;
   jobId?: string;
   note?: string;
