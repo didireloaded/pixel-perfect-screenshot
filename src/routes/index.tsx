@@ -52,6 +52,8 @@ function Today() {
   const nextJob = d.jobs
     .filter((j) => j.assignee === d.me && j.date === d.today && j.status !== "completed")
     .sort((a, b) => a.start.localeCompare(b.start))[0];
+  const notice = d.notices.find((n) => n.startsOn <= d.today && n.endsOn >= d.today);
+  const siteConfigured = site.latitude != null && site.longitude != null;
 
   const primary: { label: string; type: EventType } | null = {
     not_clocked_in: { label: "Clock in", type: "clock_in" as EventType },
@@ -136,12 +138,25 @@ function Today() {
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <StatusPill tone={stateTone}>{STATE_LABEL[d.state]}</StatusPill>
-          <StatusPill tone={locTone[d.location]}>Location not enabled</StatusPill>
+          <StatusPill tone={locTone[d.location]}>Site check {d.location}</StatusPill>
           <StatusPill tone={d.online ? "info" : "warn"}>
             {d.online ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
             {d.online ? "Online" : "Offline · reconnect to save"}
           </StatusPill>
         </div>
+        {d.hasShift && siteConfigured && !d.locationMonitoringEnabled && (
+          <button
+            type="button"
+            className="mt-4 w-full rounded-2xl bg-tint-blue p-3 text-left text-sm font-medium"
+            onClick={() => d.setLocationMonitoringEnabled(true)}
+          >
+            Enable worksite exit alerts for your shifts
+            <span className="mt-1 block text-xs font-normal text-muted-foreground">
+              Checks run only while this app is open and you are working. They stop for breaks,
+              departures and shift end.
+            </span>
+          </button>
+        )}
 
         {d.hasShift && (
           <dl className="mt-5 grid grid-cols-2 gap-3 text-sm">
@@ -167,7 +182,7 @@ function Today() {
             <div className="rounded-2xl bg-muted p-3">
               <dt className="text-xs text-muted-foreground">Tracking stops</dt>
               <dd className="mt-1 text-lg font-bold">{d.hasShift ? d.shift.trackingStop : "—"}</dd>
-              <dd className="text-xs text-muted-foreground">Location not enabled</dd>
+              <dd className="text-xs text-muted-foreground">or at clock-out · site checks stop</dd>
             </div>
           </dl>
         )}
@@ -229,6 +244,26 @@ function Today() {
           )}
         </div>
       </section>
+
+      {notice && (
+        <section className="rounded-3xl bg-tint-pink p-4 text-sm" aria-label="Company notice">
+          <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+            {notice.kind.replaceAll("_", " ")} · {notice.startsOn}
+          </p>
+          <h2 className="mt-1 font-bold">{notice.title}</h2>
+          <p className="mt-1 text-muted-foreground">{notice.body}</p>
+          {notice.requiresAck && !notice.acknowledged && (
+            <Button
+              variant="pill"
+              className="mt-3"
+              disabled={d.busy}
+              onClick={() => void d.command("ack_notice", { id: notice.id })}
+            >
+              Acknowledge
+            </Button>
+          )}
+        </section>
+      )}
 
       {nextJob && (
         <Link to="/jobs" className="block rounded-3xl bg-tint-blue p-4">

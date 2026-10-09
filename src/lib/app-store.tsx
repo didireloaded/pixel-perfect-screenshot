@@ -35,6 +35,8 @@ export type {
 export interface CommandResult {
   snapshot: Snapshot;
   activationCode?: string;
+  kioskCode?: string;
+  employeeNumber?: string;
   employeeId?: string;
   status?: string;
   conflictId?: string;
@@ -45,6 +47,8 @@ interface Ctx extends Snapshot {
   busy: boolean;
   online: boolean;
   location: LocationStatus;
+  locationMonitoringEnabled: boolean;
+  setLocationMonitoringEnabled: (enabled: boolean) => void;
   state: AttendanceState;
   shift: Shift;
   hasShift: boolean;
@@ -130,6 +134,8 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [online, setOnline] = useState(true);
+  const [location, setLocation] = useState<LocationStatus>("inactive");
+  const [locationMonitoringEnabled, setMonitoringEnabled] = useState(false);
   const lock = useRef(false);
   const revision = useRef(0);
   const refresh = async () => {
@@ -191,6 +197,140 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
       toast.error(e instanceof Error ? e.message : "Could not sign out");
     }
   };
+  const monitoringKey = data ? `shiftline-site-monitor:${data.company.id}:${data.me}` : "";
+  useEffect(() => {
+    setMonitoringEnabled(monitoringKey ? localStorage.getItem(monitoringKey) === "on" : false);
+  }, [monitoringKey]);
+  const setLocationMonitoringEnabled = (enabled: boolean) => {
+    if (monitoringKey) localStorage.setItem(monitoringKey, enabled ? "on" : "off");
+    setMonitoringEnabled(enabled);
+  };
+  const activeShift = data?.shifts.find((s) => s.employeeId === data.me && s.date === data.today);
+  const activeSite = data?.sites.find((s) => s.id === activeShift?.siteId);
+  const activeState = data?.states.find((s) => s.shiftId === activeShift?.id)?.state;
+  const commandRef = useRef(command);
+  commandRef.current = command;
+  useEffect(() => {
+    if (
+      !data ||
+      !online ||
+      !activeShift ||
+      !locationMonitoringEnabled ||
+      activeSite?.latitude == null ||
+      activeSite.longitude == null
+    ) {
+      setLocation("inactive");
+      return;
+    }
+    if (activeState !== "working") {
+      setLocation(
+        activeState === "clocked_out" || activeState === "not_clocked_in" ? "inactive" : "paused",
+      );
+      return;
+    }
+    if (!navigator.geolocation) {
+      setLocation("unavailable");
+      return;
+    }
+    const companyTime = () =>
+      new Intl.DateTimeFormat("en-GB", {
+        timeZone: data.company.timezone,
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+      }).format(new Date());
+    let watch: number | null = null;
+    let lastSent = 0;
+    const allowed = () => {
+      const current = companyTime();
+      return current >= activeShift.start && current < activeShift.trackingStop;
+    };
+    const update = () => {
+      if (!allowed()) {
+        if (watch !== null) navigator.geolocation.clearWatch(watch);
+        watch = null;
+        setLocation("inactive");
+      } else if (watch === null) {
+        watch = navigator.geolocation.watchPosition(
+          (position) => {
+            if (!allowed() || Date.now() - lastSent < 60000 || lock.current) return;
+            lastSent = Date.now();
+            setLocation("active");
+            void commandRef
+              .current("report_position", {
+                shiftId: activeShift.id,
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+                accuracyM: position.coords.accuracy,
+                source: "web",
+              })
+              .then((result) => {
+                if (result?.status === "exit")
+                  toast.warning("You have left the worksite. Your manager has been alerted.");
+                if (result?.status === "return") toast.success("You are back at the worksite.");
+              });
+          },
+          () => setLocation("unavailable"),
+          { enableHighAccuracy: false, maximumAge: 30000, timeout: 15000 },
+        );
+      }
+    };
+    update();
+    const timer = window.setInterval(update, 15000);
+    return () => {
+      window.clearInterval(timer);
+      if (watch !== null) navigator.geolocation.clearWatch(watch);
+    };
+  }, [
+    data?.company.timezone,
+    activeShift?.id,
+    activeShift?.start,
+    activeShift?.trackingStop,
+    activeSite?.latitude,
+    activeSite?.longitude,
+    activeState,
+    online,
+    locationMonitoringEnabled,
+  ]);
+  useEffect(() => {
+    if (
+      !data ||
+      !activeShift ||
+      activeState !== "working" ||
+      data.events.some((e) => e.shiftId === activeShift.id && e.type === "start_lunch")
+    )
+      return;
+    const key = `shiftline-lunch:${activeShift.id}`;
+    const remind = () => {
+      const time = new Intl.DateTimeFormat("en-GB", {
+        timeZone: data.company.timezone,
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+      }).format(new Date());
+      if (
+        time >= activeShift.lunch &&
+        time < activeShift.end &&
+        sessionStorage.getItem(key) !== "shown"
+      ) {
+        sessionStorage.setItem(key, "shown");
+        toast.info("It is time for lunch", {
+          description: `Your scheduled break is ${activeShift.lunchMinutes} minutes.`,
+        });
+      }
+    };
+    remind();
+    const timer = window.setInterval(remind, 30000);
+    return () => window.clearInterval(timer);
+  }, [
+    data?.company.timezone,
+    activeShift?.id,
+    activeShift?.lunch,
+    activeShift?.end,
+    activeShift?.lunchMinutes,
+    activeState,
+    data?.events,
+  ]);
   if (loading)
     return (
       <div className="grid min-h-screen place-items-center" role="status">
@@ -219,7 +359,9 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
     ready: true,
     busy,
     online,
-    location: "inactive",
+    location,
+    locationMonitoringEnabled,
+    setLocationMonitoringEnabled,
     shift: shift || {
       id: "",
       employeeId: data.me,

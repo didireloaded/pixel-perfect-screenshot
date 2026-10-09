@@ -28,7 +28,9 @@ export function EmployeeShell({ title, children }: { title: string; children: Re
   const me = d.employees.find((e) => e.id === d.me)!;
   const [profile, setProfile] = useState(false);
   const [notices, setNotices] = useState(false);
-  const unacked = d.requests.filter((r) => r.employeeId === d.me && r.status !== "pending").length;
+  const unacked =
+    d.requests.filter((r) => r.employeeId === d.me && r.status !== "pending").length +
+    d.notices.filter((n) => n.requiresAck && !n.acknowledged && n.endsOn >= d.today).length;
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-[440px] flex-col bg-background sm:my-6 sm:min-h-[860px] sm:rounded-[2.5rem] sm:shadow-card">
@@ -89,13 +91,20 @@ export function EmployeeShell({ title, children }: { title: string; children: Re
           <section className="mt-5 space-y-3 rounded-2xl bg-tint-blue p-4 text-sm">
             <h3 className="font-bold">Location privacy</h3>
             <p>
-              Location collection is not enabled in this release. Clocking actions save attendance
-              times, not your location.
+              Worksite checks run only while this app is open, you are working, and your shift is
+              active. They pause for lunch, jobs and personal departures.
             </p>
             <p>
-              Native background tracking will be added separately, with a visible status and a
-              cutoff at the authorised shift end.
+              The server keeps only exit and return alerts with distance and accuracy. It does not
+              store a route or coordinates from these checks.
             </p>
+            <Button
+              variant="chip"
+              size="sm"
+              onClick={() => d.setLocationMonitoringEnabled(!d.locationMonitoringEnabled)}
+            >
+              {d.locationMonitoringEnabled ? "Turn off site checks" : "Enable site checks"}
+            </Button>
           </section>
           <div className="mt-4 flex flex-col gap-2">
             {d.role === "manager" && (
@@ -115,8 +124,32 @@ export function EmployeeShell({ title, children }: { title: string; children: Re
       <Drawer open={notices} onOpenChange={setNotices}>
         <DrawerContent className="mx-auto max-w-[440px] rounded-t-[2rem] px-5 pb-8">
           <DrawerTitle className="pt-4 text-xl font-bold">Notifications</DrawerTitle>
-          <DrawerDescription>Request decisions and upcoming shifts</DrawerDescription>
+          <DrawerDescription>
+            Company notices, request decisions and upcoming shifts
+          </DrawerDescription>
           <div className="mt-4 space-y-3">
+            {d.notices
+              .filter((n) => n.endsOn >= d.today)
+              .map((n) => (
+                <article key={n.id} className="rounded-2xl bg-tint-pink p-4 text-sm">
+                  <p className="text-xs font-semibold uppercase text-primary">
+                    {n.kind.replaceAll("_", " ")} · {n.startsOn}
+                  </p>
+                  <h3 className="mt-1 font-bold">{n.title}</h3>
+                  <p className="mt-1 text-muted-foreground">{n.body}</p>
+                  {n.requiresAck && (
+                    <Button
+                      variant="pill"
+                      size="sm"
+                      className="mt-3"
+                      disabled={n.acknowledged || d.busy}
+                      onClick={() => void d.command("ack_notice", { id: n.id })}
+                    >
+                      {n.acknowledged ? "Acknowledged" : "Acknowledge"}
+                    </Button>
+                  )}
+                </article>
+              ))}
             {d.requests
               .filter((r) => r.employeeId === d.me && r.status !== "pending")
               .map((r) => (

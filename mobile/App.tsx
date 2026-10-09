@@ -13,6 +13,8 @@ import {
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import NetInfo from "@react-native-community/netinfo";
 import * as SecureStore from "expo-secure-store";
+import * as Location from "expo-location";
+import * as Notifications from "expo-notifications";
 import type { AttendanceSnapshot, AttendanceState, EventType } from "../shared/attendance";
 import {
   client,
@@ -34,7 +36,7 @@ import {
   type QueuedEvent,
 } from "./src/offlineQueue";
 import { syncLabel } from "./src/syncState";
-import { clockInLocation } from "./src/location";
+import { clockInLocation, zonedDateTime } from "./src/location";
 import { enableBackgroundSync, stopBackgroundSync } from "./src/backgroundSync";
 import { theme as c } from "./src/theme";
 const LABEL: Record<AttendanceState, string> = {
@@ -114,6 +116,8 @@ export default function App() {
     [busy, setBusy] = useState(false),
     [tab, setTab] = useState("Today"),
     [error, setError] = useState(""),
+    [siteMonitoring, setSiteMonitoring] = useState(false),
+    [notificationReady, setNotificationReady] = useState(0),
     [email, setEmail] = useState(""),
     [password, setPassword] = useState(""),
     [create, setCreate] = useState(false),
@@ -122,6 +126,7 @@ export default function App() {
     [request, setRequest] = useState(""),
     [note, setNote] = useState("");
   const saving = useRef(false);
+  const lastSiteReport = useRef(0);
   const generation = useRef(0);
   const liveOwner = useRef<string | null>(null);
   const network = useRef(true);
@@ -280,6 +285,187 @@ export default function App() {
       setBusy(false);
     }
   };
+  const monitoringKey = owner ? `shiftline.site-monitor.${owner}` : "";
+  useEffect(() => {
+    if (!monitoringKey) {
+      setSiteMonitoring(false);
+      return;
+    }
+    void SecureStore.getItemAsync(monitoringKey).then((saved) => setSiteMonitoring(saved === "on"));
+  }, [monitoringKey]);
+  const monitorShift = data?.shifts.find((s) => s.employeeId === data.me && s.date === data.today);
+  const monitorState = data?.states.find((s) => s.shiftId === monitorShift?.id)?.state;
+  const monitorSite = data?.sites.find((s) => s.id === monitorShift?.siteId);
+  useEffect(() => {
+    if (
+      !siteMonitoring ||
+      !online ||
+      !owner ||
+      !data ||
+      !monitorShift ||
+      monitorState !== "working" ||
+      monitorSite?.latitude == null ||
+      monitorSite.longitude == null
+    )
+      return;
+    let subscription: Location.LocationSubscription | null = null;
+    let cancelled = false;
+    const time = () =>
+      new Intl.DateTimeFormat("en-GB", {
+        timeZone: data.company.timezone,
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+      }).format(new Date());
+    const allowed = () =>
+      AppState.currentState === "active" &&
+      time() >= monitorShift.start &&
+      time() < monitorShift.trackingStop;
+    const update = async () => {
+      if (!allowed()) {
+        subscription?.remove();
+        subscription = null;
+        return;
+      }
+      if (subscription) return;
+      const permission = await Location.getForegroundPermissionsAsync();
+      if (!permission.granted || cancelled || !allowed()) return;
+      subscription = await Location.watchPositionAsync(
+        { accuracy: Location.Accuracy.Balanced, timeInterval: 30000, distanceInterval: 25 },
+        (fix) => {
+          if (
+            !allowed() ||
+            !network.current ||
+            Date.now() - lastSiteReport.current < 60000 ||
+            saving.current
+          )
+            return;
+          lastSiteReport.current = Date.now();
+          void rpc("report_position", {
+            shiftId: monitorShift.id,
+            latitude: fix.coords.latitude,
+            longitude: fix.coords.longitude,
+            accuracyM: fix.coords.accuracy ?? 10000,
+            source: "native",
+          })
+            .then((result) => {
+              if (result.status === "exit")
+                Alert.alert(
+                  "Worksite alert",
+                  "Your manager has been alerted that you left the worksite.",
+                );
+              if (result.status === "return")
+                Alert.alert("Back at worksite", "Your return has been recorded.");
+            })
+            .catch((e) => setError((e as Error).message));
+        },
+      );
+      if (cancelled || !allowed()) {
+        subscription.remove();
+        subscription = null;
+      }
+    };
+    void update();
+    const timer = setInterval(() => void update(), 15000);
+    const app = AppState.addEventListener("change", () => void update());
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+      app.remove();
+      subscription?.remove();
+    };
+  }, [
+    siteMonitoring,
+    online,
+    owner,
+    monitorShift?.id,
+    monitorShift?.start,
+    monitorShift?.trackingStop,
+    monitorState,
+    monitorSite?.latitude,
+    monitorSite?.longitude,
+    data?.company.timezone,
+  ]);
+  useEffect(() => {
+    if (
+      !data ||
+      !monitorShift ||
+      monitorState !== "working" ||
+      data.events.some((e) => e.shiftId === monitorShift.id && e.type === "start_lunch")
+    )
+      return;
+    const key = `shiftline.lunch-reminder.${monitorShift.id}`;
+    const remind = async () => {
+      const time = new Intl.DateTimeFormat("en-GB", {
+        timeZone: data.company.timezone,
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+      }).format(new Date());
+      if (
+        time >= monitorShift.lunch &&
+        time < monitorShift.end &&
+        !(await SecureStore.getItemAsync(key))
+      ) {
+        await SecureStore.setItemAsync(key, "shown");
+        Alert.alert("Lunch time", `Your scheduled break is ${monitorShift.lunchMinutes} minutes.`);
+      }
+    };
+    void remind();
+    const timer = setInterval(() => void remind(), 30000);
+    return () => clearInterval(timer);
+  }, [
+    monitorShift?.id,
+    monitorShift?.lunch,
+    monitorShift?.end,
+    monitorShift?.lunchMinutes,
+    monitorState,
+    data?.events,
+    data?.company.timezone,
+  ]);
+  useEffect(() => {
+    if (!data || !monitorShift) return;
+    const key = `shiftline.lunch-notification.${monitorShift.id}`;
+    let cancelled = false;
+    const update = async () => {
+      const prior = await SecureStore.getItemAsync(key);
+      const hasLunch = data.events.some(
+        (e) => e.shiftId === monitorShift.id && e.type === "start_lunch",
+      );
+      const when = zonedDateTime(monitorShift.date, monitorShift.lunch, data.company.timezone);
+      if (monitorState !== "working" || hasLunch || when.getTime() <= Date.now()) {
+        if (prior) {
+          await Notifications.cancelScheduledNotificationAsync(prior);
+          await SecureStore.deleteItemAsync(key);
+        }
+        return;
+      }
+      if (prior || cancelled) return;
+      const permission = await Notifications.getPermissionsAsync();
+      if (!permission.granted || cancelled) return;
+      const id = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "Lunch time",
+          body: "Your scheduled break is starting. Open Shiftline to record lunch.",
+        },
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: when },
+      });
+      if (cancelled) await Notifications.cancelScheduledNotificationAsync(id);
+      else await SecureStore.setItemAsync(key, id);
+    };
+    void update().catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    monitorShift?.id,
+    monitorShift?.date,
+    monitorShift?.lunch,
+    monitorState,
+    data?.events,
+    data?.company.timezone,
+    notificationReady,
+  ]);
   if (!configured)
     return (
       <SafeAreaProvider>
@@ -428,8 +614,37 @@ export default function App() {
                 </Text>
                 <View style={styles.badges}>
                   <Text style={styles.badge}>{LABEL[state]}</Text>
-                  <Text style={styles.badge}>Background location off</Text>
+                  <Text style={styles.badge}>
+                    {siteMonitoring && online && state === "working"
+                      ? "Site checks active"
+                      : "Site checks paused"}
+                  </Text>
                 </View>
+                {shift && monitorSite?.latitude != null && monitorSite.longitude != null && (
+                  <Action
+                    title={siteMonitoring ? "Turn off site checks" : "Enable worksite exit alerts"}
+                    soft
+                    onPress={() => {
+                      void (async () => {
+                        if (!siteMonitoring) {
+                          const permission = await Location.requestForegroundPermissionsAsync();
+                          if (!permission.granted) {
+                            Alert.alert(
+                              "Location permission",
+                              "Worksite alerts need foreground location permission.",
+                            );
+                            return;
+                          }
+                        }
+                        await SecureStore.setItemAsync(
+                          monitoringKey,
+                          siteMonitoring ? "off" : "on",
+                        );
+                        setSiteMonitoring(!siteMonitoring);
+                      })();
+                    }}
+                  />
+                )}
                 {pending.length > 0 && (
                   <Text style={[styles.body, { color: c.primary }]}>
                     Saved actions are awaiting server confirmation.{" "}
@@ -471,7 +686,7 @@ export default function App() {
                     <View style={styles.stat}>
                       <Text style={styles.caption}>Location cutoff</Text>
                       <Text style={styles.statValue}>{shift.trackingStop}</Text>
-                      <Text style={styles.caption}>No background tracking</Text>
+                      <Text style={styles.caption}>Checks stop at shift end</Text>
                     </View>
                   </View>
                 )}
@@ -518,6 +733,24 @@ export default function App() {
                   <Text style={styles.body}>Ask your manager to assign your next shift.</Text>
                 )}
               </Card>
+              {data.notices
+                .filter((n) => n.startsOn <= data.today && n.endsOn >= data.today)
+                .map((n) => (
+                  <Card key={n.id}>
+                    <Text style={styles.caption}>
+                      {n.kind.replaceAll("_", " ").toUpperCase()} · {n.startsOn}
+                    </Text>
+                    <Text style={styles.title}>{n.title}</Text>
+                    <Text style={styles.body}>{n.body}</Text>
+                    {n.requiresAck && !n.acknowledged && (
+                      <Action
+                        title="Acknowledge"
+                        disabled={!online || busy}
+                        onPress={() => void command("ack_notice", { id: n.id })}
+                      />
+                    )}
+                  </Card>
+                ))}
               <Card>
                 <Text style={styles.title}>Timeline</Text>
                 {data.events
@@ -558,9 +791,9 @@ export default function App() {
                 title="Enable background sync and alerts"
                 soft
                 onPress={() =>
-                  void enableBackgroundSync().catch((e) =>
-                    Alert.alert("Background sync", (e as Error).message),
-                  )
+                  void enableBackgroundSync()
+                    .then(() => setNotificationReady((n) => n + 1))
+                    .catch((e) => Alert.alert("Background sync", (e as Error).message))
                 }
               />
             </>

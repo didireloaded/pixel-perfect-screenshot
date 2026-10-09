@@ -152,7 +152,57 @@ export interface AttendanceSnapshot {
   submissions: Submission[];
   corrections: Correction[];
   setup: SetupStep[];
+  notices: CompanyNotice[];
+  siteAlerts: SiteAlert[];
+  payRates: PayRate[];
+  grossRuns: GrossRun[];
   onboarding?: boolean;
+}
+
+export interface CompanyNotice {
+  id: string;
+  kind: "holiday" | "closure" | "early_release" | "announcement";
+  title: string;
+  body: string;
+  startsOn: string;
+  endsOn: string;
+  requiresAck: boolean;
+  acknowledged: boolean;
+  createdAt: string;
+}
+export interface SiteAlert {
+  id: string;
+  employeeId: string;
+  shiftId: string;
+  kind: "exit" | "return";
+  distanceM: number;
+  accuracyM: number;
+  observedAt: string;
+  source: "web" | "native";
+}
+export interface PayRate {
+  id: string;
+  employeeId: string;
+  effectiveOn: string;
+  currency: string;
+  hourlyMinor: number;
+  overtimeMultiplierBp: number;
+}
+export interface GrossRow {
+  employee_number: string;
+  shift_date: string;
+  regular_seconds: number;
+  overtime_seconds_approved: number;
+  hourly_rate_minor: number;
+  overtime_multiplier_bp: number;
+  currency: string;
+  gross_minor: number;
+}
+export interface GrossRun {
+  id: string;
+  periodId: string;
+  createdAt: string;
+  rows: GrossRow[];
 }
 
 export type GeofenceMode = "validate" | "notify" | "auto_suggest";

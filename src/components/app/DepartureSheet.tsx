@@ -121,7 +121,7 @@ export function DepartureSheet({
 
         <p className="mt-4 rounded-2xl bg-tint-cream p-3 text-sm">
           {reason === "job" &&
-            "No approval needed — the job is already authorised. Location collection is not enabled."}
+            "No approval needed — the job is already authorised. Worksite checks pause while you are on the job."}
           {reason === "personal" &&
             "Manager approval required. Your departure is recorded separately from the decision."}
           {reason === "emergency" &&

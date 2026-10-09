@@ -22,16 +22,18 @@ Without Supabase environment values, the development server runs embedded Postgr
 7. The employee clocks in, starts/ends lunch or an assigned job, then clocks out. Times are recorded by the database server. Web actions require a connection. The Expo client saves attendance intents to SQLite before showing “Saved on this phone”; server confirmation is shown separately.
 8. The employee submits the completed timesheet from My hours, requesting any recorded overtime.
 9. The manager approves the timesheet and the amount of overtime. A manager cannot approve their own timesheet.
-10. The manager locks the completed payroll date range, then downloads its immutable CSV. Every assigned shift in the period must be complete and approved.
+10. The manager locks the completed payroll date range, sets effective hourly rates, creates a frozen gross-pay run, then downloads its CSV. Every assigned shift in the period must be complete and approved.
 
-Shifts in this release start and end on the same company-local date. Jobs remain paid work; lunch and personal departures are unpaid. New timesheet calculations sum integer seconds from effective attendance intervals, with a per-shift regular-time cap. Previously locked exports retain their original format. No rate, tax or money calculation is included. Locked periods cannot be reopened through the application.
+The manager can publish holiday, closure, early-release and general notices, review site exit/return alerts, and issue a private code for a supervised kiosk. Employees can acknowledge notices and opt into foreground worksite monitoring. The kiosk requires a signed-in manager, employee number and code; it is not an unattended terminal.
+
+Shifts in this release start and end on the same company-local date. Jobs remain paid work; lunch and personal departures are unpaid. New timesheet calculations sum integer seconds from effective attendance intervals, with a per-shift regular-time cap. Previously locked attendance exports retain their original format. Gross-pay runs freeze approved hours, hourly rates, overtime multipliers and gross amounts in minor currency units. No tax, deductions or actual payment processing is included. Locked periods cannot be reopened through the application. Notices do not automatically cancel shifts or calculate holiday pay.
 
 ## Connect Supabase / Lovable Cloud
 
 GitHub sync transfers source code. It does not apply migrations or connect authentication by itself.
 
 1. Enable a dedicated database for this Lovable project, or connect its dedicated Supabase project. Do not reuse an unrelated project's database.
-2. Apply `supabase/migrations/20261009065831_attendance_foundation.sql` using the Supabase SQL editor, or the Supabase CLI migration workflow for that project. Then apply `supabase/migrations/20261009074635_policies_offline_corrections.sql` in order. Apply each migration once. They create only `sl_*` tables and the `shiftline_private` schema; it does not alter existing application tables.
+2. Apply every SQL file in `supabase/migrations/` in filename order using the Supabase SQL editor or CLI migration workflow for that project. Apply each migration once. They create only `sl_*` tables and the `shiftline_private` schema; they do not alter existing application tables.
 3. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in the app's build environment. The legacy public anon key is supported as `VITE_SUPABASE_ANON_KEY`. Never put service-role credentials in browser environment variables.
 4. Enable email/password sign-in, keep anonymous sign-in disabled, configure the site URL and allowed redirects, and set a minimum password length of 12. For a real launch, configure email delivery and keep email confirmation enabled.
 5. Rebuild/restart the app. Create and confirm the manager's account, then complete company setup. Employees confirm their own account before consuming activation codes.
@@ -61,12 +63,12 @@ The manager Policies tab includes setup progress, sites, policy history, payroll
 
 ## Deployment and rollback
 
-Apply both migrations in order before deploying the new app. Back up the dedicated database first. For an application rollback, redeploy the previous application commit while retaining the additive tables and immutable records. Do not drop attendance, adjustment, calculation or export tables. Test migrations and restoration in staging before production payroll.
+Apply all migrations in filename order before deploying the new app. Back up the dedicated database first. For an application rollback, redeploy the previous application commit while retaining the additive tables and immutable records. Do not drop attendance, adjustment, calculation or export tables. Test migrations and restoration in staging before production payroll.
 
 ## Verification limits
 
 Web and native TypeScript, unit tests, actual PostgreSQL integration tests and native Metro bundling are checked locally. These do not prove physical-device SQLite recovery, operating-system background scheduling, GPS behavior, hosted Supabase Auth or email delivery. Verify these on iOS and Android development builds after cloud connection.
 
-Location is captured only for foreground clock-in inside the assigned shift window. There is no continuous or off-duty tracking. Background geofence arrival/exit alerts, kiosk PIN/QR flows and APNs/FCM manager notifications are not implemented. Auto-suggest currently produces server warnings, not automatic arrival prompts. Holidays/closures can be communicated through announcements and shifts; an automatic jurisdiction holiday engine is not included.
+With employee consent, web and native clients check the worksite while the app is open and the employee is actively working, then pause for breaks, job departures, offline state and shift end. The server stores alert distance and accuracy, not location coordinates. Operating-system background geofence detection with the app closed, unattended kiosk/QR scanning and APNs/FCM manager push are not implemented. Auto-suggest currently produces server warnings, not automatic arrival prompts. Notices communicate holidays and closures; an automatic jurisdiction holiday/pay engine is not included.
 
 The Expo dependency tree currently reports transitive build-tool advisories in Metro/Expo dependencies. A forced downgrade is not a safe remedy; review compatible upstream fixes before distribution.

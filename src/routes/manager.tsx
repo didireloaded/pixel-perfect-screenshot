@@ -19,6 +19,8 @@ import { downloadPayroll } from "@/lib/payroll-export";
 export const Route = createFileRoute("/manager")({ component: Manager });
 import { CompanySettings, SetupChecklist } from "@/components/app/CompanySettings";
 import { CorrectionReview } from "@/components/app/CorrectionReview";
+import { CompanyNotices, GrossPayroll, SiteAlerts } from "@/components/app/WorkdayOperations";
+import { KioskDesk } from "@/components/app/KioskDesk";
 
 const TABS = [
   "Overview",
@@ -29,6 +31,8 @@ const TABS = [
   "Audit",
   "Policies",
   "Corrections",
+  "Notices",
+  "Kiosk",
 ] as const;
 function Manager() {
   const d = useAttendance();
@@ -101,9 +105,14 @@ function Manager() {
       </nav>
       {tab === "Policies" && <CompanySettings />}
       {tab === "Corrections" && <CorrectionReview />}
+      {tab === "Notices" && <CompanyNotices />}
+      {tab === "Kiosk" && <KioskDesk />}
       {tab === "Overview" && (
         <>
           <SetupChecklist />
+          <div className="mb-5">
+            <SiteAlerts />
+          </div>
           <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
             {[
               [Users, "Employees", staff.length],
@@ -406,6 +415,7 @@ function Manager() {
       {tab === "Payroll" && (
         <div className="grid gap-5 lg:grid-cols-2">
           <div className="space-y-5">
+            <GrossPayroll />
             {d.shifts.map((s) => {
               const t = d.timesheets.find((t) => t.shiftId === s.id);
               return (

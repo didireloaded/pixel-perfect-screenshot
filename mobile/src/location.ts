@@ -1,6 +1,28 @@
 import * as Location from "expo-location";
 import type { AttendanceSnapshot, Shift, LocationEvidence } from "../../shared/attendance";
-// No background region or location subscriptions: explicit, on-duty checks only.
+export function zonedDateTime(date: string, hhmm: string, timezone: string): Date {
+  const intended = Date.parse(`${date}T${hhmm}:00Z`);
+  let candidate = intended;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(new Date(candidate));
+    const value = (type: string) => parts.find((part) => part.type === type)!.value;
+    const represented = Date.parse(
+      `${value("year")}-${value("month")}-${value("day")}T${value("hour")}:${value("minute")}:${value("second")}Z`,
+    );
+    candidate += intended - represented;
+  }
+  return new Date(candidate);
+}
+// Foreground checks only. No background region registrations or off-duty location collection.
 export async function clockInLocation(
   data: AttendanceSnapshot,
   shift: Shift,
