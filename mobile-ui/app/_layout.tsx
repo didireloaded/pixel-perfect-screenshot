@@ -16,6 +16,7 @@ export default function RootLayout() {
     <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
     <Stack.Screen name="job/[id]" options={{ title: 'Job detail' }} />
     <Stack.Screen name="request/[id]" options={{ title: 'Request detail' }} />
+    <Stack.Screen name="request/new" options={{ title: 'New request' }} />
     <Stack.Screen name="corrections" options={{ title: 'Correction history' }} />
     <Stack.Screen name="privacy" options={{ title: 'Privacy' }} />
     <Stack.Screen name="settings" options={{ title: 'Account settings' }} />
