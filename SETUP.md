@@ -34,6 +34,8 @@ Shifts in this release start and end on the same company-local date. Jobs remain
 
 GitHub sync transfers source code. It does not apply migrations or connect authentication by itself.
 
+The dedicated Shiftline project is `hfhiuxijpbujoahtnkjt`. Its seven migrations were applied on 9 October 2026. The SQL filenames in this repository now match the migration versions recorded by Supabase, so subsequent CLI migrations can continue from that history. The project starts with no company or employee records; the first manager must sign up and complete company setup in the app. Local web and native clients read their ignored `.env.local` files. The separate `mobile-ui/` design demo intentionally remains on mock data.
+
 1. Enable a dedicated database for this Lovable project, or connect its dedicated Supabase project. Do not reuse an unrelated project's database.
 2. Apply every SQL file in `supabase/migrations/` in filename order using the Supabase SQL editor or CLI migration workflow for that project. Apply each migration once. They create only `sl_*` tables and the `shiftline_private` schema; they do not alter existing application tables.
 3. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in the app's build environment. The legacy public anon key is supported as `VITE_SUPABASE_ANON_KEY`. Never put service-role credentials in browser environment variables.
