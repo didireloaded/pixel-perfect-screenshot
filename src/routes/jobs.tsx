@@ -1,6 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Briefcase, ChevronRight, Clock3, MapPin, UserRound } from "lucide-react";
+import {
+  Briefcase,
+  CheckCircle2,
+  ChevronRight,
+  Clock3,
+  MapPin,
+  UserRound,
+  Users,
+} from "lucide-react";
 import { EmployeeShell, ConnectionBanner, StatusPill } from "@/components/app/EmployeeShell";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from "@/components/ui/drawer";
@@ -19,6 +27,8 @@ function Jobs() {
   const canStart =
     selected?.date === d.today && selected.status === "assigned" && d.state === "working";
   const canReturn = selected?.status === "in_progress" && d.state === "on_job";
+  const selectedSteps = d.jobSteps.filter((step) => step.jobId === selected?.id);
+  const selectedTeam = d.jobTeam.filter((member) => member.jobId === selected?.id);
 
   const completeAction = async () => {
     if (!selected) return;
@@ -87,6 +97,27 @@ function Jobs() {
             </span>
             <ChevronRight className="mt-3 h-4 w-4 shrink-0 text-muted-foreground" />
           </span>
+          {d.jobSteps.some((step) => step.jobId === job.id) &&
+            (() => {
+              const steps = d.jobSteps.filter((step) => step.jobId === job.id);
+              const done = steps.filter((step) => !!step.completedAt).length;
+              return (
+                <span className="mt-3 block">
+                  <span className="flex justify-between text-xs text-muted-foreground">
+                    <span>Task progress</span>
+                    <span>
+                      {done}/{steps.length} steps
+                    </span>
+                  </span>
+                  <span className="mt-1 block h-2 overflow-hidden rounded-full bg-muted">
+                    <span
+                      className="block h-full rounded-full bg-success"
+                      style={{ width: `${(done / steps.length) * 100}%` }}
+                    />
+                  </span>
+                </span>
+              );
+            })()}
           <span className="mt-3 inline-block">
             <StatusPill
               tone={
@@ -95,6 +126,25 @@ function Jobs() {
             >
               {job.status.replace("_", " ")}
             </StatusPill>
+          </span>
+          <span className="ml-3 inline-flex items-center align-middle">
+            {d.jobTeam
+              .filter((member) => member.jobId === job.id)
+              .slice(0, 4)
+              .map((member, index) => (
+                <span
+                  key={member.employeeId}
+                  title={member.name}
+                  aria-label={member.name}
+                  className={`grid h-7 w-7 place-items-center rounded-full border-2 border-white text-[10px] font-bold text-primary ${index === 0 ? "bg-primary-soft" : "bg-tint-blue"} ${index > 0 ? "-ml-2" : ""}`}
+                >
+                  {member.name
+                    .split(" ")
+                    .map((part) => part[0])
+                    .slice(0, 2)
+                    .join("")}
+                </span>
+              ))}
           </span>
         </button>
       ))}
@@ -150,6 +200,69 @@ function Jobs() {
                 <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
                   {selected.instructions || "No additional instructions."}
                 </p>
+              </section>
+              <section className="mt-5 border-t border-border pt-5">
+                <h3 className="flex items-center gap-2 text-sm font-bold">
+                  <Users className="h-4 w-4 text-primary" /> Working with
+                </h3>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {selectedTeam.map((member) => (
+                    <span
+                      key={member.employeeId}
+                      className="flex items-center gap-2 rounded-full bg-primary-soft py-1 pl-1 pr-3 text-xs font-semibold"
+                    >
+                      <span className="grid h-7 w-7 place-items-center rounded-full bg-white text-[10px] text-primary">
+                        {member.name
+                          .split(" ")
+                          .map((part) => part[0])
+                          .slice(0, 2)
+                          .join("")}
+                      </span>
+                      {member.name}
+                      {member.employeeId === selected.assignee ? " · assigned" : ""}
+                    </span>
+                  ))}
+                </div>
+              </section>
+              <section className="mt-5 border-t border-border pt-5">
+                <div className="flex items-center justify-between">
+                  <h3 className="flex items-center gap-2 text-sm font-bold">
+                    <CheckCircle2 className="h-4 w-4 text-primary" /> Task progress
+                  </h3>
+                  <span className="text-xs text-muted-foreground">
+                    {selectedSteps.filter((step) => step.completedAt).length}/{selectedSteps.length}{" "}
+                    steps
+                  </span>
+                </div>
+                {!selectedSteps.length && (
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Your manager has not added task steps yet.
+                  </p>
+                )}
+                <div className="mt-3 space-y-2">
+                  {selectedSteps.map((step) => (
+                    <button
+                      key={step.id}
+                      type="button"
+                      aria-pressed={!!step.completedAt}
+                      disabled={d.busy || !d.online}
+                      onClick={() =>
+                        void d.command("set_job_step_done", {
+                          stepId: step.id,
+                          done: !step.completedAt,
+                        })
+                      }
+                      className={`flex w-full items-center gap-3 rounded-2xl p-3 text-left text-sm ${step.completedAt ? "bg-tint-mint" : "bg-muted"}`}
+                    >
+                      <span
+                        className={`grid h-6 w-6 shrink-0 place-items-center rounded-full ${step.completedAt ? "bg-success text-white" : "border border-muted-foreground"}`}
+                      >
+                        {step.completedAt ? "✓" : ""}
+                      </span>
+                      <span>{step.label}</span>
+                    </button>
+                  ))}
+                </div>
               </section>
               {selected.status !== "completed" && (
                 <div className="mt-6">

@@ -1,5 +1,15 @@
 import { Link } from "@tanstack/react-router";
-import { Bell, CalendarClock, Briefcase, Clock3, Inbox, LayoutDashboard, X } from "lucide-react";
+import {
+  Bell,
+  CalendarClock,
+  CalendarDays,
+  Briefcase,
+  Clock3,
+  Inbox,
+  Mail,
+  LayoutDashboard,
+  X,
+} from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Drawer, DrawerContent, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
@@ -8,9 +18,10 @@ import { useAttendance } from "@/lib/app-store";
 
 const NAV = [
   { to: "/", label: "Today", icon: CalendarClock },
+  { to: "/calendar", label: "Calendar", icon: CalendarDays },
   { to: "/jobs", label: "Jobs", icon: Briefcase },
-  { to: "/hours", label: "My hours", icon: Clock3 },
-  { to: "/requests", label: "Requests", icon: Inbox },
+  { to: "/inbox", label: "Inbox", icon: Mail },
+  { to: "/hours", label: "Hours", icon: Clock3 },
 ] as const;
 
 export function ConnectionBanner() {
@@ -30,7 +41,8 @@ export function EmployeeShell({ title, children }: { title: string; children: Re
   const [notices, setNotices] = useState(false);
   const unacked =
     d.requests.filter((r) => r.employeeId === d.me && r.status !== "pending").length +
-    d.notices.filter((n) => n.requiresAck && !n.acknowledged && n.endsOn >= d.today).length;
+    d.notices.filter((n) => n.requiresAck && !n.acknowledged && n.endsOn >= d.today).length +
+    d.messages.filter((m) => m.recipientId === d.me && !m.readAt).length;
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-[440px] flex-col bg-background sm:my-6 sm:min-h-[860px] sm:rounded-[2.5rem] sm:shadow-card">
@@ -66,7 +78,7 @@ export function EmployeeShell({ title, children }: { title: string; children: Re
         aria-label="Main"
         className="pb-safe fixed inset-x-0 bottom-0 z-30 mx-auto w-full max-w-[440px] border-t border-border bg-card px-3 pt-2 sm:rounded-b-[2.5rem]"
       >
-        <ul className="grid grid-cols-4">
+        <ul className="grid grid-cols-5">
           {NAV.map(({ to, label, icon: Icon }) => (
             <li key={to}>
               <Link
@@ -107,6 +119,16 @@ export function EmployeeShell({ title, children }: { title: string; children: Re
             </Button>
           </section>
           <div className="mt-4 flex flex-col gap-2">
+            <Button variant="pill" size="xl" asChild>
+              <Link to="/requests">
+                <Inbox /> Requests and corrections
+              </Link>
+            </Button>
+            <Button variant="pill" size="xl" asChild>
+              <Link to="/inbox">
+                <Mail /> Messages and company news
+              </Link>
+            </Button>
             {d.role === "manager" && (
               <Button variant="pill" size="xl" asChild>
                 <Link to="/manager">
@@ -128,6 +150,21 @@ export function EmployeeShell({ title, children }: { title: string; children: Re
             Company notices, request decisions and upcoming shifts
           </DrawerDescription>
           <div className="mt-4 space-y-3">
+            {d.messages
+              .filter((m) => m.recipientId === d.me && !m.readAt)
+              .map((m) => (
+                <Link
+                  key={m.id}
+                  to="/inbox"
+                  className="block rounded-2xl bg-primary-soft p-4 text-sm"
+                >
+                  <p className="text-xs font-semibold uppercase text-primary">
+                    Message from {m.senderName}
+                  </p>
+                  <h3 className="mt-1 font-bold">{m.title}</h3>
+                  <p className="mt-1 line-clamp-2 text-muted-foreground">{m.body}</p>
+                </Link>
+              ))}
             {d.notices
               .filter((n) => n.endsOn >= d.today)
               .map((n) => (

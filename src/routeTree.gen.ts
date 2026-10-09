@@ -10,7 +10,9 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as HoursRouteImport } from './routes/hours'
+import { Route as InboxRouteImport } from './routes/inbox'
 import { Route as JobsRouteImport } from './routes/jobs'
 import { Route as ManagerRouteImport } from './routes/manager'
 import { Route as RequestsRouteImport } from './routes/requests'
@@ -20,9 +22,19 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CalendarRoute = CalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const HoursRoute = HoursRouteImport.update({
   id: '/hours',
   path: '/hours',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InboxRoute = InboxRouteImport.update({
+  id: '/inbox',
+  path: '/inbox',
   getParentRoute: () => rootRouteImport,
 } as any)
 const JobsRoute = JobsRouteImport.update({
@@ -43,14 +55,18 @@ const RequestsRoute = RequestsRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/calendar': typeof CalendarRoute
   '/hours': typeof HoursRoute
+  '/inbox': typeof InboxRoute
   '/jobs': typeof JobsRoute
   '/manager': typeof ManagerRoute
   '/requests': typeof RequestsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/calendar': typeof CalendarRoute
   '/hours': typeof HoursRoute
+  '/inbox': typeof InboxRoute
   '/jobs': typeof JobsRoute
   '/manager': typeof ManagerRoute
   '/requests': typeof RequestsRoute
@@ -58,22 +74,36 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/calendar': typeof CalendarRoute
   '/hours': typeof HoursRoute
+  '/inbox': typeof InboxRoute
   '/jobs': typeof JobsRoute
   '/manager': typeof ManagerRoute
   '/requests': typeof RequestsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/hours' | '/jobs' | '/manager' | '/requests'
+  fullPaths:
+    '/' | '/calendar' | '/hours' | '/inbox' | '/jobs' | '/manager' | '/requests'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/hours' | '/jobs' | '/manager' | '/requests'
-  id: '__root__' | '/' | '/hours' | '/jobs' | '/manager' | '/requests'
+  to:
+    '/' | '/calendar' | '/hours' | '/inbox' | '/jobs' | '/manager' | '/requests'
+  id:
+    | '__root__'
+    | '/'
+    | '/calendar'
+    | '/hours'
+    | '/inbox'
+    | '/jobs'
+    | '/manager'
+    | '/requests'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CalendarRoute: typeof CalendarRoute
   HoursRoute: typeof HoursRoute
+  InboxRoute: typeof InboxRoute
   JobsRoute: typeof JobsRoute
   ManagerRoute: typeof ManagerRoute
   RequestsRoute: typeof RequestsRoute
@@ -88,11 +118,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/calendar': {
+      id: '/calendar'
+      path: '/calendar'
+      fullPath: '/calendar'
+      preLoaderRoute: typeof CalendarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/hours': {
       id: '/hours'
       path: '/hours'
       fullPath: '/hours'
       preLoaderRoute: typeof HoursRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inbox': {
+      id: '/inbox'
+      path: '/inbox'
+      fullPath: '/inbox'
+      preLoaderRoute: typeof InboxRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/jobs': {
@@ -121,7 +165,9 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CalendarRoute: CalendarRoute,
   HoursRoute: HoursRoute,
+  InboxRoute: InboxRoute,
   JobsRoute: JobsRoute,
   ManagerRoute: ManagerRoute,
   RequestsRoute: RequestsRoute,

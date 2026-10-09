@@ -21,6 +21,7 @@ import { CompanySettings, SetupChecklist } from "@/components/app/CompanySetting
 import { CorrectionReview } from "@/components/app/CorrectionReview";
 import { CompanyNotices, GrossPayroll, SiteAlerts } from "@/components/app/WorkdayOperations";
 import { KioskDesk } from "@/components/app/KioskDesk";
+import { ManagerJobTools, ManagerMessages } from "@/components/app/TeamComms";
 
 const TABS = [
   "Overview",
@@ -31,7 +32,8 @@ const TABS = [
   "Audit",
   "Policies",
   "Corrections",
-  "Notices",
+  "News & events",
+  "Messages",
   "Kiosk",
 ] as const;
 function Manager() {
@@ -105,7 +107,8 @@ function Manager() {
       </nav>
       {tab === "Policies" && <CompanySettings />}
       {tab === "Corrections" && <CorrectionReview />}
-      {tab === "Notices" && <CompanyNotices />}
+      {tab === "News & events" && <CompanyNotices />}
+      {tab === "Messages" && <ManagerMessages />}
       {tab === "Kiosk" && <KioskDesk />}
       {tab === "Overview" && (
         <>
@@ -279,83 +282,86 @@ function Manager() {
         </div>
       )}
       {tab === "Schedule" && (
-        <div className="grid gap-5 lg:grid-cols-2">
-          <div className="space-y-5">
-            {staff.length ? (
-              <RecordForm
-                title="Assign shift"
-                action="assign_shift"
-                fields={[
-                  { name: "employeeId", label: "Employee", options: employeeOptions },
-                  { name: "siteId", label: "Site", options: siteOptions },
-                  { name: "date", label: "Date", type: "date", value: d.today },
-                  { name: "start", label: "Shift starts", type: "time", value: "08:00" },
-                  { name: "end", label: "Shift ends", type: "time", value: "17:00" },
-                  { name: "lunch", label: "Lunch starts", type: "time", value: "12:00" },
-                  {
-                    name: "lunchMinutes",
-                    label: "Unpaid lunch (minutes)",
-                    type: "number",
-                    value: 60,
-                    min: 0,
-                    max: 120,
-                  },
-                  {
-                    name: "regularMinutes",
-                    label: "Regular work (minutes)",
-                    type: "number",
-                    value: 480,
-                    min: 1,
-                    max: 1440,
-                  },
-                ]}
-              />
-            ) : (
-              <p className="card-surface p-5 text-sm">Add an employee before assigning shifts.</p>
-            )}
-            {shiftOptions.length > 0 && (
-              <RecordForm
-                title="Assign job"
-                action="create_job"
-                fields={[
-                  { name: "shiftId", label: "Assigned shift", options: shiftOptions },
-                  { name: "title", label: "Job title" },
-                  { name: "destination", label: "Destination" },
-                  { name: "instructions", label: "Instructions", optional: true },
-                  { name: "start", label: "Starts", type: "time", value: "14:00" },
-                  { name: "end", label: "Ends", type: "time", value: "15:00" },
-                ]}
-              />
-            )}
-          </div>
-          <section className="card-surface p-5">
-            <h2 className="text-lg font-bold">Scheduled shifts</h2>
-            <div className="mt-4 space-y-3">
-              {!d.shifts.length && (
-                <p className="text-sm text-muted-foreground">No shifts assigned.</p>
+        <>
+          <div className="grid gap-5 lg:grid-cols-2">
+            <div className="space-y-5">
+              {staff.length ? (
+                <RecordForm
+                  title="Assign shift"
+                  action="assign_shift"
+                  fields={[
+                    { name: "employeeId", label: "Employee", options: employeeOptions },
+                    { name: "siteId", label: "Site", options: siteOptions },
+                    { name: "date", label: "Date", type: "date", value: d.today },
+                    { name: "start", label: "Shift starts", type: "time", value: "08:00" },
+                    { name: "end", label: "Shift ends", type: "time", value: "17:00" },
+                    { name: "lunch", label: "Lunch starts", type: "time", value: "12:00" },
+                    {
+                      name: "lunchMinutes",
+                      label: "Unpaid lunch (minutes)",
+                      type: "number",
+                      value: 60,
+                      min: 0,
+                      max: 120,
+                    },
+                    {
+                      name: "regularMinutes",
+                      label: "Regular work (minutes)",
+                      type: "number",
+                      value: 480,
+                      min: 1,
+                      max: 1440,
+                    },
+                  ]}
+                />
+              ) : (
+                <p className="card-surface p-5 text-sm">Add an employee before assigning shifts.</p>
               )}
-              {d.shifts.map((s) => (
-                <article key={s.id} className="rounded-2xl bg-muted p-4">
-                  <h3 className="font-bold">{names(s.employeeId)}</h3>
-                  <p className="mt-1 text-sm">
-                    {s.date} · {s.start}–{s.end}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {d.sites.find((site) => site.id === s.siteId)?.name} · {s.lunchMinutes} minute
-                    lunch
-                  </p>
-                  {d.jobs
-                    .filter((j) => j.shiftId === s.id)
-                    .map((j) => (
-                      <p key={j.id} className="mt-2 rounded-xl bg-tint-blue p-2 text-xs">
-                        {j.start}–{j.end} · {j.title} · {j.destination}
-                      </p>
-                    ))}
-                </article>
-              ))}
+              {shiftOptions.length > 0 && (
+                <RecordForm
+                  title="Assign job"
+                  action="create_job"
+                  fields={[
+                    { name: "shiftId", label: "Assigned shift", options: shiftOptions },
+                    { name: "title", label: "Job title" },
+                    { name: "destination", label: "Destination" },
+                    { name: "instructions", label: "Instructions", optional: true },
+                    { name: "start", label: "Starts", type: "time", value: "14:00" },
+                    { name: "end", label: "Ends", type: "time", value: "15:00" },
+                  ]}
+                />
+              )}
             </div>
-          </section>
-        </div>
+            <section className="card-surface p-5">
+              <h2 className="text-lg font-bold">Scheduled shifts</h2>
+              <div className="mt-4 space-y-3">
+                {!d.shifts.length && (
+                  <p className="text-sm text-muted-foreground">No shifts assigned.</p>
+                )}
+                {d.shifts.map((s) => (
+                  <article key={s.id} className="rounded-2xl bg-muted p-4">
+                    <h3 className="font-bold">{names(s.employeeId)}</h3>
+                    <p className="mt-1 text-sm">
+                      {s.date} · {s.start}–{s.end}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {d.sites.find((site) => site.id === s.siteId)?.name} · {s.lunchMinutes} minute
+                      lunch
+                    </p>
+                    {d.jobs
+                      .filter((j) => j.shiftId === s.id)
+                      .map((j) => (
+                        <p key={j.id} className="mt-2 rounded-xl bg-tint-blue p-2 text-xs">
+                          {j.start}–{j.end} · {j.title} · {j.destination}
+                        </p>
+                      ))}
+                  </article>
+                ))}
+              </div>
+            </section>
+          </div>
+          <ManagerJobTools />
+        </>
       )}
       {tab === "Requests" && (
         <div className="grid gap-5 lg:grid-cols-2">

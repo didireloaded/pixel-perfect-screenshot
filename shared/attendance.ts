@@ -156,12 +156,15 @@ export interface AttendanceSnapshot {
   siteAlerts: SiteAlert[];
   payRates: PayRate[];
   grossRuns: GrossRun[];
+  messages: DirectMessage[];
+  jobSteps: JobStep[];
+  jobTeam: JobTeamMember[];
   onboarding?: boolean;
 }
 
 export interface CompanyNotice {
   id: string;
-  kind: "holiday" | "closure" | "early_release" | "announcement";
+  kind: "holiday" | "closure" | "early_release" | "announcement" | "event";
   title: string;
   body: string;
   startsOn: string;
@@ -169,6 +172,29 @@ export interface CompanyNotice {
   requiresAck: boolean;
   acknowledged: boolean;
   createdAt: string;
+  startsTime?: string | null;
+}
+export interface DirectMessage {
+  id: string;
+  recipientId: string;
+  senderName: string;
+  title: string;
+  body: string;
+  sentAt: string;
+  readAt: string | null;
+}
+export interface JobStep {
+  id: string;
+  jobId: string;
+  label: string;
+  sortOrder: number;
+  completedAt: string | null;
+}
+export interface JobTeamMember {
+  jobId: string;
+  employeeId: string;
+  name: string;
+  team: string;
 }
 export interface SiteAlert {
   id: string;

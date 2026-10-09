@@ -12,7 +12,7 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:database": "node --test scripts/database.test.mjs scripts/advanced.test.mjs scripts/workflows.test.mjs"
+    "test:database": "node --test scripts/database.test.mjs scripts/advanced.test.mjs scripts/workflows.test.mjs scripts/communications.test.mjs"
   },
   "overrides": {
     "rolldown": "1.2.1"

@@ -13,7 +13,8 @@ export function CompanyNotices() {
     e.preventDefault();
     const form = e.currentTarget;
     const fields = new FormData(form);
-    const result = await d.command("create_notice", {
+    const result = await d.command(kind === "event" ? "create_event" : "create_notice", {
+      ...(kind === "event" ? { startsTime: String(fields.get("startsTime") || "") } : {}),
       kind,
       title: String(fields.get("title") || "").trim(),
       body: String(fields.get("body") || "").trim(),
@@ -31,7 +32,7 @@ export function CompanyNotices() {
           <div>
             <h2 className="text-lg font-bold">Tell the team</h2>
             <p className="text-sm text-muted-foreground">
-              Holidays, closures and early departures appear in the employee app.
+              News, events, holidays and closures appear in the employee app.
             </p>
           </div>
         </div>
@@ -43,11 +44,18 @@ export function CompanyNotices() {
             className="mt-2 h-12 w-full rounded-2xl bg-muted px-3"
           >
             <option value="announcement">Announcement</option>
+            <option value="event">Company event</option>
             <option value="holiday">Public holiday</option>
             <option value="closure">Office closure or maintenance</option>
             <option value="early_release">Leave early</option>
           </select>
         </label>
+        {kind === "event" && (
+          <label className="block text-sm font-medium">
+            Event time
+            <Input name="startsTime" type="time" className="mt-2 h-12 rounded-2xl bg-muted" />
+          </label>
+        )}
         <label className="block text-sm font-medium">
           Title
           <Input
@@ -89,10 +97,12 @@ export function CompanyNotices() {
             />
           </label>
         </div>
-        <label className="flex items-center gap-3 text-sm">
-          <input name="requiresAck" type="checkbox" className="h-4 w-4 accent-primary" /> Ask
-          employees to acknowledge
-        </label>
+        {kind !== "event" && (
+          <label className="flex items-center gap-3 text-sm">
+            <input name="requiresAck" type="checkbox" className="h-4 w-4 accent-primary" /> Ask
+            employees to acknowledge
+          </label>
+        )}
         <Button variant="hero" size="xl" className="w-full" disabled={d.busy || !d.online}>
           Publish notice
         </Button>

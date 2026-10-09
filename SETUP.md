@@ -26,6 +26,8 @@ Without Supabase environment values, the development server runs embedded Postgr
 
 The manager can publish holiday, closure, early-release and general notices, review site exit/return alerts, and issue a private code for a supervised kiosk. Employees can acknowledge notices and opt into foreground worksite monitoring. The kiosk requires a signed-in manager, employee number and code; it is not an unattended terminal.
 
+The employee web app also has a calendar for assigned shifts, jobs and company notices; an inbox for direct manager messages, news and events; and job steps with progress calculated from completed steps. Managers send one-way messages in **Messages**, publish events in **News & events**, and add job steps and team members in **Schedule**. Job team members are visible for coordination; the job's primary assignee is the person authorized to record its attendance actions. Messages are in-app records, without email, SMS or push delivery.
+
 Shifts in this release start and end on the same company-local date. Jobs remain paid work; lunch and personal departures are unpaid. New timesheet calculations sum integer seconds from effective attendance intervals, with a per-shift regular-time cap. Previously locked attendance exports retain their original format. Gross-pay runs freeze approved hours, hourly rates, overtime multipliers and gross amounts in minor currency units. No tax, deductions or actual payment processing is included. Locked periods cannot be reopened through the application. Notices do not automatically cancel shifts or calculate holiday pay.
 
 ## Connect Supabase / Lovable Cloud

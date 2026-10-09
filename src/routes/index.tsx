@@ -10,6 +10,7 @@ import {
   LogIn,
   ArrowUpRight,
   CalendarDays,
+  Megaphone,
 } from "lucide-react";
 import { useState } from "react";
 import { EmployeeShell, ConnectionBanner, StatusPill } from "@/components/app/EmployeeShell";
@@ -63,7 +64,15 @@ function Today() {
   const nextJob = d.jobs
     .filter((j) => j.assignee === d.me && j.date === d.today && j.status !== "completed")
     .sort((a, b) => a.start.localeCompare(b.start))[0];
-  const notice = d.notices.find((n) => n.startsOn <= d.today && n.endsOn >= d.today);
+  const todayJobs = d.jobs
+    .filter((j) => j.assignee === d.me && j.date === d.today)
+    .sort((a, b) => a.start.localeCompare(b.start));
+  const notice = d.notices.find(
+    (n) => n.kind !== "event" && n.startsOn <= d.today && n.endsOn >= d.today,
+  );
+  const upcomingEvent = d.notices
+    .filter((n) => n.kind === "event" && n.endsOn >= d.today)
+    .sort((a, b) => a.startsOn.localeCompare(b.startsOn))[0];
   const siteConfigured = site.latitude != null && site.longitude != null;
 
   const canClockIn = d.hasShift && d.state === "not_clocked_in";
@@ -358,30 +367,81 @@ function Today() {
         </section>
       )}
 
-      {nextJob && (
-        <section aria-label="Next job">
-          <div className="mb-2 flex items-center justify-between px-1">
-            <h2 className="text-lg font-bold">Next job</h2>
-            <Link to="/jobs" className="text-xs font-semibold text-primary">
-              See all →
-            </Link>
-          </div>
-          <Link
-            to="/jobs"
-            className="card-surface flex items-center gap-3 p-4 transition-transform active:scale-[0.99]"
-          >
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-tint-blue text-primary">
-              <Briefcase className="h-5 w-5" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate font-bold">{nextJob.title}</span>
-              <span className="mt-1 block truncate text-xs text-muted-foreground">
-                {nextJob.start}–{nextJob.end} · {nextJob.destination}
-              </span>
-            </span>
-            <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+      <section aria-label="Today's tasks">
+        <div className="mb-2 flex items-center justify-between px-1">
+          <h2 className="text-lg font-bold">Today's tasks</h2>
+          <Link to="/jobs" className="text-xs font-semibold text-primary">
+            See all →
           </Link>
-        </section>
+        </div>
+        {!todayJobs.length && (
+          <p className="card-surface p-4 text-sm text-muted-foreground">
+            No jobs assigned for today.
+          </p>
+        )}
+        <div className="space-y-3">
+          {todayJobs.slice(0, 3).map((job) => {
+            const steps = d.jobSteps.filter((step) => step.jobId === job.id);
+            const done = steps.filter((step) => step.completedAt).length;
+            return (
+              <Link
+                key={job.id}
+                to="/jobs"
+                className="card-surface block p-4 transition-transform active:scale-[0.99]"
+              >
+                <span className="flex items-center gap-3">
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-tint-blue text-primary">
+                    <Briefcase className="h-5 w-5" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-bold">{job.title}</span>
+                    <span className="mt-1 block truncate text-xs text-muted-foreground">
+                      {job.start}–{job.end} · {job.destination}
+                    </span>
+                  </span>
+                  <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                </span>
+                {steps.length > 0 && (
+                  <span className="mt-3 block">
+                    <span className="flex justify-between text-xs text-muted-foreground">
+                      <span>Task progress</span>
+                      <span>
+                        {done}/{steps.length} steps
+                      </span>
+                    </span>
+                    <span className="mt-1 block h-2 overflow-hidden rounded-full bg-muted">
+                      <span
+                        className="block h-full rounded-full bg-success"
+                        style={{ width: `${(done / steps.length) * 100}%` }}
+                      />
+                    </span>
+                  </span>
+                )}
+                <span className="mt-3 inline-block rounded-full bg-primary-soft px-2.5 py-1 text-[11px] font-semibold capitalize text-primary">
+                  {job.status.replace("_", " ")}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+      {upcomingEvent && (
+        <Link to="/calendar" className="card-surface flex items-center gap-3 p-4">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-tint-cream text-warning">
+            <Megaphone className="h-5 w-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-xs font-semibold uppercase text-primary">
+              Upcoming event
+            </span>
+            <span className="mt-1 block truncate font-bold">{upcomingEvent.title}</span>
+            <span className="block text-xs text-muted-foreground">
+              {upcomingEvent.startsOn}
+              {upcomingEvent.startsTime ? ` · ${upcomingEvent.startsTime}` : ""}
+            </span>
+          </span>
+          <ArrowUpRight className="h-4 w-4" />
+        </Link>
       )}
 
       {d.hasShift && (
