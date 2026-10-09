@@ -26,7 +26,7 @@ export interface Job {
 }
 export interface Req {
   id: string; employeeId: string; kind: RequestKind; summary: string; detail?: string; submittedAt: number;
-  status: RequestStatus; reviewer?: string; reason?: string; approvalRequired: boolean; expectedReturn?: string;
+  status: RequestStatus; reviewer?: string; reason?: string; approvalRequired: boolean; expectedReturn?: string | undefined;
 }
 export interface Notice {
   id: string; kind: "holiday" | "maintenance" | "emergency" | "shift_change"; title: string; body: string;
@@ -58,7 +58,7 @@ const KEY = "shiftline-demo-v1";
 const uid = () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : String(Math.random()));
 export const todayISO = () => new Date().toISOString().slice(0, 10);
 export const at = (hhmm: string, base = new Date()) => {
-  const [h, m] = hhmm.split(":").map(Number);
+  const [h = 0, m = 0] = hhmm.split(":").map(Number);
   const d = new Date(base);
   d.setHours(h, m, 0, 0);
   return d.getTime();

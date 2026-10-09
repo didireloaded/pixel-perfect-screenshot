@@ -10,33 +10,73 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as HoursRouteImport } from './routes/hours'
+import { Route as JobsRouteImport } from './routes/jobs'
+import { Route as ManagerRouteImport } from './routes/manager'
+import { Route as RequestsRouteImport } from './routes/requests'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HoursRoute = HoursRouteImport.update({
+  id: '/hours',
+  path: '/hours',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const JobsRoute = JobsRouteImport.update({
+  id: '/jobs',
+  path: '/jobs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ManagerRoute = ManagerRouteImport.update({
+  id: '/manager',
+  path: '/manager',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RequestsRoute = RequestsRouteImport.update({
+  id: '/requests',
+  path: '/requests',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/hours': typeof HoursRoute
+  '/jobs': typeof JobsRoute
+  '/manager': typeof ManagerRoute
+  '/requests': typeof RequestsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/hours': typeof HoursRoute
+  '/jobs': typeof JobsRoute
+  '/manager': typeof ManagerRoute
+  '/requests': typeof RequestsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/hours': typeof HoursRoute
+  '/jobs': typeof JobsRoute
+  '/manager': typeof ManagerRoute
+  '/requests': typeof RequestsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/hours' | '/jobs' | '/manager' | '/requests'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/hours' | '/jobs' | '/manager' | '/requests'
+  id: '__root__' | '/' | '/hours' | '/jobs' | '/manager' | '/requests'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  HoursRoute: typeof HoursRoute
+  JobsRoute: typeof JobsRoute
+  ManagerRoute: typeof ManagerRoute
+  RequestsRoute: typeof RequestsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +88,43 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/hours': {
+      id: '/hours'
+      path: '/hours'
+      fullPath: '/hours'
+      preLoaderRoute: typeof HoursRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/jobs': {
+      id: '/jobs'
+      path: '/jobs'
+      fullPath: '/jobs'
+      preLoaderRoute: typeof JobsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/manager': {
+      id: '/manager'
+      path: '/manager'
+      fullPath: '/manager'
+      preLoaderRoute: typeof ManagerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/requests': {
+      id: '/requests'
+      path: '/requests'
+      fullPath: '/requests'
+      preLoaderRoute: typeof RequestsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  HoursRoute: HoursRoute,
+  JobsRoute: JobsRoute,
+  ManagerRoute: ManagerRoute,
+  RequestsRoute: RequestsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

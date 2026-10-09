@@ -176,7 +176,7 @@ function Today() {
         </div>
         <ol className="mt-4 space-y-3">
           {rows.map((r, i) => {
-            const isNowNext = r.t > now && (i === 0 || rows[i - 1].t <= now);
+            const isNowNext = r.t > now && (i === 0 || (rows[i - 1]?.t ?? 0) <= now);
             return (
               <li key={i}>
                 {isNowNext && (
