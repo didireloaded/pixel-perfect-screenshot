@@ -8,6 +8,8 @@ import {
   Wifi,
   WifiOff,
   LogIn,
+  ArrowUpRight,
+  CalendarDays,
 } from "lucide-react";
 import { useState } from "react";
 import { EmployeeShell, ConnectionBanner, StatusPill } from "@/components/app/EmployeeShell";
@@ -110,20 +112,22 @@ function Today() {
     .map((s) => ({ t: s.t, label: s.label, kind: "scheduled" as const, sync: undefined }));
   const rows = [...recorded, ...scheduled].sort((a, b) => a.t - b.t);
   const now = Date.now();
+  const todayDate = new Date(`${d.today}T12:00:00Z`);
+  const monday = new Date(todayDate);
+  monday.setUTCDate(todayDate.getUTCDate() - ((todayDate.getUTCDay() + 6) % 7));
+  const week = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(monday);
+    date.setUTCDate(monday.getUTCDate() + index);
+    const iso = date.toISOString().slice(0, 10);
+    const shift = d.shifts.find((item) => item.employeeId === d.me && item.date === iso);
+    const timesheet = d.timesheets.find((item) => item.shiftId === shift?.id);
+    return { iso, date, shift, timesheet };
+  });
 
   return (
     <EmployeeShell title="Today">
-      <ConnectionBanner />
-      {d.role === "manager" && (
-        <Link
-          to="/manager"
-          className="block rounded-2xl bg-primary-soft p-4 text-sm font-semibold text-primary"
-        >
-          Manage employees, shifts and approvals →
-        </Link>
-      )}
       <section className="card-surface p-5" aria-label="Attendance">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
           {new Date().toLocaleDateString([], {
             weekday: "long",
             day: "numeric",
@@ -131,18 +135,22 @@ function Today() {
             timeZone: d.company.timezone,
           })}
         </p>
-        <h2 className="mt-1 text-2xl font-bold">{me.name}</h2>
+        <h2 className="mt-2 text-[1.8rem] font-bold leading-tight">
+          Your day, {me.name.split(" ")[0]}
+        </h2>
         <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
           <MapPin className="h-4 w-4" /> {site.name}
           {d.hasShift ? ` · Shift ${d.shift.start}–${d.shift.end}` : " · No shift today"}
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <StatusPill tone={stateTone}>{STATE_LABEL[d.state]}</StatusPill>
-          <StatusPill tone={locTone[d.location]}>Site check {d.location}</StatusPill>
           <StatusPill tone={d.online ? "info" : "warn"}>
             {d.online ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
             {d.online ? "Online" : "Offline · reconnect to save"}
           </StatusPill>
+          {d.location !== "inactive" && (
+            <StatusPill tone={locTone[d.location]}>Site check {d.location}</StatusPill>
+          )}
         </div>
         {d.hasShift && siteConfigured && !d.locationMonitoringEnabled && (
           <button
@@ -294,6 +302,42 @@ function Today() {
         )}
       </section>
 
+      <section className="card-surface p-5" aria-label="This week's shifts">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CalendarDays className="h-4 w-4 text-primary" />
+            <h2 className="font-bold">This week</h2>
+          </div>
+          <Link to="/hours" className="text-xs font-semibold text-primary">
+            My hours →
+          </Link>
+        </div>
+        <div className="mt-4 grid grid-cols-7 gap-1.5">
+          {week.map(({ iso, date, shift, timesheet }) => {
+            const isToday = iso === d.today;
+            const approved = timesheet?.status === "approved";
+            return (
+              <div
+                key={iso}
+                aria-label={`${date.toLocaleDateString("en", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" })}: ${approved ? "approved" : shift ? "shift assigned" : "no shift"}${isToday ? ", today" : ""}`}
+                className={`flex min-h-16 flex-col items-center justify-center rounded-2xl text-center ${isToday ? "bg-primary text-white shadow-sm" : approved ? "bg-tint-mint" : shift ? "bg-primary-soft" : "bg-muted/70"}`}
+              >
+                <span className="text-[10px] font-semibold uppercase opacity-75">
+                  {date.toLocaleDateString("en", { weekday: "short", timeZone: "UTC" })}
+                </span>
+                <span className="mt-0.5 text-base font-bold">{date.getUTCDate()}</span>
+                <span
+                  className={`mt-1 h-1.5 w-1.5 rounded-full ${approved ? "bg-success" : isToday ? "bg-white" : shift ? "bg-primary" : "bg-transparent"}`}
+                />
+              </div>
+            );
+          })}
+        </div>
+        <p className="mt-3 text-xs text-muted-foreground">
+          Dots mark assigned shifts; green marks approved days.
+        </p>
+      </section>
+
       {notice && (
         <section className="rounded-3xl bg-tint-pink p-4 text-sm" aria-label="Company notice">
           <p className="text-xs font-semibold uppercase tracking-wide text-primary">
@@ -315,19 +359,35 @@ function Today() {
       )}
 
       {nextJob && (
-        <Link to="/jobs" className="block rounded-3xl bg-tint-blue p-4">
-          <p className="text-xs text-muted-foreground">Upcoming job</p>
-          <p className="mt-1 text-lg font-bold">{nextJob.title}</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {nextJob.start}–{nextJob.end} · {nextJob.destination}
-          </p>
-        </Link>
+        <section aria-label="Next job">
+          <div className="mb-2 flex items-center justify-between px-1">
+            <h2 className="text-lg font-bold">Next job</h2>
+            <Link to="/jobs" className="text-xs font-semibold text-primary">
+              See all →
+            </Link>
+          </div>
+          <Link
+            to="/jobs"
+            className="card-surface flex items-center gap-3 p-4 transition-transform active:scale-[0.99]"
+          >
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-tint-blue text-primary">
+              <Briefcase className="h-5 w-5" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate font-bold">{nextJob.title}</span>
+              <span className="mt-1 block truncate text-xs text-muted-foreground">
+                {nextJob.start}–{nextJob.end} · {nextJob.destination}
+              </span>
+            </span>
+            <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+          </Link>
+        </section>
       )}
 
       {d.hasShift && (
         <section className="card-surface p-5" aria-label="Timeline">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold">Timeline</h2>
+            <h2 className="text-lg font-bold">Your day</h2>
             <span className="flex gap-3 text-[11px] text-muted-foreground">
               <span className="flex items-center gap-1">
                 <span className="h-2 w-2 rounded-full bg-primary" />
@@ -381,6 +441,15 @@ function Today() {
           </ol>
         </section>
       )}
+      {d.role === "manager" && (
+        <Link
+          to="/manager"
+          className="block rounded-2xl bg-primary-soft p-4 text-sm font-semibold text-primary"
+        >
+          Manage employees, shifts and approvals →
+        </Link>
+      )}
+      <ConnectionBanner />
       <DepartureSheet open={sheet} onOpenChange={setSheet} />
     </EmployeeShell>
   );
