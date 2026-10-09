@@ -1,5 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { MapPin, Utensils, Briefcase, AlertTriangle, LogOut, Wifi, WifiOff } from "lucide-react";
+import {
+  MapPin,
+  Utensils,
+  Briefcase,
+  AlertTriangle,
+  LogOut,
+  Wifi,
+  WifiOff,
+  LogIn,
+} from "lucide-react";
 import { useState } from "react";
 import { EmployeeShell, ConnectionBanner, StatusPill } from "@/components/app/EmployeeShell";
 import { DepartureSheet } from "@/components/app/DepartureSheet";
@@ -55,18 +64,9 @@ function Today() {
   const notice = d.notices.find((n) => n.startsOn <= d.today && n.endsOn >= d.today);
   const siteConfigured = site.latitude != null && site.longitude != null;
 
-  const primary: { label: string; type: EventType } | null = {
-    not_clocked_in: { label: "Clock in", type: "clock_in" as EventType },
-    working: { label: "Start lunch", type: "start_lunch" as EventType },
-    on_lunch: { label: "End lunch", type: "end_lunch" as EventType },
-    on_job: { label: "Back from job", type: "end_job" as EventType },
-    on_personal: { label: "Return to work", type: "end_personal" as EventType },
-    clocked_out: null,
-  }[d.state];
-
-  const onPrimary = () => {
-    if (primary) void d.act(primary.type);
-  };
+  const canClockIn = d.hasShift && d.state === "not_clocked_in";
+  const canLunch = d.hasShift && (d.state === "working" || d.state === "on_lunch");
+  const canClockOut = d.hasShift && (d.state === "working" || d.state === "on_job");
 
   const locTone = { inactive: "muted", active: "ok", paused: "warn", unavailable: "bad" } as const;
   const stateTone =
@@ -158,6 +158,104 @@ function Today() {
           </button>
         )}
 
+        <div className="mt-5 rounded-[1.75rem] bg-primary-soft p-4" aria-label="Workday actions">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-primary">
+                Your workday
+              </p>
+              <p className="mt-1 text-sm font-semibold">
+                {!d.hasShift
+                  ? "No shift assigned today"
+                  : d.state === "clocked_out"
+                    ? "Your shift is complete"
+                    : STATE_LABEL[d.state]}
+              </p>
+            </div>
+            <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-primary">
+              {d.hasShift ? `${d.shift.start}–${d.shift.end}` : "Today"}
+            </span>
+          </div>
+          <Button
+            variant="hero"
+            size="xl"
+            className="h-16 w-full rounded-2xl text-base shadow-sm"
+            disabled={!canClockIn || d.busy || !d.online}
+            onClick={() => void d.act("clock_in")}
+          >
+            <LogIn className="h-5 w-5" /> Clock in
+          </Button>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <Button
+              variant="soft"
+              size="xl"
+              className="h-14 rounded-2xl bg-white text-sm"
+              disabled={!canLunch || d.busy || !d.online}
+              onClick={() => void d.act(d.state === "on_lunch" ? "end_lunch" : "start_lunch")}
+            >
+              <Utensils className="h-4 w-4" />{" "}
+              {d.state === "on_lunch" ? "End lunch" : "Start lunch"}
+            </Button>
+            <Button
+              variant="pill"
+              size="xl"
+              className="h-14 rounded-2xl bg-white text-sm"
+              disabled={!canClockOut || d.busy || !d.online}
+              onClick={() => void d.act("clock_out")}
+            >
+              <LogOut className="h-4 w-4" /> Clock out
+            </Button>
+          </div>
+          {d.state === "on_job" && (
+            <Button
+              variant="soft"
+              size="xl"
+              className="mt-2 w-full rounded-2xl"
+              disabled={d.busy || !d.online}
+              onClick={() => void d.act("end_job")}
+            >
+              <Briefcase /> Back from job
+            </Button>
+          )}
+          {d.state === "on_personal" && (
+            <Button
+              variant="soft"
+              size="xl"
+              className="mt-2 w-full rounded-2xl"
+              disabled={d.busy || !d.online}
+              onClick={() => void d.act("end_personal")}
+            >
+              Return to work
+            </Button>
+          )}
+          {d.state === "working" && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mt-2 w-full"
+              onClick={() => setSheet(true)}
+            >
+              <Briefcase className="h-4 w-4" /> Go on a job or leave temporarily
+            </Button>
+          )}
+          {!d.hasShift && (
+            <p className="mt-3 text-center text-xs text-muted-foreground">
+              {d.role === "manager" ? (
+                <Link to="/manager" className="font-semibold text-primary underline">
+                  Assign a shift in Schedule to enable these buttons
+                </Link>
+              ) : (
+                "Ask your manager to assign a shift to enable these buttons."
+              )}
+            </p>
+          )}
+          {!d.online && (
+            <p className="mt-3 text-center text-xs text-muted-foreground">
+              Reconnect to record attendance.
+            </p>
+          )}
+        </div>
+
         {d.hasShift && (
           <dl className="mt-5 grid grid-cols-2 gap-3 text-sm">
             <div className="rounded-2xl bg-tint-blue p-3">
@@ -194,55 +292,6 @@ function Today() {
             confirm.
           </p>
         )}
-
-        <div className="mt-5 space-y-2">
-          {!d.hasShift ? (
-            <p className="rounded-2xl bg-tint-cream p-4 text-center text-sm">
-              No shift assigned for today. Ask your manager to add one.
-            </p>
-          ) : primary ? (
-            <Button
-              variant="hero"
-              size="xl"
-              className="w-full"
-              disabled={d.busy || !d.online}
-              onClick={onPrimary}
-            >
-              {primary.type === "start_lunch" ? <Utensils /> : null}
-              {primary.label}
-            </Button>
-          ) : (
-            <p className="rounded-2xl bg-muted p-4 text-center text-sm">
-              Shift finished. See you next shift.
-            </p>
-          )}
-          {d.state === "working" && (
-            <div className="grid grid-cols-2 gap-2">
-              <Button variant="soft" size="xl" onClick={() => setSheet(true)}>
-                <Briefcase /> Leave / Go on a job
-              </Button>
-              <Button
-                variant="pill"
-                size="xl"
-                disabled={d.busy || !d.online}
-                onClick={() => void d.act("clock_out")}
-              >
-                <LogOut /> Clock out
-              </Button>
-            </div>
-          )}
-          {d.state === "on_job" && (
-            <Button
-              variant="pill"
-              size="xl"
-              className="w-full"
-              disabled={d.busy || !d.online}
-              onClick={() => void d.act("clock_out")}
-            >
-              <LogOut /> Clock out from job
-            </Button>
-          )}
-        </div>
       </section>
 
       {notice && (
