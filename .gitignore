@@ -41,3 +41,5 @@ dist-ssr
 mobile/.expo/
 mobile/ios/
 mobile/android/
+
+supabase/.temp/
