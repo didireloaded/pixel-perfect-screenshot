@@ -40,7 +40,9 @@ export function EmployeeShell({ title, children }: { title: string; children: Re
   const [profile, setProfile] = useState(false);
   const [notices, setNotices] = useState(false);
   const unacked =
-    d.requests.filter((r) => r.employeeId === d.me && r.status !== "pending").length +
+    d.requests.filter(
+      (r) => r.employeeId === d.me && r.status !== "pending" && !d.readRequestIds.includes(r.id),
+    ).length +
     d.notices.filter((n) => n.requiresAck && !n.acknowledged && n.endsOn >= d.today).length +
     d.messages.filter((m) => m.recipientId === d.me && !m.readAt).length;
 
@@ -196,6 +198,17 @@ export function EmployeeShell({ title, children }: { title: string; children: Re
                     {r.status} · {r.reviewer}
                   </p>
                   <p className="mt-1 text-muted-foreground">{r.reason}</p>
+                  {!d.readRequestIds.includes(r.id) && (
+                    <Button
+                      variant="chip"
+                      size="sm"
+                      className="mt-3"
+                      disabled={d.busy || !d.online}
+                      onClick={() => void d.command("mark_request_read", { id: r.id })}
+                    >
+                      Mark as read
+                    </Button>
+                  )}
                 </article>
               ))}
             {d.shifts

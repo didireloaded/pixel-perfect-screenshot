@@ -54,6 +54,24 @@ test("manager messages, job progress, team and events remain scoped", async () =
     await call(worker, "read_message", { id: sent.snapshot.messages[0].id });
     assert.ok((await call(worker, null)).messages[0].readAt);
 
+    const requested = await call(worker, "create_request", {
+      kind: "leave",
+      summary: "Family appointment",
+      detail: "Friday afternoon",
+    });
+    const requestId = requested.snapshot.requests[0].id;
+    await assert.rejects(call(worker, "mark_request_read", { id: requestId }), /No decision/);
+    await call(manager, "review_request", {
+      id: requestId,
+      status: "approved",
+      reason: "Approved",
+    });
+    assert.deepEqual((await call(worker, null)).readRequestIds, []);
+    await assert.rejects(call(teammate, "mark_request_read", { id: requestId }), /No decision/);
+    await call(worker, "mark_request_read", { id: requestId });
+    await call(worker, "mark_request_read", { id: requestId });
+    assert.deepEqual((await call(worker, null)).readRequestIds, [requestId]);
+
     const assigned = await call(manager, "assign_shift", {
       employeeId: one.employeeId,
       siteId,

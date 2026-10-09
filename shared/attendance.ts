@@ -159,6 +159,7 @@ export interface AttendanceSnapshot {
   messages: DirectMessage[];
   jobSteps: JobStep[];
   jobTeam: JobTeamMember[];
+  readRequestIds: string[];
   onboarding?: boolean;
 }
 
