@@ -3,7 +3,8 @@ import { Bell, CalendarClock, Briefcase, Clock3, Inbox, LayoutDashboard, X } fro
 import { useState, type ReactNode } from "react";
 import { Drawer, DrawerContent, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
-import { useDemo } from "@/lib/demo-store";
+import { backendMode } from "@/lib/backend";
+import { useAttendance } from "@/lib/app-store";
 
 const NAV = [
   { to: "/", label: "Today", icon: CalendarClock },
@@ -12,20 +13,22 @@ const NAV = [
   { to: "/requests", label: "Requests", icon: Inbox },
 ] as const;
 
-export function DemoBanner() {
+export function ConnectionBanner() {
   return (
     <p className="rounded-full bg-tint-cream px-3 py-1 text-center text-[11px] font-medium text-foreground">
-      Demo mode · fictional data · location, approvals and payroll are simulated
+      {backendMode === "local"
+        ? "Local server · records saved on this computer"
+        : "Connected · attendance saved to your company"}
     </p>
   );
 }
 
 export function EmployeeShell({ title, children }: { title: string; children: ReactNode }) {
-  const d = useDemo();
+  const d = useAttendance();
   const me = d.employees.find((e) => e.id === d.me)!;
   const [profile, setProfile] = useState(false);
   const [notices, setNotices] = useState(false);
-  const unacked = d.notices.filter((n) => n.requiresAck && !n.acked).length;
+  const unacked = d.requests.filter((r) => r.employeeId === d.me && r.status !== "pending").length;
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-[440px] flex-col bg-background sm:my-6 sm:min-h-[860px] sm:rounded-[2.5rem] sm:shadow-card">
@@ -36,7 +39,10 @@ export function EmployeeShell({ title, children }: { title: string; children: Re
             aria-label="Open profile, settings and privacy"
             className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary-soft text-sm font-bold text-accent-foreground"
           >
-            {me.name.split(" ").map((p) => p[0]).join("")}
+            {me.name
+              .split(" ")
+              .map((p) => p[0])
+              .join("")}
           </button>
           <h1 className="min-w-0 flex-1 truncate text-lg font-bold">{title}</h1>
           <button
@@ -45,7 +51,9 @@ export function EmployeeShell({ title, children }: { title: string; children: Re
             className="relative grid h-10 w-10 place-items-center rounded-full hover:bg-muted"
           >
             <Bell className="h-5 w-5" strokeWidth={1.8} />
-            {unacked > 0 && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-destructive" />}
+            {unacked > 0 && (
+              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-destructive" />
+            )}
           </button>
         </div>
       </header>
@@ -75,19 +83,31 @@ export function EmployeeShell({ title, children }: { title: string; children: Re
       <Drawer open={profile} onOpenChange={setProfile}>
         <DrawerContent className="mx-auto max-w-[440px] rounded-t-[2rem] px-5 pb-8">
           <DrawerTitle className="pt-4 text-xl font-bold">{me.name}</DrawerTitle>
-          <DrawerDescription>Employee no. {me.no} · {me.role} · {me.team}</DrawerDescription>
+          <DrawerDescription>
+            Employee no. {me.no} · {me.role} · {me.team}
+          </DrawerDescription>
           <section className="mt-5 space-y-3 rounded-2xl bg-tint-blue p-4 text-sm">
             <h3 className="font-bold">Location privacy</h3>
-            <p><b>When:</b> tracking starts only after you clock in, pauses during lunch and personal departures, and stops at clock-out or {d.shift.trackingStop} — whichever is first. Overtime needs an approved extension.</p>
-            <p><b>What:</b> whether you are inside the approved work area, with accuracy and time captured. No detailed routes.</p>
-            <p><b>Who:</b> your authorised managers only.</p>
-            <p><b>How long:</b> 90 days, then deleted. Hours records are kept for payroll.</p>
+            <p>
+              Location collection is not enabled in this release. Clocking actions save attendance
+              times, not your location.
+            </p>
+            <p>
+              Native background tracking will be added separately, with a visible status and a
+              cutoff at the authorised shift end.
+            </p>
           </section>
           <div className="mt-4 flex flex-col gap-2">
-            <Button variant="pill" size="xl" asChild>
-              <Link to="/manager"><LayoutDashboard /> Open manager dashboard (demo)</Link>
+            {d.role === "manager" && (
+              <Button variant="pill" size="xl" asChild>
+                <Link to="/manager">
+                  <LayoutDashboard /> Open manager dashboard
+                </Link>
+              </Button>
+            )}
+            <Button variant="chip" size="xl" onClick={() => void d.logout()}>
+              Sign out
             </Button>
-            <Button variant="chip" size="xl" onClick={() => { d.reset(); setProfile(false); }}>Reset demo data</Button>
           </div>
         </DrawerContent>
       </Drawer>
@@ -95,34 +115,49 @@ export function EmployeeShell({ title, children }: { title: string; children: Re
       <Drawer open={notices} onOpenChange={setNotices}>
         <DrawerContent className="mx-auto max-w-[440px] rounded-t-[2rem] px-5 pb-8">
           <DrawerTitle className="pt-4 text-xl font-bold">Notifications</DrawerTitle>
-          <DrawerDescription>Closures, holidays and shift changes</DrawerDescription>
+          <DrawerDescription>Request decisions and upcoming shifts</DrawerDescription>
           <div className="mt-4 space-y-3">
-            {d.notices.length === 0 && <p className="text-sm text-muted-foreground">No notices.</p>}
-            {d.notices.map((n) => (
-              <article key={n.id} className="rounded-2xl bg-tint-pink p-4 text-sm">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{n.kind.replace("_", " ")} · {n.date}</p>
-                <h3 className="mt-1 font-bold">{n.title}</h3>
-                <p className="mt-1">{n.body}</p>
-                <p className="mt-2"><b>Attendance:</b> {n.attendance} · <b>Pay:</b> {n.paid}</p>
-                {n.requiresAck && (
-                  <Button
-                    variant={n.acked ? "chip" : "hero"} size="sm" className="mt-3 h-10 px-4" disabled={n.acked}
-                    onClick={() => d.update((x) => ({ ...x, notices: x.notices.map((m) => (m.id === n.id ? { ...m, acked: true } : m)) }))}
-                  >
-                    {n.acked ? "Acknowledged" : "Acknowledge"}
-                  </Button>
-                )}
-              </article>
-            ))}
+            {d.requests
+              .filter((r) => r.employeeId === d.me && r.status !== "pending")
+              .map((r) => (
+                <article key={r.id} className="rounded-2xl bg-tint-blue p-4 text-sm">
+                  <h3 className="font-bold">{r.summary}</h3>
+                  <p className="mt-1 capitalize">
+                    {r.status} · {r.reviewer}
+                  </p>
+                  <p className="mt-1 text-muted-foreground">{r.reason}</p>
+                </article>
+              ))}
+            {d.shifts
+              .filter((s) => s.employeeId === d.me && s.date >= d.today)
+              .map((s) => (
+                <article key={s.id} className="rounded-2xl bg-tint-cream p-4 text-sm">
+                  <h3 className="font-bold">Shift · {s.date}</h3>
+                  <p>
+                    {s.start}–{s.end} · {d.sites.find((site) => site.id === s.siteId)?.name}
+                  </p>
+                </article>
+              ))}
+            {!unacked && !d.shifts.some((s) => s.employeeId === d.me && s.date >= d.today) && (
+              <p className="text-sm text-muted-foreground">You're up to date.</p>
+            )}
           </div>
-          <Button variant="ghost" className="mt-3" onClick={() => setNotices(false)}><X /> Close</Button>
+          <Button variant="ghost" className="mt-3" onClick={() => setNotices(false)}>
+            <X /> Close
+          </Button>
         </DrawerContent>
       </Drawer>
     </div>
   );
 }
 
-export function StatusPill({ tone, children }: { tone: "ok" | "warn" | "bad" | "info" | "muted"; children: ReactNode }) {
+export function StatusPill({
+  tone,
+  children,
+}: {
+  tone: "ok" | "warn" | "bad" | "info" | "muted";
+  children: ReactNode;
+}) {
   const cls = {
     ok: "bg-tint-mint text-foreground",
     warn: "bg-tint-cream text-foreground",
@@ -130,9 +165,17 @@ export function StatusPill({ tone, children }: { tone: "ok" | "warn" | "bad" | "
     info: "bg-primary-soft text-accent-foreground",
     muted: "bg-muted text-muted-foreground",
   }[tone];
-  const dot = { ok: "bg-success", warn: "bg-warning", bad: "bg-destructive", info: "bg-primary", muted: "bg-muted-foreground" }[tone];
+  const dot = {
+    ok: "bg-success",
+    warn: "bg-warning",
+    bad: "bg-destructive",
+    info: "bg-primary",
+    muted: "bg-muted-foreground",
+  }[tone];
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${cls}`}>
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${cls}`}
+    >
       <span className={`h-1.5 w-1.5 rounded-full ${dot}`} aria-hidden />
       {children}
     </span>

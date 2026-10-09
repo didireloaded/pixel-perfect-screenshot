@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "Shiftline",
+    "slug": "shiftline",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "shiftline",
+    "ios": { "bundleIdentifier": "me.shiftline.employee", "supportsTablet": false },
+    "android": { "package": "me.shiftline.employee" },
+    "plugins": [
+      "expo-sqlite",
+      "expo-secure-store",
+      "expo-background-task",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Verify your work site when you record an attendance action. No location is collected off duty."
+        }
+      ],
+      "expo-notifications"
+    ]
+  }
+}

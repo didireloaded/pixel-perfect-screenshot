@@ -1,36 +1,13 @@
 // Pure attendance rules. In a live build these run on the server; the demo runs them locally.
 // All durations are integer minutes; timestamps are epoch milliseconds.
 
-export type AttendanceState =
-  | "not_clocked_in"
-  | "working"
-  | "on_lunch"
-  | "on_job"
-  | "on_personal"
-  | "clocked_out";
-
-export type EventType =
-  | "clock_in"
-  | "start_lunch"
-  | "end_lunch"
-  | "start_job"
-  | "end_job"
-  | "start_personal"
-  | "end_personal"
-  | "clock_out";
-
-export type SyncStatus = "saved_on_phone" | "waiting_to_sync" | "synced" | "needs_review";
-
-export interface AttendanceEvent {
-  id: string; // client-generated, used for de-duplication
-  employeeId: string;
-  type: EventType;
-  capturedAt: number; // device clock
-  receivedAt?: number | undefined; // server receipt
-  sync: SyncStatus;
-  jobId?: string;
-  note?: string;
-}
+import type { AttendanceState, AttendanceEvent, EventType } from "../../shared/attendance";
+export type {
+  AttendanceState,
+  AttendanceEvent,
+  EventType,
+  SyncStatus,
+} from "../../shared/attendance";
 
 export const STATE_LABEL: Record<AttendanceState, string> = {
   not_clocked_in: "Not clocked in",
@@ -63,15 +40,17 @@ export function deriveState(events: AttendanceEvent[]): AttendanceState {
 }
 
 export type ApplyResult =
-  | { ok: true; events: AttendanceEvent[]; duplicate: boolean }
-  | { ok: false; reason: string };
+  { ok: true; events: AttendanceEvent[]; duplicate: boolean } | { ok: false; reason: string };
 
 /** Idempotent append: same id twice is a no-op; invalid transitions are rejected. */
 export function applyEvent(events: AttendanceEvent[], ev: AttendanceEvent): ApplyResult {
   if (events.some((e) => e.id === ev.id)) return { ok: true, events, duplicate: true };
   const state = deriveState(events);
   if (!canTransition(state, ev.type))
-    return { ok: false, reason: `Can't ${ev.type.replace("_", " ")} while ${STATE_LABEL[state].toLowerCase()}` };
+    return {
+      ok: false,
+      reason: `Can't ${ev.type.replace("_", " ")} while ${STATE_LABEL[state].toLowerCase()}`,
+    };
   const last = sorted(events).at(-1);
   if (last && ev.capturedAt < last.capturedAt)
     return { ok: true, events: [...events, { ...ev, sync: "needs_review" }], duplicate: false };
@@ -131,13 +110,17 @@ export function computeDay(
   };
   lunch = pair("start_lunch", "end_lunch");
   personal = pair("start_personal", "end_personal");
-  if (lunch) steps.push(`Lunch ${fmtMin(lunch)} (${policy.lunchPaid ? "paid" : "unpaid"}, policy v${policy.version})`);
+  if (lunch)
+    steps.push(
+      `Lunch ${fmtMin(lunch)} (${policy.lunchPaid ? "paid" : "unpaid"}, policy v${policy.version})`,
+    );
   if (personal) steps.push(`Personal departure ${fmtMin(personal)} (unpaid)`);
   const worked = Math.max(0, span - (policy.lunchPaid ? 0 : lunch) - personal);
   const regular = Math.min(worked, policy.dailyRegularMinutes);
   const extra = worked - regular;
   const ot = Math.min(extra, approvedOvertimeMinutes);
-  if (span) steps.push(`Regular capped at ${fmtMin(policy.dailyRegularMinutes)} → ${fmtMin(regular)}`);
+  if (span)
+    steps.push(`Regular capped at ${fmtMin(policy.dailyRegularMinutes)} → ${fmtMin(regular)}`);
   if (extra) steps.push(`Beyond regular ${fmtMin(extra)}; approved overtime ${fmtMin(ot)}`);
   return {
     workedMinutes: regular + ot,
@@ -186,7 +169,15 @@ export interface PayrollRow {
 
 export function toCsv(rows: PayrollRow[]) {
   const head = "employee_no,name,date,regular_hours,overtime_hours,status";
-  const h = (m: number) => `${Math.floor(m / 60)}.${String(Math.round(((m % 60) * 100) / 60)).padStart(2, "0")}`;
+  const h = (m: number) =>
+    `${Math.floor(m / 60)}.${String(Math.round(((m % 60) * 100) / 60)).padStart(2, "0")}`;
   const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
-  return [head, ...rows.map((r) => [r.employeeNo, esc(r.name), r.date, h(r.regularMinutes), h(r.overtimeMinutes), r.status].join(","))].join("\n");
+  return [
+    head,
+    ...rows.map((r) =>
+      [r.employeeNo, esc(r.name), r.date, h(r.regularMinutes), h(r.overtimeMinutes), r.status].join(
+        ",",
+      ),
+    ),
+  ].join("\n");
 }
