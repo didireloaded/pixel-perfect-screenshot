@@ -120,7 +120,7 @@ export function AccountScreen({
             </>
           ) : manager ? (
             <>
-              {field("company", "Company name")}
+              {field("company", "Company name", "text", "Project Inc.")}
               {field("name", "Your name")}
               {field("site", "Work site")}
               {field("address", "Site address")}

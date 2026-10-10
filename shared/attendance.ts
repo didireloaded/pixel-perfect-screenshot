@@ -159,6 +159,9 @@ export interface AttendanceSnapshot {
   messages: DirectMessage[];
   jobSteps: JobStep[];
   jobTeam: JobTeamMember[];
+  jobComments: JobComment[];
+  managerNotes: ManagerNote[];
+  sitePresence: SitePresence[];
   readRequestIds: string[];
   onboarding?: boolean;
 }
@@ -177,6 +180,8 @@ export interface CompanyNotice {
 }
 export interface DirectMessage {
   id: string;
+  threadId: string;
+  senderId: string;
   recipientId: string;
   senderName: string;
   title: string;
@@ -328,3 +333,7 @@ export const SYNC_LABELS = {
   NEEDS_REVIEW: "Needs review",
   FAILED: "Needs attention",
 } as const;
+
+export interface JobComment { id: string; jobId: string; authorId: string; authorName: string; body: string; createdAt: string; }
+export interface ManagerNote { id: string; title: string; body: string; authorName: string; createdAt: string; }
+export interface SitePresence { employeeId: string; siteId: string; shiftId: string; inside: boolean; checkedAt: string; }

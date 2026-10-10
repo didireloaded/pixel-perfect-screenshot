@@ -8,6 +8,19 @@ import { useAttendance } from "@/lib/app-store";
 export function ManagerMessages() {
   const d = useAttendance();
   const [recipientId, setRecipientId] = useState("");
+  const [selected, setSelected] = useState<string | null>(null);
+  const [reply, setReply] = useState("");
+  const roots = d.messages.filter((m) => m.id === m.threadId && m.senderId === d.me);
+  const threads = roots
+    .map((root) => ({
+      root,
+      messages: d.messages
+        .filter((m) => m.threadId === root.id)
+        .sort((a, b) => a.sentAt.localeCompare(b.sentAt)),
+    }))
+    .sort((a, b) => b.messages.at(-1)!.sentAt.localeCompare(a.messages.at(-1)!.sentAt));
+  const active = threads.find((t) => t.root.id === selected) ?? threads[0];
+  const worker = active && d.employees.find((e) => e.id === active.root.recipientId);
   const send = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -22,77 +35,117 @@ export function ManagerMessages() {
       setRecipientId("");
     }
   };
+  const sendReply = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!active || !reply.trim()) return;
+    if (await d.command("reply_message", { threadId: active.root.id, body: reply.trim() }))
+      setReply("");
+  };
   return (
-    <div className="grid gap-5 lg:grid-cols-2">
-      <form onSubmit={send} className="card-surface space-y-4 p-5">
-        <div className="flex items-center gap-3">
-          <Mail className="text-primary" />
-          <div>
-            <h2 className="text-lg font-bold">Message an employee</h2>
-            <p className="text-sm text-muted-foreground">
-              Only managers can send. Employees can read and mark messages as read.
-            </p>
-          </div>
+    <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)_220px]">
+      <section className="card-surface p-4">
+        <h2 className="text-lg font-bold">Conversations</h2>
+        <p className="text-sm text-muted-foreground">Manager and worker chat</p>
+        <div className="mt-4 space-y-2">
+          {threads.map(({ root, messages }) => {
+            const unread = messages.filter((m) => m.recipientId === d.me && !m.readAt).length;
+            return (
+              <button
+                key={root.id}
+                type="button"
+                onClick={() => {
+                  setSelected(root.id);
+                  messages
+                    .filter((m) => m.recipientId === d.me && !m.readAt)
+                    .forEach((m) => void d.command("read_message", { id: m.id }));
+                }}
+                className={`w-full rounded-2xl p-3 text-left ${active?.root.id === root.id ? "bg-tint-blue" : "bg-muted"}`}
+              >
+                <span className="flex justify-between gap-2 font-semibold">
+                  <span>
+                    {d.employees.find((e) => e.id === root.recipientId)?.name ?? "Employee"}
+                  </span>
+                  {unread > 0 && (
+                    <span className="rounded-full bg-primary px-2 text-xs text-white">
+                      {unread}
+                    </span>
+                  )}
+                </span>
+                <span className="mt-1 block truncate text-xs text-muted-foreground">
+                  {messages.at(-1)?.body}
+                </span>
+              </button>
+            );
+          })}
+          {!threads.length && (
+            <p className="text-sm text-muted-foreground">No conversations yet.</p>
+          )}
         </div>
-        <label className="block text-sm font-medium">
-          Recipient
+      </section>
+      <section className="card-surface flex min-h-[420px] flex-col p-4">
+        {active ? (
+          <>
+            <div className="border-b pb-3">
+              <h2 className="font-bold">{worker?.name ?? "Employee"}</h2>
+              <p className="text-xs text-muted-foreground">{active.root.title}</p>
+            </div>
+            <div className="flex-1 space-y-3 overflow-y-auto py-4">
+              {active.messages.map((m) => (
+                <div
+                  key={m.id}
+                  className={`max-w-[85%] rounded-2xl p-3 text-sm ${m.senderId === d.me ? "ml-auto bg-primary text-white" : "bg-muted"}`}
+                >
+                  <p className="whitespace-pre-wrap">{m.body}</p>
+                  <p className="mt-1 text-[11px] opacity-70">
+                    {new Date(m.sentAt).toLocaleString()}{" "}
+                    {m.senderId === d.me && (m.readAt ? "· Read" : "· Sent")}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <form onSubmit={sendReply} className="flex gap-2">
+              <Input
+                aria-label="Reply"
+                value={reply}
+                onChange={(e) => setReply(e.target.value)}
+                maxLength={2000}
+                placeholder="Write a reply…"
+              />
+              <Button disabled={d.busy || !d.online || !reply.trim()}>Send</Button>
+            </form>
+          </>
+        ) : (
+          <p className="m-auto text-sm text-muted-foreground">
+            Choose a conversation or start one.
+          </p>
+        )}
+      </section>
+      <form onSubmit={send} className="card-surface space-y-3 p-4">
+        <h2 className="font-bold">New message</h2>
+        <label className="block text-sm">
+          Worker
           <select
             required
             value={recipientId}
             onChange={(e) => setRecipientId(e.target.value)}
-            className="mt-2 h-12 w-full rounded-2xl bg-muted px-3"
+            className="mt-1 h-11 w-full rounded-xl bg-muted px-2"
           >
-            <option value="">Choose an employee</option>
+            <option value="">Choose worker</option>
             {d.employees
               .filter((e) => e.role === "employee")
               .map((e) => (
                 <option key={e.id} value={e.id}>
-                  {e.name} · {e.no}
+                  {e.name}
                 </option>
               ))}
           </select>
         </label>
-        <label className="block text-sm font-medium">
-          Subject
-          <Input name="title" required maxLength={120} className="mt-2 h-12 rounded-2xl bg-muted" />
-        </label>
-        <label className="block text-sm font-medium">
-          Message
-          <Textarea
-            name="body"
-            required
-            maxLength={2000}
-            className="mt-2 min-h-28 rounded-2xl bg-muted"
-          />
-        </label>
-        <Button
-          variant="hero"
-          size="xl"
-          className="w-full"
-          disabled={d.busy || !d.online || !recipientId}
-        >
-          Send message
+        <Input name="title" required maxLength={120} placeholder="Subject" />
+        <Textarea name="body" required maxLength={2000} placeholder="Message" />
+        <Button className="w-full" disabled={d.busy || !d.online || !recipientId}>
+          Start conversation
         </Button>
       </form>
-      <section className="card-surface p-5">
-        <h2 className="text-lg font-bold">Sent messages</h2>
-        <div className="mt-4 space-y-3">
-          {!d.messages.length && (
-            <p className="text-sm text-muted-foreground">No messages sent yet.</p>
-          )}
-          {d.messages.map((m) => (
-            <article key={m.id} className="rounded-2xl bg-tint-blue p-4">
-              <p className="text-xs text-muted-foreground">
-                To {d.employees.find((e) => e.id === m.recipientId)?.name} ·{" "}
-                {new Date(m.sentAt).toLocaleString()}
-              </p>
-              <h3 className="mt-1 font-bold">{m.title}</h3>
-              <p className="mt-1 whitespace-pre-wrap text-sm">{m.body}</p>
-              <p className="mt-2 text-xs text-muted-foreground">{m.readAt ? "Read" : "Unread"}</p>
-            </article>
-          ))}
-        </div>
-      </section>
     </div>
   );
 }

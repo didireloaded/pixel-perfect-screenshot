@@ -54,6 +54,24 @@ test("manager messages, job progress, team and events remain scoped", async () =
     await call(worker, "read_message", { id: sent.snapshot.messages[0].id });
     assert.ok((await call(worker, null)).messages[0].readAt);
 
+    const threadId = sent.snapshot.messages[0].id;
+    const replied = await call(worker, "reply_message", { threadId, body: "On my way" });
+    assert.equal(replied.snapshot.messages.find((m) => m.body === "On my way").recipientId, setup.snapshot.me);
+    assert.equal((await call(manager, null)).messages.filter((m) => m.threadId === threadId).length, 2);
+    assert.equal((await call(teammate, null)).messages.length, 0);
+    await assert.rejects(call(teammate, "reply_message", { threadId, body: "Intrude" }), /Conversation unavailable/);
+    await assert.rejects(call(outsider, "reply_message", { threadId, body: "Intrude" }), /Conversation unavailable/);
+    await assert.rejects(call(worker, "reply_message", { threadId, body: "   " }), /Message must be/);
+    const workerReply = replied.snapshot.messages.find((m) => m.body === "On my way");
+    assert.equal(workerReply.readAt, null);
+    await call(worker, "read_message", { id: workerReply.id });
+    assert.equal((await call(manager, null)).messages.find((m) => m.id === workerReply.id).readAt, null);
+    await call(manager, "read_message", { id: workerReply.id });
+    assert.ok((await call(manager, null)).messages.find((m) => m.id === workerReply.id).readAt);
+    const managerReply = await call(manager, "reply_message", { threadId, body: "Thanks" });
+    assert.equal(managerReply.snapshot.messages.find((m) => m.body === "Thanks").recipientId, one.employeeId);
+    await assert.rejects(call(worker, "reply_message", { threadId: two.employeeId, body: "No" }), /Conversation unavailable/);
+
     const requested = await call(worker, "create_request", {
       kind: "leave",
       summary: "Family appointment",
@@ -91,6 +109,21 @@ test("manager messages, job progress, team and events remain scoped", async () =
       end: "14:00",
     });
     const jobId = created.snapshot.jobs[0].id;
+    const note = await call(manager, "add_manager_note", { title: "Site reminder", body: "Bring keys" });
+    assert.equal(note.snapshot.managerNotes[0].title, "Site reminder");
+    assert.deepEqual((await call(worker, null)).managerNotes, []);
+    assert.deepEqual((await call(outsider, null)).managerNotes, []);
+    await assert.rejects(call(worker, "add_manager_note", { title: "No", body: "No" }), /Manager access/);
+    await call(worker, "add_job_comment", { jobId, body: "Valves checked" });
+    const comment = (await call(manager, null)).jobComments.find((item) => item.body === "Valves checked");
+    assert.equal(comment.authorName, "Worker");
+    assert.equal((await call(worker, null)).jobComments.length, 1);
+    assert.equal((await call(teammate, null)).jobComments.length, 0);
+    assert.equal((await call(outsider, null)).jobComments.length, 0);
+    await assert.rejects(call(teammate, "add_job_comment", { jobId, body: "Intrude" }), /Job unavailable/);
+    await assert.rejects(call(outsider, "add_job_comment", { jobId, body: "Intrude" }), /Job unavailable/);
+    await call(manager, "delete_manager_note", { id: note.snapshot.managerNotes[0].id });
+    assert.equal((await call(manager, null)).managerNotes.length, 0);
     await assert.rejects(
       call(worker, "add_job_step", { jobId, label: "Inspect valves" }),
       /Manager access/,
@@ -123,4 +156,32 @@ test("manager messages, job progress, team and events remain scoped", async () =
   } finally {
     await db.close();
   }
+});
+
+test("worksite map shows only recent active presence and never worker coordinates", async () => {
+  const db = await createLocalDatabase();
+  const manager = randomUUID(), worker = randomUUID(), outsider = randomUUID();
+  try {
+    for (const id of [manager, worker, outsider]) await db.query("insert into auth.users values($1)", [id]);
+    const call = (user, action, data = {}) => runRpc(db, user, action, data);
+    const setup = await call(manager, "setup", { company: "Map Test", name: "Manager", site: "Yard", timezone: "Africa/Windhoek" });
+    const siteId = setup.snapshot.sites[0].id;
+    const employee = await call(manager, "create_employee", { name: "Worker", no: "W-1", siteId });
+    await call(worker, "activate", { employeeNo: "W-1", code: employee.activationCode });
+    await call(outsider, "setup", { company: "Other", name: "Other", site: "Elsewhere", timezone: "Africa/Windhoek" });
+    await call(manager, "set_geofence", { siteId, mode: "validate", latitude: -22.56, longitude: 17.08, radiusM: 150, maxAccuracyM: 100 });
+    const shift = await call(manager, "assign_shift", { employeeId: employee.employeeId, siteId, date: setup.snapshot.today, start: "00:00", end: "23:59", lunch: "12:00", lunchMinutes: 60, regularMinutes: 480 });
+    const shiftId = shift.snapshot.shifts.find((item) => item.employeeId === employee.employeeId).id;
+    await db.query("insert into public.sl_events(id,company_id,employee_id,shift_id,type) values($1,$2,$3,$4,'clock_in')", [randomUUID(), setup.snapshot.company.id, employee.employeeId, shiftId]);
+    const reported = await call(worker, "report_position", { shiftId, latitude: -22.56, longitude: 17.08, accuracyM: 15, source: "web" });
+    assert.equal(reported.status, "inside_or_unchanged");
+    const snapshot = await call(manager, null);
+    assert.equal(snapshot.sitePresence.length, 1);
+    assert.equal(snapshot.sitePresence[0].inside, true);
+    assert.equal("latitude" in snapshot.sitePresence[0], false);
+    assert.deepEqual((await call(worker, null)).sitePresence, []);
+    assert.deepEqual((await call(outsider, null)).sitePresence, []);
+    await db.query("update public.sl_site_presence set checked_at=clock_timestamp()-interval '4 minutes' where employee_id=$1", [employee.employeeId]);
+    assert.deepEqual((await call(manager, null)).sitePresence, []);
+  } finally { await db.close(); }
 });

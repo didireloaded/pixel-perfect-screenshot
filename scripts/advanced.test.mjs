@@ -18,7 +18,10 @@ test("versioned policies, native evidence, two-level corrections and exact locke
       timezone: "Africa/Windhoek",
     });
     const site = setup.snapshot.sites[0].id;
-    const day = setup.snapshot.today;
+    // Use a completed recent day so captured events stay valid at any test-run hour.
+    const day = new Date(Date.parse(`${setup.snapshot.today}T12:00:00Z`) - 86400000)
+      .toISOString()
+      .slice(0, 10);
     await call(manager, "set_geofence", {
       siteId: site,
       mode: "validate",

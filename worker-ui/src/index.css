@@ -1,0 +1,219 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+    "Helvetica Neue", "Segoe UI", Roboto, Arial, sans-serif;
+
+  /* Brand */
+  --color-brand: #5b4dd8;
+  --color-brand-soft: #eceafb;
+  --color-brand-dark: #4a3fc4;
+
+  /* Light semantic */
+  --color-page: #f5f5f7;
+  --color-card: #ffffff;
+  --color-fill: #f2f2f7;
+  --color-ink: #1c1c1e;
+  --color-sub: #8e8e93;
+  --color-sep: #e5e5ea;
+
+  /* Dark semantic */
+  --color-dpage: #000000;
+  --color-dcard: #1c1c1e;
+  --color-dfill: #2c2c2e;
+  --color-dsub: #98989d;
+  --color-dsep: #38383a;
+
+  /* System */
+  --color-ok: #34c759;
+  --color-warn: #ff9f0a;
+  --color-bad: #ff3b30;
+  --color-info: #007aff;
+
+  --radius-card: 18px;
+  --radius-sheet: 28px;
+  --radius-btn: 14px;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: #e9e9ee;
+  -webkit-font-smoothing: antialiased;
+  font-family: var(--font-sans);
+  overscroll-behavior: none;
+}
+
+.dark body { background: #000; }
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+input, textarea, select, button { font-family: inherit; }
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ---------- keyframes ---------- */
+@keyframes sl-push {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+@keyframes sl-pop {
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
+}
+@keyframes sl-under-in {
+  from { transform: translateX(-24%); }
+  to { transform: translateX(0); }
+}
+@keyframes sl-sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+@keyframes sl-sheet-down {
+  from { transform: translateY(0); }
+  to { transform: translateY(105%); }
+}
+@keyframes sl-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes sl-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes sl-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes sl-pop-in {
+  0% { opacity: 0; transform: scale(0.6); }
+  60% { transform: scale(1.06); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes sl-check {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes sl-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+@keyframes sl-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+@keyframes sl-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes sl-logo {
+  0% { opacity: 0; transform: scale(0.82); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes sl-toast {
+  0% { opacity: 0; transform: translateY(-16px) scale(0.95); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.anim-push { animation: sl-push 0.32s cubic-bezier(0.32, 0.72, 0, 1) both; }
+.anim-pop { animation: sl-pop 0.28s cubic-bezier(0.32, 0.72, 0, 1) both; }
+.anim-under { animation: sl-under-in 0.32s cubic-bezier(0.32, 0.72, 0, 1) both; }
+.anim-sheet-up { animation: sl-sheet-up 0.38s cubic-bezier(0.32, 0.72, 0, 1) both; }
+.anim-sheet-down { animation: sl-sheet-down 0.26s cubic-bezier(0.4, 0, 1, 1) both; }
+.anim-fade-in { animation: sl-fade-in 0.25s ease both; }
+.anim-fade-out { animation: sl-fade-out 0.22s ease both; }
+.anim-rise { animation: sl-rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.anim-pop-in { animation: sl-pop-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.anim-logo { animation: sl-logo 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.anim-toast { animation: sl-toast 0.35s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.anim-spin { animation: sl-spin 0.8s linear infinite; }
+.anim-pulse-soft { animation: sl-pulse 1.6s ease-in-out infinite; }
+
+.check-path {
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  animation: sl-check 0.45s 0.15s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+}
+
+.skeleton {
+  background: linear-gradient(90deg, rgba(0,0,0,0.055) 25%, rgba(0,0,0,0.11) 50%, rgba(0,0,0,0.055) 75%);
+  background-size: 200% 100%;
+  animation: sl-shimmer 1.4s linear infinite;
+  border-radius: 8px;
+}
+.dark .skeleton {
+  background: linear-gradient(90deg, rgba(255,255,255,0.07) 25%, rgba(255,255,255,0.14) 50%, rgba(255,255,255,0.07) 75%);
+  background-size: 200% 100%;
+}
+
+/* Reduced motion — driven by the Accessibility setting, which defaults to the
+   system prefers-reduced-motion value. */
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-delay: 0ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  transition-delay: 0ms !important;
+}
+
+.press {
+  transition: transform 0.15s ease, opacity 0.15s ease, background-color 0.15s ease;
+}
+.press:active {
+  transform: scale(0.97);
+  opacity: 0.85;
+}
+.press-row:active {
+  background-color: rgba(0, 0, 0, 0.045);
+}
+.dark .press-row:active {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(24px) saturate(1.7);
+  -webkit-backdrop-filter: blur(24px) saturate(1.7);
+  box-shadow:
+    0 8px 32px rgba(28, 28, 30, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65),
+    0 0 0 0.5px rgba(0, 0, 0, 0.06);
+}
+.dark .glass {
+  background: rgba(28, 28, 30, 0.72);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    0 0 0 0.5px rgba(255, 255, 255, 0.08);
+}
+
+.glass-bar {
+  background: rgba(245, 245, 247, 0.82);
+  backdrop-filter: blur(20px) saturate(1.6);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+}
+.dark .glass-bar {
+  background: rgba(0, 0, 0, 0.78);
+}
+
+.card-shadow {
+  box-shadow: 0 1px 2px rgba(28, 28, 30, 0.04), 0 4px 16px rgba(28, 28, 30, 0.05);
+}
+.dark .card-shadow {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.hero-shadow {
+  box-shadow: 0 2px 6px rgba(28, 28, 30, 0.05), 0 12px 32px rgba(91, 77, 216, 0.10);
+}
+.dark .hero-shadow {
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+}

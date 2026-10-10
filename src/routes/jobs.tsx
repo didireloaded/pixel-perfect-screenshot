@@ -19,6 +19,7 @@ export const Route = createFileRoute("/jobs")({ component: Jobs });
 function Jobs() {
   const d = useAttendance();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [comment, setComment] = useState("");
   const jobs = d.jobs
     .filter((job) => job.assignee === d.me)
     .sort((a, b) => b.date.localeCompare(a.date) || a.start.localeCompare(b.start));
@@ -263,6 +264,47 @@ function Jobs() {
                     </button>
                   ))}
                 </div>
+              </section>
+              <section className="mt-5 border-t border-border pt-5">
+                <h3 className="text-sm font-bold">Task comments</h3>
+                <div className="mt-3 space-y-2">
+                  {d.jobComments
+                    .filter((item) => item.jobId === selected.id)
+                    .map((item) => (
+                      <article key={item.id} className="rounded-xl bg-muted p-3 text-sm">
+                        <b>{item.authorName}</b>
+                        <p className="mt-1 whitespace-pre-wrap">{item.body}</p>
+                        <small className="text-muted-foreground">
+                          {new Date(item.createdAt).toLocaleString()}
+                        </small>
+                      </article>
+                    ))}
+                </div>
+                <form
+                  className="mt-3 space-y-2"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    if (!comment.trim()) return;
+                    void d
+                      .command("add_job_comment", { jobId: selected.id, body: comment.trim() })
+                      .then((result) => {
+                        if (result) setComment("");
+                      });
+                  }}
+                >
+                  <label className="text-xs font-semibold" htmlFor="worker-job-comment">
+                    Add a comment
+                  </label>
+                  <textarea
+                    id="worker-job-comment"
+                    maxLength={2000}
+                    value={comment}
+                    onChange={(event) => setComment(event.target.value)}
+                    className="min-h-20 w-full rounded-xl bg-muted p-3 text-sm"
+                    placeholder="Update the team"
+                  />
+                  <Button disabled={d.busy || !d.online || !comment.trim()}>Post comment</Button>
+                </form>
               </section>
               {selected.status !== "completed" && (
                 <div className="mt-6">

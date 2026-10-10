@@ -1,5 +1,6 @@
 // Attendance writes and totals belong to the PostgreSQL API.
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { useLocation } from "@tanstack/react-router";
 import { toast } from "sonner";
 import {
   deriveState,
@@ -9,6 +10,7 @@ import {
 } from "./attendance";
 import * as api from "./backend";
 import { AccountScreen } from "@/components/app/AccountScreen";
+import { ManagerPreview } from "@/components/app/ManagerPreview";
 import type {
   AttendanceSnapshot as Snapshot,
   Employee,
@@ -128,7 +130,9 @@ const EMPTY: Totals = {
 };
 const C = createContext<Ctx | null>(null);
 export function AttendanceProvider({ children }: { children: ReactNode }) {
+  const managerRoute = useLocation({ select: (location) => location.pathname === "/manager" });
   const [data, setData] = useState<Snapshot | null>(null);
+  const [previewDismissed, setPreviewDismissed] = useState(false);
   const [signed, setSigned] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -337,6 +341,8 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
         Connecting…
       </div>
     );
+  if (import.meta.env.DEV && managerRoute && !signed && !previewDismissed)
+    return <ManagerPreview onConnect={() => setPreviewDismissed(true)} />;
   if (!signed || !data || data.onboarding)
     return (
       <AccountScreen

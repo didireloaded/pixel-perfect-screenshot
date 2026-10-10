@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { CalendarDays, Mail, Megaphone } from "lucide-react";
+import { CalendarDays, Megaphone } from "lucide-react";
 import { EmployeeShell } from "@/components/app/EmployeeShell";
 import { Button } from "@/components/ui/button";
 import { useAttendance } from "@/lib/app-store";
@@ -12,11 +12,13 @@ function Inbox() {
   const d = useAttendance();
   const [section, setSection] = useState<Section>("Messages");
   const messages = d.messages.filter(
-    (message) => d.role === "manager" || message.recipientId === d.me,
+    (message) => d.role === "manager" || message.recipientId === d.me || message.senderId === d.me,
   );
+  const roots = messages.filter((message) => message.id === message.threadId);
+  const [replies, setReplies] = useState<Record<string, string>>({});
   const news = d.notices.filter((notice) => notice.kind !== "event");
   const events = d.notices.filter((notice) => notice.kind === "event");
-  const counts = { Messages: messages.length, News: news.length, Events: events.length };
+  const counts = { Messages: roots.length, News: news.length, Events: events.length };
   return (
     <EmployeeShell title="Inbox">
       <section className="card-surface p-5">
@@ -46,48 +48,63 @@ function Inbox() {
         <section className="space-y-3" aria-label="Direct messages">
           {!messages.length && (
             <p className="card-surface p-5 text-sm text-muted-foreground">
-              No direct messages yet. Only a manager can send messages to employees.
+              No direct messages yet. Your manager can start a conversation here.
             </p>
           )}
-          {messages.map((message) => (
-            <article key={message.id} className="card-surface p-5">
-              <div className="flex items-start gap-3">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-primary-soft text-primary">
-                  <Mail className="h-5 w-5" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="font-bold">{message.title}</h3>
-                    {!message.readAt && d.role !== "manager" && (
-                      <span
-                        className="h-2 w-2 shrink-0 rounded-full bg-primary"
-                        aria-label="Unread"
-                      />
-                    )}
-                  </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {message.senderName} ·{" "}
-                    {new Date(message.sentAt).toLocaleDateString([], {
-                      day: "numeric",
-                      month: "short",
-                    })}
-                  </p>
+          {roots.map((root) => {
+            const thread = messages
+              .filter((m) => m.threadId === root.id)
+              .sort((a, b) => a.sentAt.localeCompare(b.sentAt));
+            return (
+              <article key={root.id} className="card-surface p-5">
+                <h3 className="font-bold">{root.title}</h3>
+                <p className="mt-1 text-xs text-muted-foreground">{root.senderName}</p>
+                <div className="mt-4 space-y-3">
+                  {thread.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`max-w-[85%] rounded-2xl p-3 text-sm ${message.senderId === d.me ? "ml-auto bg-primary text-white" : "bg-muted"}`}
+                    >
+                      <p className="whitespace-pre-wrap">{message.body}</p>
+                      <p className="mt-1 text-xs opacity-70">
+                        {new Date(message.sentAt).toLocaleString()}
+                      </p>
+                      {message.recipientId === d.me && !message.readAt && (
+                        <button
+                          className="mt-2 text-xs underline"
+                          disabled={d.busy || !d.online}
+                          onClick={() => void d.command("read_message", { id: message.id })}
+                        >
+                          Mark as read
+                        </button>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              </div>
-              <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed">{message.body}</p>
-              {!message.readAt && d.role !== "manager" && (
-                <Button
-                  variant="chip"
-                  size="sm"
-                  className="mt-4"
-                  disabled={d.busy || !d.online}
-                  onClick={() => void d.command("read_message", { id: message.id })}
+                <form
+                  className="mt-4 flex gap-2"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    const body = replies[root.id]?.trim();
+                    if (body)
+                      void d.command("reply_message", { threadId: root.id, body }).then((ok) => {
+                        if (ok) setReplies((prev) => ({ ...prev, [root.id]: "" }));
+                      });
+                  }}
                 >
-                  Mark as read
-                </Button>
-              )}
-            </article>
-          ))}
+                  <input
+                    aria-label={`Reply to ${root.senderName}`}
+                    className="min-w-0 flex-1 rounded-xl bg-muted px-3 py-2 text-sm"
+                    maxLength={2000}
+                    placeholder="Write a reply…"
+                    value={replies[root.id] ?? ""}
+                    onChange={(e) => setReplies((prev) => ({ ...prev, [root.id]: e.target.value }))}
+                  />
+                  <Button disabled={d.busy || !d.online || !replies[root.id]?.trim()}>Send</Button>
+                </form>
+              </article>
+            );
+          })}
         </section>
       )}
       {section === "News" && (
