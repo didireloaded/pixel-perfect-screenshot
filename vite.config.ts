@@ -15,12 +15,9 @@ export default defineConfig({
       {
         name: "shiftline-local-postgres",
         async configureServer(server) {
-          const env = loadEnv(server.config.mode, server.config.envDir, "VITE_");
-          if (
-            !env["VITE_SUPABASE_URL"] &&
-            !env["VITE_SUPABASE_PUBLISHABLE_KEY"] &&
-            !env["VITE_SUPABASE_ANON_KEY"]
-          ) {
+          // The app now ships with a default hosted backend; local Postgres only on opt-in.
+          const env = loadEnv(server.config.mode, server.config.envDir, "SHIFTLINE_");
+          if (env["SHIFTLINE_LOCAL_DB"] === "1") {
             const { createLocalHandler } = await import("./scripts/local-api.mjs");
             const handler = await createLocalHandler();
             closeLocalDatabase = handler.close;

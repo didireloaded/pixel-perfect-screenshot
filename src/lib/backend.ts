@@ -1,7 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
-const url = import.meta.env["VITE_SUPABASE_URL"];
+// Publishable values are safe in client code; env vars override them.
+const url = import.meta.env["VITE_SUPABASE_URL"] || "https://hfhiuxijpbujoahtnkjt.supabase.co";
 const key =
-  import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"] || import.meta.env["VITE_SUPABASE_ANON_KEY"];
+  import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"] ||
+  import.meta.env["VITE_SUPABASE_ANON_KEY"] ||
+  "sb_publishable_erGuwHVrkWbSdb6nNjA0sA_k2Qjs3DX";
 export const backendMode =
   url || key
     ? url && key
