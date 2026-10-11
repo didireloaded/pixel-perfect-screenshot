@@ -22,21 +22,21 @@ export async function hasSession() {
   if (testEmployee) return (await local<{ authenticated: boolean }>("session")).authenticated;
   if (!client) return false;
   const { data, error } = await client.auth.getSession();
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return Boolean(data.session);
 }
 
 export async function signIn(email: string, password: string) {
   if (!client) throw new Error("Supabase is not configured for this preview");
   const { data, error } = await client.auth.signInWithPassword({ email, password });
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return data.session;
 }
 
 export async function signUp(email: string, password: string) {
   if (!client) throw new Error("Supabase is not configured for this preview");
   const { data, error } = await client.auth.signUp({ email, password });
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return data.session;
 }
 
@@ -47,20 +47,20 @@ export async function signOut() {
   }
   if (!client) return;
   const { error } = await client.auth.signOut();
-  if (error) throw error;
+  if (error) throw new Error(error.message);
 }
 
 export async function resetPassword(email: string) {
   if (!client) throw new Error("Supabase is not configured for this preview");
   const { error } = await client.auth.resetPasswordForEmail(email);
-  if (error) throw error;
+  if (error) throw new Error(error.message);
 }
 
 export async function snapshot<T>(): Promise<T> {
   if (testEmployee) return local<T>("snapshot");
   if (!client) throw new Error("Supabase is not configured for this preview");
   const { data, error } = await client.rpc("sl_snapshot");
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return data as T;
 }
 
@@ -71,6 +71,6 @@ export async function command<T>(action: string, data: Record<string, unknown>):
       : local<T>("command", { action, data });
   if (!client) throw new Error("Supabase is not configured for this preview");
   const result = await client.rpc("sl_command", { p_action: action, p_data: data as Json });
-  if (result.error) throw result.error;
+  if (result.error) throw new Error(result.error.message);
   return result.data as T;
 }

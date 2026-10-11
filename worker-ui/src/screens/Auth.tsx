@@ -317,8 +317,8 @@ export function VerifyEmail() {
 // ─── Employee activation ───────────────────────────────────────────────────
 export function Activate() {
   const { setPhase } = useApp();
-  const [empNo, setEmpNo] = useState("");
-  const [code, setCode] = useState("");
+  const [empNo, setEmpNo] = useState(backend.testEmployee ? "EMP-1042" : "");
+  const [code, setCode] = useState(backend.testEmployee ? "SHIFT-1042" : "");
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
@@ -384,6 +384,7 @@ export function Activate() {
               className={inputCls}
               value={empNo}
               onChange={(e) => setEmpNo(e.target.value)}
+              aria-label="Employee number"
               placeholder="EMP-0000"
               autoCapitalize="characters"
             />
@@ -393,22 +394,35 @@ export function Activate() {
               className={cn(inputCls, "tracking-[0.3em]", err && "ring-2 ring-bad/50")}
               value={code}
               onChange={(e) => {
-                setCode(e.target.value.replace(/\D/g, "").slice(0, 6));
+                setCode(e.target.value);
                 setErr(null);
               }}
-              placeholder="••••••"
-              inputMode="numeric"
+              placeholder="Paste your activation code"
+              aria-label="Activation code"
+              maxLength={32}
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
             />
           </Field>
           <div className="rounded-card bg-brand-soft/70 p-4 dark:bg-brand/15">
             <p className="text-[14px] leading-relaxed text-brand dark:text-[#9D91F2]">
-              Your manager or HR team provides your one-time activation code. It usually arrives
-              with your onboarding email.
+              {backend.testEmployee
+                ? "Development test access. EMP-1042 and SHIFT-1042 are reusable here; attendance stays in the local test database."
+                : "Paste the complete activation code from your manager. It can contain letters and numbers and is valid for 48 hours."}
             </p>
           </div>
           <Button onClick={submit} loading={loading}>
             {loading ? "Activating…" : "Activate Account"}
           </Button>
+          {import.meta.env.DEV && !backend.testEmployee && (
+            <a
+              className="block text-center text-[14px] font-semibold text-brand"
+              href="/?test=employee"
+            >
+              Use local test employee
+            </a>
+          )}
         </div>
       </div>
       <HomeIndicator />
