@@ -108,6 +108,50 @@ export function AccountScreen({
         </p>
       </div>
     );
+  if (confirmEmail && !signed)
+    return (
+      <div className="mx-auto flex min-h-screen max-w-[440px] items-center px-5 py-8">
+        <section className="card-surface w-full p-6">
+          <span className="rounded-full bg-primary-soft px-3 py-1 text-xs font-semibold">
+            Almost there
+          </span>
+          <h1 className="mt-5 text-2xl font-bold">Confirm your email</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            We sent a confirmation link to <strong className="text-foreground">{confirmEmail}</strong>.
+          </p>
+          <ol className="mt-5 list-decimal space-y-2 pl-5 text-sm">
+            <li>Open the email from Shiftline (check spam or promotions too).</li>
+            <li>Tap the confirmation link.</li>
+            <li>Come back here and sign in, then enter your employee number and activation code.</li>
+          </ol>
+          {resendNote && (
+            <p role="status" className="mt-4 rounded-2xl bg-tint-cream p-3 text-sm">
+              {resendNote}
+            </p>
+          )}
+          <Button
+            variant="hero"
+            size="xl"
+            className="mt-5 w-full"
+            onClick={() => {
+              setConfirmEmail("");
+              setCreate(false);
+              setResendNote("");
+            }}
+          >
+            I've confirmed, sign in
+          </Button>
+          <Button
+            variant="ghost"
+            className="mt-3 w-full"
+            disabled={resending}
+            onClick={() => void resend()}
+          >
+            {resending ? "Sending…" : "Didn't get it? Resend email"}
+          </Button>
+        </section>
+      </div>
+    );
   return (
     <div className="mx-auto flex min-h-screen max-w-[440px] items-center px-5 py-8">
       <section className="card-surface w-full p-6">
