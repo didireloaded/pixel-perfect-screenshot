@@ -1,8 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database, Json } from "../../shared/database.types";
-const url = import.meta.env["VITE_SUPABASE_URL"];
+// Publishable values are safe in client code; env vars override them.
+const url = import.meta.env["VITE_SUPABASE_URL"] || "https://hfhiuxijpbujoahtnkjt.supabase.co";
 const key =
-  import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"] || import.meta.env["VITE_SUPABASE_ANON_KEY"];
+  import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"] ||
+  import.meta.env["VITE_SUPABASE_ANON_KEY"] ||
+  "sb_publishable_erGuwHVrkWbSdb6nNjA0sA_k2Qjs3DX";
 export const backendMode =
   url || key
     ? url && key
@@ -46,6 +49,11 @@ export async function signIn(email: string, password: string, create: boolean) {
   }
   await local(create ? "signup" : "login", { email, password });
   return true;
+}
+export async function resendConfirmation(email: string) {
+  if (!supabase) return;
+  const { error } = await supabase.auth.resend({ type: "signup", email });
+  if (error) throw error;
 }
 export async function signOut() {
   if (supabase) {

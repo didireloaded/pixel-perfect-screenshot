@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { backendMode, signIn } from "@/lib/backend";
+import { backendMode, resendConfirmation, signIn } from "@/lib/backend";
 export function AccountScreen({
   signed,
   error,
@@ -21,6 +21,21 @@ export function AccountScreen({
   const [manager, setManager] = useState(false);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
+  const [confirmEmail, setConfirmEmail] = useState("");
+  const [resendNote, setResendNote] = useState("");
+  const [resending, setResending] = useState(false);
+  const resend = async () => {
+    setResending(true);
+    setResendNote("");
+    try {
+      await resendConfirmation(confirmEmail);
+      setResendNote("A new confirmation email is on its way.");
+    } catch (e) {
+      setResendNote(e instanceof Error ? e.message : "Could not resend right now");
+    } finally {
+      setResending(false);
+    }
+  };
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setMessage("");
@@ -29,9 +44,18 @@ export function AccountScreen({
     const get = (key: string) => String(form.get(key) || "").trim();
     try {
       if (!signed) {
-        const ok = await signIn(get("email"), String(form.get("password")), create);
+        let ok = false;
+        try {
+          ok = await signIn(get("email"), String(form.get("password")), create);
+        } catch (err) {
+          if (err instanceof Error && /not confirmed/i.test(err.message)) {
+            setConfirmEmail(get("email"));
+            return;
+          }
+          throw err;
+        }
         if (ok) await onAuthenticated();
-        else setMessage("Check your email to confirm your account, then sign in.");
+        else setConfirmEmail(get("email"));
       } else
         await command(
           manager ? "setup" : "activate",
@@ -82,6 +106,50 @@ export function AccountScreen({
           The app needs its Supabase URL and publishable key. Apply the included database migration
           and set the two environment values described in the setup guide.
         </p>
+      </div>
+    );
+  if (confirmEmail && !signed)
+    return (
+      <div className="mx-auto flex min-h-screen max-w-[440px] items-center px-5 py-8">
+        <section className="card-surface w-full p-6">
+          <span className="rounded-full bg-primary-soft px-3 py-1 text-xs font-semibold">
+            Almost there
+          </span>
+          <h1 className="mt-5 text-2xl font-bold">Confirm your email</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            We sent a confirmation link to <strong className="text-foreground">{confirmEmail}</strong>.
+          </p>
+          <ol className="mt-5 list-decimal space-y-2 pl-5 text-sm">
+            <li>Open the email from Shiftline (check spam or promotions too).</li>
+            <li>Tap the confirmation link.</li>
+            <li>Come back here and sign in, then enter your employee number and activation code.</li>
+          </ol>
+          {resendNote && (
+            <p role="status" className="mt-4 rounded-2xl bg-tint-cream p-3 text-sm">
+              {resendNote}
+            </p>
+          )}
+          <Button
+            variant="hero"
+            size="xl"
+            className="mt-5 w-full"
+            onClick={() => {
+              setConfirmEmail("");
+              setCreate(false);
+              setResendNote("");
+            }}
+          >
+            I've confirmed, sign in
+          </Button>
+          <Button
+            variant="ghost"
+            className="mt-3 w-full"
+            disabled={resending}
+            onClick={() => void resend()}
+          >
+            {resending ? "Sending…" : "Didn't get it? Resend email"}
+          </Button>
+        </section>
       </div>
     );
   return (
