@@ -325,7 +325,7 @@ export function Activate() {
 
   const submit = async () => {
     if (empNo.trim().length < 4) return setErr("Enter your employee number, e.g. EMP-1042.");
-    if (code.trim().length < 6) return setErr("Enter the 6-digit activation code.");
+    if (code.trim().length < 6) return setErr("Enter your activation code.");
     setErr(null);
     setLoading(true);
     try {
@@ -354,8 +354,7 @@ export function Activate() {
             className="anim-rise mt-2 max-w-[280px] text-[16px] leading-relaxed text-sub dark:text-dsub"
             style={{ animationDelay: "0.25s" }}
           >
-            Your employee account is ready. Your assigned shifts will appear when the live screens
-            are connected.
+            Your employee account is ready. Your shifts, attendance and hours are available.
           </p>
         </div>
         <div className="px-7 pb-6">
@@ -371,7 +370,7 @@ export function Activate() {
       <StatusBar />
       <div className="no-scrollbar flex-1 overflow-y-auto px-7 pb-8">
         <div className="mt-2 flex items-center gap-1.5 text-[13px] font-semibold uppercase tracking-wide text-sub dark:text-dsub">
-          Step 2 of 2
+          {backend.testEmployee ? "Local test employee · EMP-1042 / SHIFT-1042" : "Step 2 of 2"}
         </div>
         <h1 className="mt-2 text-[28px] font-bold tracking-tight text-ink dark:text-white">
           Activate your workplace

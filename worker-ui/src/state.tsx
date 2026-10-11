@@ -306,7 +306,7 @@ export const useApp = () => useContext(Ctx);
 let keyCounter = 1;
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [phase, setPhase] = useState<Phase>("splash");
+  const [phase, setPhase] = useState<Phase>(backend.testEmployee ? "activate" : "splash");
   useEffect(() => {
     let active = true;
     void (async () => {
@@ -350,7 +350,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // theme
-  const [appearance, setAppearance] = useState<"system" | "light" | "dark">("system");
+  const [appearance, setAppearance] = useState<"system" | "light" | "dark">(() => {
+    try {
+      const saved = localStorage.getItem("shiftline-appearance");
+      return saved === "dark" || saved === "system" ? saved : "light";
+    } catch { return "light"; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("shiftline-appearance", appearance); }
+    catch { /* Preference storage may be unavailable in private browsing. */ }
+  }, [appearance]);
   const [sysDark, setSysDark] = useState(
     () => window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false
   );

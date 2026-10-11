@@ -47,3 +47,5 @@ mobile-ui/ios/
 mobile-ui/android/
 
 supabase/.temp/
+
+.shiftline-test-worker/

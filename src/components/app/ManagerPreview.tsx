@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { ManagerFrame } from "./ManagerFrame";
-import type { ManagerSection } from "./manager-sections";
-import { ManagerJobBoard } from "./ManagerJobBoard";
+import { ManagerDemoWorkspace } from "./ManagerDemoWorkspace";
+import { type InsightData } from "./ManagerInsights";
+import type { Totals } from "../../../shared/attendance";
+
 import type { Job, JobStep, JobTeamMember } from "../../../shared/attendance";
 
 const people: Record<string, string> = {
@@ -9,7 +9,7 @@ const people: Record<string, string> = {
   david: "David Okafor",
   priya: "Priya Kaur",
 };
-const jobs: Job[] = [
+const demoJobs: Job[] = [
   {
     id: "j1",
     shiftId: "s1",
@@ -64,10 +64,10 @@ const jobs: Job[] = [
   },
   {
     id: "j5",
-    shiftId: "s5",
+    shiftId: "history-0",
     title: "Vehicle inspection",
     instructions: "Record checks for fleet vehicles before departure.",
-    date: "2026-10-10",
+    date: "2026-10-09",
     start: "07:00",
     end: "08:00",
     destination: "Depot",
@@ -77,10 +77,10 @@ const jobs: Job[] = [
   },
   {
     id: "j6",
-    shiftId: "s6",
+    shiftId: "history-1",
     title: "Safety briefing",
     instructions: "Review the updated site entry procedure with the team.",
-    date: "2026-10-10",
+    date: "2026-10-08",
     start: "08:00",
     end: "08:45",
     destination: "Main Office",
@@ -89,7 +89,7 @@ const jobs: Job[] = [
     assignee: "priya",
   },
 ];
-const steps: JobStep[] = [
+const demoSteps: JobStep[] = [
   {
     id: "st1",
     jobId: "j4",
@@ -106,7 +106,7 @@ const steps: JobStep[] = [
     completedAt: "2026-10-10T08:00:00Z",
   },
 ];
-const team: JobTeamMember[] = [
+const demoTeam: JobTeamMember[] = [
   { jobId: "j1", employeeId: "alex", name: "Alex Martin", team: "Operations" },
   { jobId: "j2", employeeId: "david", name: "David Okafor", team: "Fleet" },
   { jobId: "j3", employeeId: "priya", name: "Priya Kaur", team: "Operations" },
@@ -114,139 +114,119 @@ const team: JobTeamMember[] = [
   { jobId: "j4", employeeId: "priya", name: "Priya Kaur", team: "Operations" },
   { jobId: "j5", employeeId: "david", name: "David Okafor", team: "Fleet" },
 ];
-const examples: Partial<
-  Record<ManagerSection, { title: string; description: string; rows: string[] }>
-> = {
-  Calendar: {
-    title: "Work calendar",
-    description: "Shifts, jobs and company events at a glance.",
-    rows: [
-      "10 Oct · 08:00–17:00 · Alex Martin · Main Office",
-      "10 Oct · 07:30–16:30 · David Okafor · Depot",
-      "11 Oct · Main office safety check",
-    ],
-  },
-  Notes: {
-    title: "Manager notes",
-    description: "Private notes shared with other managers.",
-    rows: ["North gate access code updated", "Confirm Monday maintenance schedule"],
-  },
-  Reports: {
-    title: "Daily activity",
-    description: "Attendance and task completion for 10 October.",
-    rows: [
-      "3 scheduled workers · 2 clocked in",
-      "6 jobs · 2 completed",
-      "1 timesheet awaiting review",
-    ],
-  },
-  Views: {
-    title: "Work overview",
-    description: "Your team, workday and approvals in one place.",
-    rows: ["3 workers scheduled today", "2 jobs in progress", "1 approval waiting"],
-  },
-  "Project management": {
-    title: "Project management",
-    description: "Assign task steps and build job teams.",
-    rows: [
-      "Maintenance support · 1 of 2 steps done",
-      "Main office safety check · Alex Martin",
-      "Equipment delivery · David Okafor",
-    ],
-  },
-  Attendance: {
-    title: "Clock in and clock out",
-    description: "Worker attendance updates appear here during their shifts.",
-    rows: [
-      "Alex Martin · Clocked in 08:02 · Working",
-      "David Okafor · Clocked in 07:31 · On job",
-      "Priya Kaur · Clocked in 08:00 · On lunch",
-    ],
-  },
-  Map: {
-    title: "Team locations",
-    description: "Worksite checks are visible during active shifts only.",
-    rows: [
-      "Main Office · 1 worker recently confirmed",
-      "Depot · 1 worker recently confirmed",
-      "No off-duty tracking",
-    ],
-  },
-  Messages: {
-    title: "Conversations",
-    description: "Manager and worker messages.",
-    rows: ["Alex Martin · Site inspection update", "David Okafor · Tomorrow’s assignment"],
-  },
-  Team: {
-    title: "Your team",
-    description: "People, employee numbers and assigned worksites.",
-    rows: ["Alex Martin · Main Office", "David Okafor · Depot", "Priya Kaur · Main Office"],
-  },
-  Requests: {
-    title: "Requests",
-    description: "Leave, exceptions and overtime awaiting a decision.",
-    rows: ["Leave request · Awaiting decision", "Timesheet · Overtime requested"],
-  },
-  Announcements: {
-    title: "Company news",
-    description: "Publish news, holidays, closures and events.",
-    rows: ["Maintenance notice", "Team safety briefing"],
-  },
-  Corrections: {
-    title: "Corrections",
-    description: "Review attendance adjustments with an audit trail.",
-    rows: ["Missing clock-out · Awaiting review"],
-  },
-  Policies: {
-    title: "Attendance policies",
-    description: "Set worksite checks, lunch and overtime rules.",
-    rows: ["Worksite geofence", "Lunch schedule", "Location privacy window"],
-  },
-  Audit: {
-    title: "Audit history",
-    description: "See who changed records and when.",
-    rows: ["Attendance action · 08:02", "Manager approval · 09:14"],
-  },
-  Kiosk: {
-    title: "Supervised kiosk",
-    description: "A shared device can record attendance at a worksite.",
-    rows: ["Main Office kiosk", "Supervisor verification"],
-  },
+const emptyTotals: Totals = {
+  recordedSeconds: 0,
+  regularSeconds: 0,
+  overtimeSecondsApproved: 0,
+  overtimeSecondsPending: 0,
+  paidBreakSeconds: 0,
+  unpaidBreakSeconds: 0,
+  personalSeconds: 0,
+  payableSeconds: 0,
+  policyVersion: 1,
+  workedMinutes: 0,
+  recordedMinutes: 0,
+  regularMinutes: 0,
+  overtimeMinutes: 0,
+  unapprovedOvertimeMinutes: 0,
+  lunchMinutes: 0,
+  personalMinutes: 0,
+  missingClockOut: false,
+  complete: false,
 };
-
+const previewInsights: InsightData = {
+  today: "2026-10-10",
+  company: { id: "preview", name: "Project Inc.", timezone: "Africa/Windhoek" },
+  employees: Object.entries(people).map(([id, name]) => ({
+    id,
+    name,
+    no: id,
+    team: "Operations",
+    siteId: "office",
+    role: "employee",
+    activated: true,
+    payrollAdmin: false,
+  })),
+  shifts: Object.keys(people).map((id, index) => ({
+    id: `shift-${index}`,
+    employeeId: id,
+    date: "2026-10-10",
+    start: "08:00",
+    end: "17:00",
+    lunch: "12:00",
+    lunchMinutes: 60,
+    trackingStop: "17:00",
+    siteId: "office",
+    regularMinutes: 480,
+    totals: emptyTotals,
+  })),
+  events: [
+    {
+      id: "event-1",
+      shiftId: "shift-0",
+      employeeId: "alex",
+      type: "clock_in",
+      capturedAt: new Date("2026-10-10T06:02:00Z").getTime(),
+      sync: "synced",
+    },
+    {
+      id: "event-2",
+      shiftId: "shift-1",
+      employeeId: "david",
+      type: "clock_in",
+      capturedAt: new Date("2026-10-10T06:05:00Z").getTime(),
+      sync: "synced",
+    },
+  ],
+  states: [
+    { shiftId: "shift-0", employeeId: "alex", state: "working" },
+    { shiftId: "shift-1", employeeId: "david", state: "on_lunch" },
+  ],
+  requests: [],
+  messages: [],
+  notices: [],
+};
+for (const [index, employeeId] of ["david", "priya"].entries()) {
+  const date = index === 0 ? "2026-10-09" : "2026-10-08";
+  const shiftId = `history-${index}`;
+  previewInsights.shifts.push({
+    ...previewInsights.shifts[index]!,
+    id: shiftId,
+    employeeId,
+    date,
+    totals: {
+      ...emptyTotals,
+      workedMinutes: 480,
+      recordedMinutes: 480,
+      regularMinutes: 480,
+      recordedSeconds: 28800,
+      regularSeconds: 28800,
+      payableSeconds: 28800,
+      lunchMinutes: 60,
+      complete: true,
+    },
+  });
+  for (const [type, time] of [
+    ["clock_in", "06:00"],
+    ["clock_out", "15:00"],
+  ] as const)
+    previewInsights.events.push({
+      id: `${shiftId}-${type}`,
+      shiftId,
+      employeeId,
+      type,
+      capturedAt: new Date(`${date}T${time}:00Z`).getTime(),
+      sync: "synced",
+    });
+}
 export function ManagerPreview({ onConnect }: { onConnect: () => void }) {
-  const [section, setSection] = useState<ManagerSection>("Tasks");
-  const detail = examples[section];
   return (
-    <ManagerFrame
-      active={section}
-      onSelect={setSection}
-      company="Project Inc."
-      preview
+    <ManagerDemoWorkspace
       onConnect={onConnect}
-    >
-      {section === "Tasks" ? (
-        <ManagerJobBoard
-          jobs={jobs}
-          steps={steps}
-          team={team}
-          names={(id) => people[id] || "Worker"}
-          today="2026-10-10"
-          onAdd={onConnect}
-        />
-      ) : (
-        <section className="project-panel project-preview-section">
-          <p className="project-panel-kicker">PROJECT INC. / {section.toUpperCase()}</p>
-          <h2>{detail?.title || section}</h2>
-          <p className="project-panel-sub">{detail?.description}</p>
-          <div className="project-preview-rows">
-            {detail?.rows.map((row) => (
-              <article key={row}>{row}</article>
-            ))}
-          </div>
-          <button onClick={onConnect}>Manage live {section.toLowerCase()}</button>
-        </section>
-      )}
-    </ManagerFrame>
+      initialJobs={demoJobs}
+      initialSteps={demoSteps}
+      initialTeam={demoTeam}
+      base={previewInsights}
+    />
   );
 }

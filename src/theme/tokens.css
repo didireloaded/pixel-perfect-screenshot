@@ -1,0 +1,16 @@
+:root {
+  --sl-accent: #6d4aff;
+  --sl-accent-pressed: #5938db;
+  --sl-accent-soft: #eee9fe;
+  --sl-sidebar: #23085a;
+  --sl-canvas: #f3f3fc;
+  --sl-surface: #fff;
+  --sl-text: #201c2c;
+  --sl-secondary: #797584;
+  --sl-line: #eceaf2;
+  --sl-card-shadow: 0 3px 18px rgba(32, 22, 65, 0.035);
+  --sl-blue: #edf4ff;
+  --sl-orange: #fff1e4;
+  --sl-pink: #fceefb;
+  --sl-purple: #f1edff;
+}

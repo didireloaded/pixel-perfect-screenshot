@@ -1,4 +1,5 @@
 import {
+  House,
   BriefcaseBusiness,
   CalendarDays,
   ChevronDown,
@@ -24,6 +25,7 @@ export const managerGroups = [
   {
     label: "WORKSPACE",
     items: [
+      { name: "Overview", icon: House },
       { name: "Tasks", icon: ClipboardList },
       { name: "Calendar", icon: CalendarDays },
       { name: "Notes", icon: NotebookPen },
@@ -49,7 +51,7 @@ export const managerGroups = [
       { name: "Corrections", icon: FileText },
       { name: "Policies", icon: Settings2 },
       { name: "Audit", icon: ScrollText },
-      { name: "Kiosk", icon: Monitor },
+      { name: "Employee Access", icon: Monitor },
     ],
   },
 ] as const;

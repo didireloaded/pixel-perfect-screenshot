@@ -1,0 +1,315 @@
+import { useState, type FormEvent } from "react";
+import {
+  Bell,
+  ChevronRight,
+  ClipboardList,
+  Coffee,
+  FileText,
+  HelpCircle,
+  LogOut,
+  MapPin,
+  Moon,
+  ShieldCheck,
+  Sun,
+  User,
+} from "lucide-react";
+import type { AttendanceSnapshot, RequestKind, Shift } from "../../../shared/attendance";
+import { useApp } from "../state";
+import { EmptyState } from "./WorkerUI";
+export type WorkerRun = (
+  action: string,
+  payload: Record<string, unknown>,
+  success: string,
+) => Promise<boolean>;
+export function WorkerProfile({
+  data,
+  onRequests,
+  onSignOut,
+  onMonitoring,
+  monitoring,
+}: {
+  data: AttendanceSnapshot;
+  onRequests: () => void;
+  onSignOut: () => void;
+  onMonitoring: () => void;
+  monitoring: boolean;
+}) {
+  const { isDark, setAppearance, reduceMotion, setReduceMotion } = useApp();
+  const [privacy, setPrivacy] = useState(false);
+  const [help, setHelp] = useState(false);
+  const me = data.employees.find((employee) => employee.id === data.me)!;
+  return (
+    <>
+      <div className="worker-profile-identity">
+        <span>
+          {me.name
+            .split(" ")
+            .map((part) => part[0])
+            .join("")
+            .slice(0, 2)}
+        </span>
+        <h2>{me.name}</h2>
+        <p>
+          {me.team || "Employee"} · {me.no}
+        </p>
+        <small>{data.company.name}</small>
+      </div>
+      <div className="worker-profile-group">
+        <p>YOUR WORK</p>
+        <button onClick={onRequests}>
+          <ClipboardList size={19} />
+          <span>My requests</span>
+          <ChevronRight size={17} />
+        </button>
+        <div className="worker-account-info">
+          <User size={19} />
+          <span>Employee number</span>
+          <b>{me.no}</b>
+        </div>
+        <div className="worker-account-info">
+          <MapPin size={19} />
+          <span>Worksite</span>
+          <b>{data.sites.find((site) => site.id === me.siteId)?.name ?? "Unassigned"}</b>
+        </div>
+      </div>
+      <div className="worker-profile-group">
+        <p>PREFERENCES & PRIVACY</p>
+        <button onClick={() => setAppearance(isDark ? "light" : "dark")}>
+          {isDark ? <Sun size={19} /> : <Moon size={19} />}
+          <span>Appearance</span>
+          <b>{isDark ? "Dark" : "Light"}</b>
+          <ChevronRight size={17} />
+        </button>
+        <label className="worker-setting-row">
+          <Coffee size={19} />
+          <span>Reduce motion</span>
+          <input
+            type="checkbox"
+            checked={reduceMotion}
+            onChange={(event) => setReduceMotion(event.target.checked)}
+          />
+        </label>
+        <button onClick={() => setPrivacy((value) => !value)} aria-expanded={privacy}>
+          <ShieldCheck size={19} />
+          <span>Location & privacy</span>
+          <ChevronRight size={17} />
+        </button>
+        {privacy && (
+          <div className="worker-profile-disclosure">
+            <p>
+              Worksite checks run only while this app is visible, during active work, until the
+              tracking deadline. They stop during lunch, departures and after clock-out. Your
+              manager sees worksite exit and return alerts, not a route.
+            </p>
+            <button onClick={onMonitoring}>
+              {monitoring ? "Pause worksite checks" : "Enable worksite checks"}
+            </button>
+          </div>
+        )}
+      </div>
+      <div className="worker-profile-group">
+        <button onClick={() => setHelp((value) => !value)} aria-expanded={help}>
+          <HelpCircle size={19} />
+          <span>Help with Shiftline</span>
+          <ChevronRight size={17} />
+        </button>
+        {help && (
+          <div className="worker-profile-disclosure">
+            <p>
+              Clock in from Today at the start of your shift. Use Lunch for your break and Clock out
+              when you finish. If a record is incorrect, open Calendar, choose the shift, and
+              request a correction. Contact your manager through Inbox.
+            </p>
+          </div>
+        )}
+      </div>
+      <button className="worker-signout" onClick={onSignOut}>
+        <LogOut size={17} />
+        Sign out
+      </button>
+    </>
+  );
+}
+export function WorkerRequests({
+  data,
+  busy,
+  run,
+  correction,
+}: {
+  data: AttendanceSnapshot;
+  busy: boolean;
+  run: WorkerRun;
+  correction?: Shift | null;
+}) {
+  const [kind, setKind] = useState<RequestKind>(correction ? "correction" : "leave");
+  const [summary, setSummary] = useState(
+    correction ? `Attendance correction · ${correction.date}` : "",
+  );
+  const [detail, setDetail] = useState("");
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (
+      await run(
+        "create_request",
+        { kind, summary: summary.trim(), detail: detail.trim() },
+        "Request sent to your manager",
+      )
+    ) {
+      setSummary("");
+      setDetail("");
+    }
+  };
+  const requests = data.requests
+    .filter((request) => request.employeeId === data.me)
+    .sort((a, b) => b.submittedAt - a.submittedAt);
+  return (
+    <>
+      <section className="worker-card">
+        <h2 className="text-base font-semibold">New request</h2>
+        <p className="worker-muted-copy">Send a request to your manager for review.</p>
+        <form className="worker-request-form" onSubmit={(event) => void submit(event)}>
+          <label>
+            Request type
+            <select value={kind} onChange={(event) => setKind(event.target.value as RequestKind)}>
+              <option value="leave">Time off</option>
+              <option value="correction">Attendance correction</option>
+              <option value="missing_clocking">Missing clock-in or out</option>
+              <option value="emergency">Emergency</option>
+            </select>
+          </label>
+          <label>
+            Summary
+            <input
+              required
+              maxLength={120}
+              placeholder="Dates or a short reason"
+              value={summary}
+              onChange={(event) => setSummary(event.target.value)}
+            />
+          </label>
+          <label>
+            Details
+            <textarea
+              maxLength={2000}
+              value={detail}
+              onChange={(event) => setDetail(event.target.value)}
+              placeholder="What should your manager know?"
+            />
+          </label>
+          <button className="worker-action" disabled={busy || !summary.trim()}>
+            Send request
+          </button>
+        </form>
+      </section>
+      <div className="worker-section-heading">
+        <h2>Your requests</h2>
+        <span>{requests.length}</span>
+      </div>
+      {requests.map((request) => (
+        <section className="worker-card" key={request.id}>
+          <div className="flex items-start justify-between gap-3">
+            <h3 className="text-sm font-semibold">{request.summary}</h3>
+            <span className={`worker-request-status ${request.status}`}>{request.status}</span>
+          </div>
+          <p className="worker-muted-copy">{request.detail || request.kind.replace(/_/g, " ")}</p>
+          <small className="text-[10px] text-sub">
+            {new Date(request.submittedAt).toLocaleDateString()}
+          </small>
+          {request.reason && (
+            <p className="mt-3 rounded-xl bg-fill p-3 text-xs dark:bg-dfill">
+              Manager: {request.reason}
+            </p>
+          )}
+        </section>
+      ))}
+      {!requests.length && (
+        <EmptyState
+          icon={<FileText size={26} />}
+          title="No requests yet"
+          description="Your requests and manager decisions appear here."
+        />
+      )}
+    </>
+  );
+}
+export function WorkerNotifications({
+  data,
+  onInbox,
+  onRequests,
+  onHours,
+}: {
+  data: AttendanceSnapshot;
+  onInbox: () => void;
+  onRequests: () => void;
+  onHours: () => void;
+}) {
+  const messages = data.messages.filter(
+    (message) => message.recipientId === data.me && !message.readAt,
+  );
+  const notices = data.notices.filter((notice) => notice.requiresAck && !notice.acknowledged);
+  const decisions = data.requests.filter(
+    (request) => request.employeeId === data.me && request.status !== "pending",
+  );
+  const reviewed = data.timesheets.filter(
+    (sheet) => sheet.employeeId === data.me && sheet.status === "approved",
+  );
+  return (
+    <>
+      {!messages.length && !notices.length && !decisions.length && !reviewed.length && (
+        <EmptyState
+          icon={<Bell size={27} />}
+          title="You’re all caught up"
+          description="Messages, company updates and approvals will appear here."
+        />
+      )}
+      {messages.map((message) => (
+        <button className="worker-notification-row" key={message.id} onClick={onInbox}>
+          <span className="worker-soft-icon">
+            <Bell size={18} />
+          </span>
+          <span>
+            <b>{message.title}</b>
+            <p>{message.senderName} · New message</p>
+          </span>
+          <ChevronRight size={16} />
+        </button>
+      ))}
+      {notices.map((notice) => (
+        <button className="worker-notification-row" key={notice.id} onClick={onInbox}>
+          <span className="worker-soft-icon">
+            <FileText size={18} />
+          </span>
+          <span>
+            <b>{notice.title}</b>
+            <p>Company notice · Acknowledgement needed</p>
+          </span>
+          <ChevronRight size={16} />
+        </button>
+      ))}
+      {decisions.map((request) => (
+        <button className="worker-notification-row" key={request.id} onClick={onRequests}>
+          <span className="worker-soft-icon">
+            <ClipboardList size={18} />
+          </span>
+          <span>
+            <b>{request.summary}</b>
+            <p>Request {request.status}</p>
+          </span>
+          <ChevronRight size={16} />
+        </button>
+      ))}
+      {reviewed.map((sheet) => (
+        <button className="worker-notification-row" key={sheet.shiftId} onClick={onHours}>
+          <span className="worker-soft-icon">
+            <FileText size={18} />
+          </span>
+          <span>
+            <b>Timesheet approved</b>
+            <p>{sheet.date} · View your hours</p>
+          </span>
+          <ChevronRight size={16} />
+        </button>
+      ))}
+    </>
+  );
+}

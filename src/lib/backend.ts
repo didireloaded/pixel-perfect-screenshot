@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import type { Database, Json } from "../../shared/database.types";
 const url = import.meta.env["VITE_SUPABASE_URL"];
 const key =
   import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"] || import.meta.env["VITE_SUPABASE_ANON_KEY"];
@@ -10,7 +11,7 @@ export const backendMode =
     : import.meta.env.DEV
       ? "local"
       : "unconfigured";
-const supabase = backendMode === "cloud" ? createClient(url!, key!) : null;
+const supabase = backendMode === "cloud" ? createClient<Database>(url!, key!) : null;
 async function local<T>(path: string, body?: unknown): Promise<T> {
   const response = await fetch(`/api/local/${path}`, {
     credentials: "same-origin",
@@ -62,7 +63,7 @@ export async function snapshot<T>(): Promise<T> {
 }
 export async function command<T>(action: string, data: Record<string, unknown>): Promise<T> {
   if (supabase) {
-    const result = await supabase.rpc("sl_command", { p_action: action, p_data: data });
+    const result = await supabase.rpc("sl_command", { p_action: action, p_data: data as Json });
     if (result.error) throw result.error;
     return result.data as T;
   }

@@ -24,7 +24,12 @@ export async function createLocalDatabase(directory) {
   `);
   const directoryPath = path.join(root, "supabase/migrations");
   for (const name of (await readdir(directoryPath)).filter((n) => n.endsWith(".sql")).sort()) {
-    const applied = await db.query("select 1 from local_private.migrations where name=$1", [name]);
+    // Hosted migration timestamps can change when pending source migrations are deployed.
+    // The descriptive identity stays the same; do not rerun already-applied SQL after that rename.
+    const applied = await db.query(
+      "select 1 from local_private.migrations where regexp_replace(name,'^[0-9]+_','')=$1",
+      [name.replace(/^\d+_/, "")],
+    );
     if (!applied.rows.length)
       await db.transaction(async (tx) => {
         await tx.exec(await readFile(path.join(directoryPath, name), "utf8"));
@@ -47,11 +52,14 @@ export async function runRpc(db, userId, action, data = {}) {
     return response.rows[0].result;
   });
 }
-export async function createLocalHandler() {
-  const db = await createLocalDatabase(path.join(root, ".shiftline-local"));
+export async function createLocalHandler({ testWorker = false } = {}) {
+  const prefix = testWorker ? "/api/test-worker/" : "/api/local/";
+  const cookieName = testWorker ? "shiftline_test_session" : "shiftline_session";
+  const db = await createLocalDatabase(path.join(root, testWorker ? ".shiftline-test-worker" : ".shiftline-local"));
+  const workerId = testWorker ? await seedTestWorker(db) : null;
   const attempts = new Map();
   const cookie = (token) =>
-    `shiftline_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${token ? 604800 : 0}`;
+    `${cookieName}=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${token ? 604800 : 0}`;
   const send = (res, status, value) => {
     res.statusCode = status;
     res.setHeader("Content-Type", "application/json");
@@ -60,9 +68,9 @@ export async function createLocalHandler() {
   };
   const fail = (message, status = 400) => Object.assign(new Error(message), { status });
   const handler = async (req, res, next) => {
-    if (!req.url?.startsWith("/api/local/")) return next();
+    if (!req.url?.startsWith(prefix)) return next();
     try {
-      const route = req.url.split("?")[0].slice("/api/local/".length);
+      const route = req.url.split("?")[0].slice(prefix.length);
       if (!["GET", "POST"].includes(req.method)) throw fail("Method not allowed", 405);
       let body = {};
       if (req.method === "POST") {
@@ -86,7 +94,7 @@ export async function createLocalHandler() {
           throw fail("Invalid JSON");
         }
       }
-      const token = req.headers.cookie?.match(/(?:^|;\s*)shiftline_session=([a-f0-9]{64})/)?.[1];
+      const token = req.headers.cookie?.match(new RegExp(`(?:^|;\\s*)${cookieName}=([a-f0-9]{64})`))?.[1];
       const session = token
         ? (
             await db.query(
@@ -145,6 +153,18 @@ export async function createLocalHandler() {
         res.setHeader("Set-Cookie", cookie(newToken));
         return send(res, 200, { authenticated: true });
       }
+      if (testWorker && route === "activate" && req.method === "POST") {
+        const address = req.socket.remoteAddress;
+        const recent = (attempts.get(address) || []).filter(t => t > Date.now() - 900000);
+        if (recent.length >= 20) throw fail("Too many attempts. Try again later.", 429);
+        attempts.set(address, [...recent, Date.now()]);
+        if (body.employeeNo !== "EMP-1042" || body.code !== "SHIFT-1042")
+          throw fail("Incorrect test employee number or activation code.", 401);
+        const newToken = randomBytes(32).toString("hex");
+        await db.query("insert into local_private.sessions values($1,$2,now()+interval '7 days')", [hash(newToken), workerId]);
+        res.setHeader("Set-Cookie", cookie(newToken));
+        return send(res, 200, { authenticated: true });
+      }
       if (!session) throw fail("Sign in first", 401);
       if (route === "logout" && req.method === "POST") {
         await db.query("delete from local_private.sessions where token_hash=$1", [hash(token)]);
@@ -181,4 +201,28 @@ export async function createLocalHandler() {
   };
   handler.close = () => db.close();
   return handler;
+}
+
+// Isolated development fixture. It uses the production RPC authorization and attendance rules.
+export async function seedTestWorker(db) {
+  let manager = (await db.query("select user_id from public.sl_employees where no='manager-1' limit 1")).rows[0]?.user_id;
+  if (!manager) {
+    manager = randomUUID();
+    await db.query("insert into auth.users values($1)", [manager]);
+    await runRpc(db, manager, "setup", {company:"Project Inc. — Local Test", name:"Test Manager", site:"Windhoek Office", timezone:"Africa/Windhoek"});
+  }
+  let snapshot = await runRpc(db, manager, null);
+  let worker = snapshot.employees.find(e => e.no === "EMP-1042");
+  if (!worker) {
+    const invite = await runRpc(db, manager, "create_employee", {name:"Alex Test", no:"EMP-1042", team:"Operations", siteId:snapshot.sites[0].id});
+    const user = randomUUID();
+    await db.query("insert into auth.users values($1)", [user]);
+    await runRpc(db, user, "activate", {employeeNo:"EMP-1042", code:invite.activationCode});
+    snapshot = await runRpc(db, manager, null);
+    worker = snapshot.employees.find(e => e.no === "EMP-1042");
+  }
+  if (!snapshot.shifts.some(s => s.employeeId === worker.id && s.date === snapshot.today)) {
+    await runRpc(db, manager, "assign_shift", {employeeId:worker.id, siteId:snapshot.sites[0].id, date:snapshot.today, start:"00:00", end:"23:59", lunch:"12:00", lunchMinutes:60, regularMinutes:480});
+  }
+  return (await db.query("select user_id from public.sl_employees where id=$1", [worker.id])).rows[0].user_id;
 }

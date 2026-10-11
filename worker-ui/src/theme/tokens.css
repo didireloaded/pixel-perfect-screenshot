@@ -1,0 +1,29 @@
+@theme {
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+  --color-brand: #6d4aff;
+  --color-brand-soft: #eee9fe;
+  --color-brand-dark: #5938db;
+  --color-page: #f4f3f7;
+  --color-card: #fff;
+  --color-fill: #f3f2f7;
+  --color-ink: #211e29;
+  --color-sub: #87828f;
+  --color-sep: #eae7f0;
+  --color-dpage: #14111c;
+  --color-dcard: #211c2c;
+  --color-dfill: #30293f;
+  --color-dsub: #ada4ba;
+  --color-dsep: #393043;
+  --color-ok: #2daf66;
+  --color-warn: #d88b20;
+  --color-bad: #df536a;
+  --color-info: #327de5;
+  --radius-card: 18px;
+  --radius-sheet: 28px;
+  --radius-btn: 14px;
+}
+:root {
+  --sl-accent: #6d4aff;
+  --sl-accent-soft: #eee9fe;
+  --sl-shadow: 0 2px 10px rgba(34, 22, 65, 0.025);
+}

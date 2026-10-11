@@ -109,6 +109,36 @@ test("manager messages, job progress, team and events remain scoped", async () =
       end: "14:00",
     });
     const jobId = created.snapshot.jobs[0].id;
+    await assert.rejects(
+      call(worker, "set_job_status", { jobId, status: "completed" }),
+      /Manager access/,
+    );
+    await assert.rejects(
+      call(outsider, "set_job_status", { jobId, status: "completed" }),
+      /Unknown job/,
+    );
+    await assert.rejects(
+      call(manager, "set_job_status", { jobId, status: "invalid" }),
+      /Invalid task status/,
+    );
+    const moved = await call(manager, "set_job_status", {
+      jobId,
+      status: "in_progress",
+      expectedStatus: "assigned",
+    });
+    assert.equal(moved.snapshot.jobs.find((job) => job.id === jobId).status, "in_progress");
+    await assert.rejects(
+      call(manager, "set_job_status", { jobId, status: "completed", expectedStatus: "assigned" }),
+      /Task changed/,
+    );
+    await call(manager, "set_job_status", {
+      jobId,
+      status: "assigned",
+      expectedStatus: "in_progress",
+    });
+    assert.equal((await call(worker, null)).events.length, 0);
+
+
     const note = await call(manager, "add_manager_note", { title: "Site reminder", body: "Bring keys" });
     assert.equal(note.snapshot.managerNotes[0].title, "Site reminder");
     assert.deepEqual((await call(worker, null)).managerNotes, []);

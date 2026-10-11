@@ -17,6 +17,8 @@ const ACTIONS: { value: EventType; label: string }[] = [
 ];
 export function KioskDesk() {
   const d = useAttendance();
+  const [activation, setActivation] = useState<string | null>(null);
+  const [pending, setPending] = useState("");
   const [selected, setSelected] = useState("");
   const [issued, setIssued] = useState<{ number: string; code: string } | null>(null);
   const [number, setNumber] = useState("");
@@ -64,6 +66,19 @@ export function KioskDesk() {
   }
   return (
     <div className="grid gap-5 lg:grid-cols-2">
+      <section className="card-surface p-5 lg:col-span-2">
+        <h2 className="text-lg font-bold">Employee app access</h2>
+        <p className="mt-2 text-sm text-muted-foreground">Create employees in Team, then issue their app activation code here. Codes expire after 48 hours and can be used once.</p>
+        <label className="mt-4 block">Employee awaiting activation
+          <select className="mt-2 h-12 w-full rounded-2xl bg-muted px-3" value={pending} onChange={e => {setPending(e.target.value); setActivation(null);}}>
+            <option value="">Choose employee</option>
+            {d.employees.filter(e => e.role === "employee" && !e.activated).map(e => <option key={e.id} value={e.id}>{e.name} · {e.no}</option>)}
+          </select>
+        </label>
+        <Button className="mt-4" disabled={!pending || d.busy || !d.online} onClick={async () => { const result = await d.command("issue_activation", {employeeId:pending}); if(result?.activationCode) setActivation(result.activationCode); }}>Issue activation code</Button>
+        {activation && <p role="status" className="mt-4 break-all">Employee number: <strong>{d.employees.find(e => e.id === pending)?.no}</strong><br />Activation code: <code className="select-all">{activation}</code></p>}
+        {import.meta.env.DEV && <p className="mt-4">Local test worker: <strong>EMP-1042</strong> · Code: <strong>SHIFT-1042</strong> · <a className="underline" href="http://127.0.0.1:8083/?test=employee" target="_blank" rel="noreferrer">Open worker app</a>. Uses separate local test data.</p>}
+      </section>
       <section className="card-surface p-5">
         <div className="flex items-center gap-2">
           <KeyRound className="text-primary" />

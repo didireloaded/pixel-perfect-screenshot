@@ -261,7 +261,15 @@ export function ManagerSiteMap() {
   const d = useAttendance();
   const [siteId, setSiteId] = useState("");
   const site = d.sites.find((item) => item.id === siteId) || d.sites[0];
-  const checked = d.sitePresence.filter((presence) => presence.siteId === site?.id);
+  const checked = d.sitePresence.filter(
+    (presence) =>
+      presence.siteId === site?.id &&
+      d.states.some(
+        (state) =>
+          state.shiftId === presence.shiftId &&
+          (state.state === "working" || state.state === "on_job"),
+      ),
+  );
   const siteShifts = d.shifts.filter(
     (shift) => shift.siteId === site?.id && shift.date === d.today,
   );

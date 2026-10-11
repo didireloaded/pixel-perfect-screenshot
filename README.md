@@ -36,3 +36,15 @@ npm run build
 ```
 
 The database tests run the actual migrations and RPCs against an isolated embedded PostgreSQL database. They cover attendance transitions, tenant isolation, approvals, messages, job progress and exports. Physical-device GPS, background scheduling, hosted authentication and email delivery require separate validation. Browser offline clock-in, web push delivery and an installable PWA are not implemented.
+
+### Interactive manager demonstration
+
+In development, opening `/manager` without a signed-in account displays the labelled Project Inc. demo. It starts on Overview and saves sample task status, team assignments, checklists, comments, notes, conversations, decisions, announcements, policy settings and supervised attendance actions in this browser. Reset demo restores the sample records. It never sends demo records to Supabase or to worker accounts.
+
+The calendar supports month/week navigation, current and past jobs, and selected-day details. Reports include historical attendance and CSV download. The demo map uses OpenStreetMap with configured example worksites; its roster hides lunch, personal-break and off-duty states. Sample assignments are not live GPS evidence.
+
+The signed-in manager continues to use the existing company-scoped backend. Apply `supabase/migrations/20261011081637_shiftline_manager_task_status.sql` to the hosted project before using the new live board move action. It validates manager/company ownership and status, locks the job, checks the expected status and audits changes. Moving a job does not create attendance events or alter worked hours. The board migration is now applied to hosted Supabase. Live job-site tracking remains unimplemented.
+
+## Shared backend
+
+The hosted project now has all eleven migrations, including chat, manager workspace, task-board changes and database integrity protections. See [docs/backend.md](docs/backend.md) for the schema, access rules, verification, demo boundaries and backup procedure. Both web clients use generated Supabase types in `shared/database.types.ts`.

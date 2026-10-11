@@ -10,7 +10,15 @@ const __dirname = path.dirname(__filename);
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss(), viteSingleFile()],
+  plugins: [react(), tailwindcss(), viteSingleFile(), {
+    name: "local-test-employee",
+    async configureServer(server) {
+      const { createLocalHandler } = await import("../scripts/local-api.mjs");
+      const handler = await createLocalHandler({ testWorker: true });
+      server.middlewares.use(handler);
+      server.httpServer?.once("close", () => void handler.close());
+    },
+  }],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"),

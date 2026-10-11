@@ -1,27 +1,30 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type FormEvent,
-  type ReactNode,
-} from "react";
-import {
+  Bell,
+  ChevronLeft,
+  ChevronRight,
+  Menu,
+  WifiOff,
   Briefcase,
   CalendarDays,
   Check,
   Clock3,
-  Coffee,
   House,
-  LogOut,
   Mail,
   MapPin,
-  RefreshCw,
-  Send,
 } from "lucide-react";
 import type { AttendanceSnapshot, EventType, Job, Shift } from "../../shared/attendance";
 import * as backend from "./backend";
+import { WorkerHome } from "./components/WorkerHome";
+import { AttendanceCalendar } from "./components/AttendanceCalendar";
+import {
+  WorkerCard as Card,
+  WorkerAction as Action,
+  WorkerSheet,
+  EmptyState,
+} from "./components/WorkerUI";
+import { WorkerProfile, WorkerRequests, WorkerNotifications } from "./components/WorkerAccount";
+import type { AttendanceSnapshot as Snapshot } from "../../shared/attendance";
 
 type Result = { snapshot: AttendanceSnapshot; status?: string; reason?: string };
 type Tab = "today" | "calendar" | "jobs" | "inbox" | "hours";
@@ -42,46 +45,6 @@ const eventLabels: Record<EventType, string> = {
   end_personal: "Returned to work",
   clock_out: "Clocked out",
 };
-const stateLabels = {
-  not_clocked_in: "Not clocked in",
-  working: "Working",
-  on_lunch: "On lunch",
-  on_job: "On job",
-  on_personal: "Away",
-  clocked_out: "Clocked out",
-};
-
-function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return (
-    <section
-      className={`rounded-[20px] bg-card p-5 shadow-[0_1px_2px_rgba(28,28,30,.04),0_8px_24px_rgba(28,28,30,.045)] dark:bg-dcard ${className}`}
-    >
-      {children}
-    </section>
-  );
-}
-function Action({
-  children,
-  onClick,
-  disabled,
-  secondary = false,
-}: {
-  children: ReactNode;
-  onClick: () => void;
-  disabled?: boolean;
-  secondary?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      className={`press flex min-h-12 w-full items-center justify-center gap-2 rounded-[14px] px-4 text-[15px] font-semibold disabled:opacity-45 ${secondary ? "bg-fill text-ink dark:bg-dfill dark:text-white" : "bg-brand text-white"}`}
-    >
-      {children}
-    </button>
-  );
-}
 const minutes = (n: number) => `${Math.floor(n / 60)}h ${String(n % 60).padStart(2, "0")}m`;
 const displayDate = (iso: string) =>
   new Date(`${iso}T12:00:00Z`).toLocaleDateString([], {
@@ -90,19 +53,37 @@ const displayDate = (iso: string) =>
     month: "short",
     timeZone: "UTC",
   });
-const displayTime = (time: number, zone: string) =>
-  new Date(time).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: zone,
-  });
-
-export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) {
-  const [data, setData] = useState<AttendanceSnapshot | null>(null);
+export default function LiveWorkerApp({
+  onSignOut,
+  previewData,
+}: {
+  onSignOut: () => void;
+  previewData?: Snapshot;
+}) {
+  const [data, setData] = useState<AttendanceSnapshot | null>(previewData ?? null);
+  const [secondary, setSecondary] = useState<"profile" | "requests" | "notifications" | null>(null);
+  const [correction, setCorrection] = useState<Shift | null>(null);
+  const [jobFilter, setJobFilter] = useState<"all" | "assigned" | "in_progress" | "completed">(
+    "all",
+  );
+  const [online, setOnline] = useState(navigator.onLine);
+  const [confirmOut, setConfirmOut] = useState(false);
+  const switchTab = (next: Tab) => {
+    setTab(next);
+    setSecondary(null);
+  };
+  useEffect(() => {
+    const update = () => setOnline(navigator.onLine);
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    return () => {
+      window.removeEventListener("online", update);
+      window.removeEventListener("offline", update);
+    };
+  }, []);
   const [tab, setTab] = useState<Tab>("today");
   const [busy, setBusy] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!previewData);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [locationEnabled, setLocationEnabled] = useState(false);
@@ -119,7 +100,7 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, []);
   const refresh = useCallback(async () => {
-    if (writeLock.current) return;
+    if (previewData || writeLock.current) return;
     const token = ++revision.current;
     try {
       const next = await backend.snapshot<AttendanceSnapshot>();
@@ -133,8 +114,9 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [previewData]);
   useEffect(() => {
+    if (previewData) return;
     void refresh();
     const timer = window.setInterval(() => {
       if (document.visibilityState === "visible") void refresh();
@@ -147,9 +129,13 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", visible);
     };
-  }, [refresh]);
+  }, [refresh, previewData]);
   const run = useCallback(
     async (action: string, payload: Record<string, unknown>, success: string) => {
+      if (previewData) {
+        setNotice("Design preview — connect your account to save changes.");
+        return false;
+      }
       if (writeLock.current || !navigator.onLine) {
         setError(
           navigator.onLine
@@ -180,15 +166,19 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
         setBusy(false);
       }
     },
-    [],
+    [previewData],
   );
 
   const act = async (type: EventType, extra: Record<string, unknown> = {}) => {
+    if (previewData) {
+      setNotice("Design preview — attendance is not recorded.");
+      return false;
+    }
     let location: Record<string, number> | undefined;
     const shift = data?.shifts.find((s) => s.employeeId === data.me && s.date === data.today);
     if (!shift) {
       setError("No shift is assigned for today");
-      return;
+      return false;
     }
     if (type === "clock_in" && data?.policy?.require_gps_stamp) {
       try {
@@ -208,10 +198,10 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
         setError(
           "Location is required to clock in under your company policy. Enable location and try again.",
         );
-        return;
+        return false;
       }
     }
-    await run(
+    return await run(
       "transition",
       { id: crypto.randomUUID(), type, ...(location ? { location } : {}), ...extra },
       eventLabels[type],
@@ -220,13 +210,8 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
   const me = data?.employees.find((e) => e.id === data.me);
   const shift = data?.shifts.find((s) => s.employeeId === data.me && s.date === data.today);
   const state = data?.states.find((s) => s.shiftId === shift?.id)?.state ?? "not_clocked_in";
-  const myEvents =
-    data?.events.filter((e) => e.employeeId === data.me && e.shiftId === shift?.id) ?? [];
   const myJobs = data?.jobs.filter((j) => j.assignee === data.me) ?? [];
   const activeJob = myJobs.find((j) => j.shiftId === shift?.id && j.status === "in_progress");
-  const upcomingJobs = myJobs
-    .filter((j) => j.status !== "completed")
-    .sort((a, b) => `${a.date}${a.start}`.localeCompare(`${b.date}${b.start}`));
   const unread = data?.messages.filter((m) => m.recipientId === data.me && !m.readAt).length ?? 0;
   const site = data?.sites.find((s) => s.id === shift?.siteId);
   const monitorKey = data && data.me ? `shiftline-site-monitor:${data.company.id}:${data.me}` : "";
@@ -235,6 +220,7 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
   }, [monitorKey]);
   useEffect(() => {
     if (
+      previewData ||
       !data ||
       !shift ||
       !site ||
@@ -286,12 +272,18 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
       navigator.geolocation.clearWatch(watch);
       window.clearInterval(stop);
     };
-  }, [data, shift, site, locationEnabled, visible, state]);
+  }, [data, shift, site, locationEnabled, visible, state, previewData]);
 
   if (loading)
     return (
-      <div className="flex h-full items-center justify-center bg-page text-sub dark:bg-dpage">
-        Loading your workday…
+      <div className="worker-loading" role="status" aria-label="Loading your workday">
+        <span className="sr-only">Loading your workday…</span>
+        <div className="skeleton h-10 w-40 rounded-xl" />
+        <div className="skeleton mt-10 h-16 w-48 self-center" />
+        <div className="skeleton mt-6 h-16 w-full" />
+        <div className="skeleton mt-5 h-12 w-full" />
+        <div className="skeleton mt-10 h-44 w-44 self-center rounded-full" />
+        <div className="skeleton mt-10 h-24 w-full" />
       </div>
     );
   if (!data)
@@ -313,50 +305,88 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
         <Action onClick={onSignOut}>Sign in again</Action>
       </div>
     );
-  const zone = data.company.timezone;
   return (
     <div className="relative flex h-full flex-col bg-page text-ink dark:bg-dpage dark:text-white">
-      <header className="flex items-center gap-3 px-6 pb-3 pt-11">
-        <div className="grid h-11 w-11 place-items-center rounded-full bg-brand/12 text-sm font-bold text-brand">
-          {me.name
-            .split(" ")
-            .map((p) => p[0])
-            .join("")
-            .slice(0, 2)}
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[12px] text-sub dark:text-dsub">{data.company.name}</p>
-          <h1 className="truncate text-[19px] font-bold">
-            {tab === "today"
-              ? `Hello, ${me.name.split(" ")[0]}`
-              : tabs.find((t) => t.id === tab)?.label}
-          </h1>
-        </div>
-        <button
-          type="button"
-          onClick={() => void refresh()}
-          aria-label="Refresh records"
-          className="rounded-full p-2 text-sub"
-        >
-          <RefreshCw size={20} />
-        </button>
-        <button
-          type="button"
-          onClick={async () => {
-            try {
-              await backend.signOut();
-              onSignOut();
-            } catch (cause) {
-              setError(cause instanceof Error ? cause.message : "Could not sign out");
-            }
-          }}
-          aria-label="Sign out"
-          className="rounded-full p-2 text-sub"
-        >
-          <LogOut size={20} />
-        </button>
+      {previewData && <div className="worker-preview-label">Design preview · sample records</div>}
+      <header className={`worker-header ${tab !== "today" || secondary ? "compact" : ""}`}>
+        {secondary ? (
+          <>
+            <button
+              className="worker-icon-button worker-back"
+              onClick={() => setSecondary(null)}
+              aria-label="Back to app"
+            >
+              <ChevronLeft size={22} />
+            </button>
+            <h1>
+              {secondary === "profile"
+                ? "Profile"
+                : secondary === "requests"
+                  ? "My Requests"
+                  : "Notifications"}
+            </h1>
+            <span className="worker-header-spacer" />
+          </>
+        ) : tab === "today" ? (
+          <>
+            <button
+              className="worker-avatar"
+              aria-label="Open profile"
+              onClick={() => setSecondary("profile")}
+            >
+              {me.name
+                .split(" ")
+                .map((part) => part[0])
+                .join("")
+                .slice(0, 2)}
+            </button>
+            <div className="worker-greeting">
+              <p>Welcome back,</p>
+              <h1>{me.name}</h1>
+            </div>
+            <button
+              className="worker-icon-button"
+              aria-label="Notifications"
+              onClick={() => setSecondary("notifications")}
+            >
+              <Bell size={19} />
+              {unread > 0 && <i />}
+            </button>
+            <button
+              className="worker-icon-button"
+              aria-label="Open app menu"
+              onClick={() => setSecondary("profile")}
+            >
+              <Menu size={19} />
+            </button>
+          </>
+        ) : (
+          <>
+            <span className="worker-header-spacer" />
+            <h1>
+              {tab === "calendar"
+                ? "Attendance Calendar"
+                : tab === "hours"
+                  ? "Working Hours"
+                  : tabs.find((item) => item.id === tab)?.label}
+            </h1>
+            <button
+              className="worker-icon-button"
+              aria-label="Open profile"
+              onClick={() => setSecondary("profile")}
+            >
+              <Menu size={18} />
+            </button>
+          </>
+        )}
       </header>
-      <div className="no-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto px-5 pb-32">
+      <div key={secondary ?? tab} className="worker-scroll no-scrollbar">
+        {!online && (
+          <div role="status" className="worker-offline">
+            <WifiOff size={15} />
+            You’re offline. Reconnect to save attendance.
+          </div>
+        )}
         {error && (
           <div role="alert" className="rounded-2xl bg-bad/10 p-3 text-sm text-bad">
             {error}
@@ -367,275 +397,199 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
             {notice}
           </div>
         )}
-        {tab === "today" && (
+        {!secondary && tab === "today" && (
+          <WorkerHome
+            data={data}
+            state={state}
+            busy={busy || !online}
+            onAction={(type) => void act(type)}
+            onDeparture={() => setDepartureOpen(true)}
+            onJobs={() => switchTab("jobs")}
+            monitoring={locationEnabled}
+            onMonitoring={() => {
+              const next = !locationEnabled;
+              setLocationEnabled(next);
+              if (!previewData) localStorage.setItem(monitorKey, next ? "on" : "off");
+            }}
+          />
+        )}
+        {!secondary && tab === "calendar" && (
+          <AttendanceCalendar
+            data={data}
+            onCorrection={(selected) => {
+              setCorrection(selected);
+              setSecondary("requests");
+            }}
+          />
+        )}
+        {!secondary && tab === "jobs" && (
           <>
-            <p className="px-1 text-[13px] font-semibold text-sub dark:text-dsub">
-              {displayDate(data.today)} ·{" "}
-              {shift ? `${shift.start}–${shift.end}` : "No shift assigned"}
-            </p>
-            <Card className="bg-[#eeecff] dark:bg-dcard">
-              <div className="flex items-center justify-between">
-                <span className="rounded-full bg-white/75 px-3 py-1 text-xs font-bold text-brand dark:bg-dfill">
-                  {stateLabels[state]}
-                </span>
-                <Clock3 size={22} className="text-brand" />
-              </div>
-              <h2 className="mt-5 text-[29px] font-bold leading-tight">
-                {shift ? "Your workday" : "No shift today"}
-              </h2>
-              <p className="mt-1 flex items-center gap-1.5 text-[14px] text-sub dark:text-dsub">
-                <MapPin size={15} />{" "}
-                {data.sites.find((s) => s.id === shift?.siteId)?.name ?? "Schedule pending"}
-              </p>
-              <div className="mt-5 grid grid-cols-2 gap-3">
-                <div className="rounded-2xl bg-white/75 p-3 dark:bg-dfill">
-                  <p className="text-xs text-sub">Clock in</p>
-                  <p className="mt-1 font-bold">
-                    {myEvents.find((e) => e.type === "clock_in")
-                      ? displayTime(myEvents.find((e) => e.type === "clock_in")!.capturedAt, zone)
-                      : "—"}
-                  </p>
-                </div>
-                <div className="rounded-2xl bg-white/75 p-3 dark:bg-dfill">
-                  <p className="text-xs text-sub">Clock out</p>
-                  <p className="mt-1 font-bold">
-                    {myEvents.find((e) => e.type === "clock_out")
-                      ? displayTime(myEvents.find((e) => e.type === "clock_out")!.capturedAt, zone)
-                      : "—"}
-                  </p>
-                </div>
-              </div>
-              {shift && site?.latitude != null && (
+            <div className="worker-segmented">
+              {(["all", "assigned", "in_progress", "completed"] as const).map((value) => (
                 <button
-                  type="button"
-                  onClick={() => {
-                    const next = !locationEnabled;
-                    setLocationEnabled(next);
-                    localStorage.setItem(monitorKey, next ? "on" : "off");
-                  }}
-                  className="mt-4 text-left text-xs font-semibold text-brand"
+                  key={value}
+                  aria-pressed={jobFilter === value}
+                  onClick={() => setJobFilter(value)}
                 >
-                  {locationEnabled
-                    ? "Worksite checks on · tap to pause"
-                    : "Enable worksite checks during this shift"}
+                  {value === "all"
+                    ? "All"
+                    : value === "assigned"
+                      ? "Upcoming"
+                      : value === "in_progress"
+                        ? "Active"
+                        : "Done"}
                 </button>
-              )}
-              <div className="mt-5 space-y-2">
-                {state === "not_clocked_in" && (
-                  <Action disabled={busy || !shift} onClick={() => void act("clock_in")}>
-                    Clock in
-                  </Action>
-                )}
-                {state === "working" && (
-                  <>
-                    <Action disabled={busy} onClick={() => void act("start_lunch")}>
-                      <Coffee size={18} /> Start lunch
-                    </Action>
-                    <Action secondary disabled={busy} onClick={() => setDepartureOpen(true)}>
-                      Leave temporarily
-                    </Action>
-                    <Action secondary disabled={busy} onClick={() => void act("clock_out")}>
-                      Clock out
-                    </Action>
-                  </>
-                )}
-                {state === "on_lunch" && (
-                  <Action disabled={busy} onClick={() => void act("end_lunch")}>
-                    End lunch
-                  </Action>
-                )}
-                {state === "on_personal" && (
-                  <Action disabled={busy} onClick={() => void act("end_personal")}>
-                    Return to work
-                  </Action>
-                )}
-                {state === "on_job" && (
-                  <>
-                    <Action disabled={busy} onClick={() => void act("end_job")}>
-                      Return from job
-                    </Action>
-                    <Action secondary disabled={busy} onClick={() => void act("clock_out")}>
-                      Clock out
-                    </Action>
-                  </>
-                )}
-              </div>
-            </Card>
-            <Card>
-              <h2 className="text-[17px] font-bold">Today’s timeline</h2>
-              {!myEvents.length && (
-                <p className="mt-3 text-sm text-sub">Your recorded actions will appear here.</p>
-              )}
-              <div className="mt-3 space-y-3">
-                {myEvents.map((e) => (
-                  <div
-                    key={e.id}
-                    className="flex items-center justify-between border-t border-sep pt-3 text-sm dark:border-dsep"
-                  >
-                    <span>{eventLabels[e.type]}</span>
-                    <span className="text-sub">{displayTime(e.capturedAt, zone)}</span>
-                  </div>
-                ))}
-              </div>
-            </Card>
-            <Card>
-              <h2 className="text-[17px] font-bold">Next job</h2>
-              {upcomingJobs[0] ? (
-                <>
-                  <p className="mt-2 font-semibold">{upcomingJobs[0].title}</p>
-                  <p className="mt-1 text-sm text-sub">
-                    {displayDate(upcomingJobs[0].date)} · {upcomingJobs[0].start}–
-                    {upcomingJobs[0].end}
-                  </p>
-                  <Action secondary onClick={() => setTab("jobs")}>
-                    View job
-                  </Action>
-                </>
-              ) : (
-                <p className="mt-2 text-sm text-sub">No upcoming jobs assigned.</p>
-              )}
-            </Card>
-          </>
-        )}
-        {tab === "calendar" && (
-          <>
-            <Card>
-              <h2 className="text-[21px] font-bold">Your calendar</h2>
-              <p className="mt-1 text-sm text-sub">Assigned shifts and upcoming work</p>
-            </Card>
-            {data.shifts
-              .filter((s) => s.employeeId === data.me)
-              .sort((a, b) => a.date.localeCompare(b.date))
-              .map((s) => (
-                <Card key={s.id}>
-                  <div className="flex justify-between">
-                    <h3 className="font-bold">{displayDate(s.date)}</h3>
-                    <span className="text-sm text-brand">
-                      {s.start}–{s.end}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-sm text-sub">
-                    {data.sites.find((site) => site.id === s.siteId)?.name} · {s.lunchMinutes}{" "}
-                    minute lunch
-                  </p>
-                  {myJobs
-                    .filter((j) => j.shiftId === s.id)
-                    .map((j) => (
-                      <p key={j.id} className="mt-2 rounded-xl bg-fill p-2 text-sm dark:bg-dfill">
-                        {j.start} · {j.title}
-                      </p>
-                    ))}
-                </Card>
               ))}
-            {!data.shifts.some((s) => s.employeeId === data.me) && (
-              <Card>
-                <p className="text-sm text-sub">Your manager has not assigned shifts yet.</p>
-              </Card>
-            )}
-          </>
-        )}
-        {tab === "jobs" && (
-          <>
-            <Card>
-              <h2 className="text-[21px] font-bold">Your jobs</h2>
-              <p className="mt-1 text-sm text-sub">Tasks, progress and team members</p>
-            </Card>
+            </div>
             {myJobs
+              .filter((job) => jobFilter === "all" || job.status === jobFilter)
               .sort((a, b) => `${a.date}${a.start}`.localeCompare(`${b.date}${b.start}`))
               .map((j) => (
                 <JobCard
                   key={j.id}
                   job={j}
                   data={data}
-                  busy={busy}
+                  busy={busy || !online}
                   run={run}
                   act={act}
                   active={activeJob?.id === j.id}
                   state={state}
                 />
               ))}
-            {!myJobs.length && (
-              <Card>
-                <p className="text-sm text-sub">No jobs assigned yet.</p>
-              </Card>
+            {!myJobs.some((job) => jobFilter === "all" || job.status === jobFilter) && (
+              <EmptyState
+                icon={<Briefcase size={27} />}
+                title="No jobs here yet"
+                description="Assigned work will appear here with your schedule and team."
+              />
             )}
           </>
         )}
-        {tab === "inbox" && <Inbox data={data} busy={busy} run={run} />}
-        {tab === "hours" && <Hours data={data} busy={busy} run={run} />}
+        {!secondary && tab === "inbox" && <Inbox data={data} busy={busy || !online} run={run} />}
+        {!secondary && tab === "hours" && <Hours data={data} busy={busy || !online} run={run} />}
+        {secondary === "profile" && (
+          <WorkerProfile
+            data={data}
+            onRequests={() => {
+              setCorrection(null);
+              setSecondary("requests");
+            }}
+            onSignOut={() => setConfirmOut(true)}
+            monitoring={locationEnabled}
+            onMonitoring={() => {
+              const next = !locationEnabled;
+              setLocationEnabled(next);
+              if (!previewData) localStorage.setItem(monitorKey, next ? "on" : "off");
+            }}
+          />
+        )}
+        {secondary === "requests" && (
+          <WorkerRequests data={data} busy={busy || !online} run={run} correction={correction} />
+        )}
+        {secondary === "notifications" && (
+          <WorkerNotifications
+            data={data}
+            onInbox={() => switchTab("inbox")}
+            onRequests={() => {
+              setCorrection(null);
+              setSecondary("requests");
+            }}
+            onHours={() => switchTab("hours")}
+          />
+        )}
       </div>
       {departureOpen && (
-        <div
-          className="absolute inset-0 z-30 flex items-end bg-black/40"
-          role="presentation"
-          onClick={() => setDepartureOpen(false)}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Temporary departure"
-            onClick={(e) => e.stopPropagation()}
-            className="w-full rounded-t-[28px] bg-card p-6 pb-10 dark:bg-dcard"
-          >
-            <h2 className="text-xl font-bold">Leave temporarily</h2>
-            <p className="mt-1 text-sm text-sub">
-              Tell your manager why you’re leaving. Personal time is excluded from worked hours.
+        <WorkerSheet title="Leave temporarily" onClose={() => setDepartureOpen(false)}>
+          <p className="worker-muted-copy">
+            Let your manager know why you’re leaving. Personal time is excluded from worked hours.
+          </p>
+          {error && (
+            <p role="alert" className="mt-3 text-xs text-bad">
+              {error}
             </p>
-            <label className="mt-5 block text-sm font-semibold">
+          )}
+          <div className="worker-request-form">
+            <label>
               Reason
               <select
                 value={departureKind}
-                onChange={(e) => setDepartureKind(e.target.value as "personal" | "emergency")}
-                className="mt-2 w-full rounded-xl bg-fill p-3 dark:bg-dfill"
+                onChange={(event) =>
+                  setDepartureKind(event.target.value as "personal" | "emergency")
+                }
               >
                 <option value="personal">Personal</option>
                 <option value="emergency">Emergency</option>
               </select>
             </label>
-            <label className="mt-3 block text-sm font-semibold">
+            <label>
               Note
               <textarea
                 value={departureNote}
-                onChange={(e) => setDepartureNote(e.target.value)}
+                onChange={(event) => setDepartureNote(event.target.value)}
                 maxLength={140}
                 placeholder="A short note for your manager"
-                className="mt-2 min-h-20 w-full rounded-xl bg-fill p-3 text-sm dark:bg-dfill"
               />
             </label>
-            <div className="mt-5 space-y-2">
-              <Action
-                disabled={busy}
-                onClick={() => {
-                  void act("start_personal", {
-                    reason: departureKind,
-                    note: departureNote.trim() || departureKind,
-                  });
-                  setDepartureOpen(false);
-                  setDepartureNote("");
-                }}
-              >
-                Confirm departure
-              </Action>
-              <Action secondary onClick={() => setDepartureOpen(false)}>
-                Cancel
-              </Action>
-            </div>
+            <Action
+              disabled={busy || !online}
+              onClick={() => {
+                void act("start_personal", {
+                  reason: departureKind,
+                  note: departureNote.trim() || departureKind,
+                }).then((saved) => {
+                  if (saved) {
+                    setDepartureOpen(false);
+                    setDepartureNote("");
+                  }
+                });
+              }}
+            >
+              Confirm departure
+            </Action>
           </div>
-        </div>
+        </WorkerSheet>
       )}
-      <nav
-        aria-label="Worker tabs"
-        className="absolute inset-x-4 bottom-7 z-20 flex justify-between rounded-full bg-white/95 p-2 shadow-[0_10px_35px_rgba(0,0,0,.12)] backdrop-blur dark:bg-dcard/95"
-      >
+      {confirmOut && (
+        <WorkerSheet title="Sign out of Shiftline?" onClose={() => setConfirmOut(false)}>
+          <p className="worker-muted-copy">
+            Your recorded attendance stays safe. Sign in again to return to your workday.
+          </p>
+          <div className="mt-5 space-y-3">
+            <Action
+              onClick={() => {
+                if (previewData) {
+                  onSignOut();
+                  return;
+                }
+                void backend
+                  .signOut()
+                  .then(onSignOut)
+                  .catch((cause) =>
+                    setError(cause instanceof Error ? cause.message : "Could not sign out"),
+                  );
+                setConfirmOut(false);
+              }}
+            >
+              Sign out
+            </Action>
+            <Action secondary onClick={() => setConfirmOut(false)}>
+              Stay signed in
+            </Action>
+          </div>
+        </WorkerSheet>
+      )}
+      <nav aria-label="Worker tabs" className="worker-tabbar">
         {tabs.map(({ id, label, Icon }) => (
           <button
             key={id}
             type="button"
-            onClick={() => setTab(id)}
-            aria-current={tab === id ? "page" : undefined}
-            className={`relative flex min-w-[58px] flex-col items-center gap-0.5 rounded-full px-2 py-1.5 text-[10px] ${tab === id ? "font-bold text-brand" : "text-sub"}`}
+            onClick={() => switchTab(id)}
+            aria-current={!secondary && tab === id ? "page" : undefined}
+            className={`worker-tab ${!secondary && tab === id ? "active" : ""}`}
           >
-            <Icon size={22} />
+            <span className="worker-tab-icon">
+              <Icon size={20} strokeWidth={1.8} />
+            </span>
             {label}
             {id === "inbox" && unread > 0 && (
               <span className="absolute right-1 top-0 grid h-4 min-w-4 place-items-center rounded-full bg-bad px-1 text-[10px] text-white">
@@ -662,7 +616,7 @@ function JobCard({
   data: AttendanceSnapshot;
   busy: boolean;
   run: (action: string, payload: Record<string, unknown>, success: string) => Promise<boolean>;
-  act: (type: EventType, extra?: Record<string, unknown>) => Promise<void>;
+  act: (type: EventType, extra?: Record<string, unknown>) => Promise<boolean>;
   active: boolean;
   state: string;
 }) {
@@ -670,112 +624,147 @@ function JobCard({
   const team = data.jobTeam.filter((t) => t.jobId === job.id);
   const comments = data.jobComments.filter((c) => c.jobId === job.id);
   const [comment, setComment] = useState("");
+  const [open, setOpen] = useState(false);
+  const completed = steps.filter((step) => step.completedAt).length;
+  const percentage =
+    job.status === "completed"
+      ? 100
+      : steps.length
+        ? Math.round((completed / steps.length) * 100)
+        : 0;
   return (
-    <Card>
-      <div className="flex items-center justify-between">
-        <h3 className="font-bold">{job.title}</h3>
-        <span className="rounded-full bg-brand/10 px-2 py-1 text-xs font-semibold text-brand">
-          {job.status.replace("_", " ")}
-        </span>
-      </div>
-      <p className="mt-1 text-sm text-sub">
-        {displayDate(job.date)} · {job.start}–{job.end}
-      </p>
-      <p className="mt-2 flex gap-1 text-sm">
-        <MapPin size={16} /> {job.destination}
-      </p>
-      {job.instructions && (
-        <p className="mt-3 text-sm leading-relaxed text-sub">{job.instructions}</p>
-      )}
-      {steps.length > 0 && (
-        <div className="mt-4 border-t border-sep pt-3 dark:border-dsep">
-          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-sub">
-            Tasks · {steps.filter((s) => s.completedAt).length}/{steps.length}
+    <>
+      <button className="worker-job-list-card" onClick={() => setOpen(true)}>
+        <div>
+          <span className={`worker-job-state ${job.status}`}>{job.status.replace(/_/g, " ")}</span>
+          <ChevronRight size={17} />
+        </div>
+        <h3>{job.title}</h3>
+        <p>
+          <MapPin size={13} />
+          {job.destination}
+        </p>
+        <small>
+          {displayDate(job.date)} · {job.start}–{job.end}
+        </small>
+        <div className="worker-job-progress">
+          <span>
+            {steps.length ? `${completed}/${steps.length} tasks completed` : "View job details"}
+          </span>
+          <b>{percentage}%</b>
+        </div>
+        <div className="worker-progress-track">
+          <span style={{ width: `${percentage}%` }} />
+        </div>
+      </button>
+      {open && (
+        <WorkerSheet title={job.title} onClose={() => setOpen(false)}>
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold">{job.title}</h3>
+            <span className="rounded-full bg-brand/10 px-2 py-1 text-xs font-semibold text-brand">
+              {job.status.replace("_", " ")}
+            </span>
+          </div>
+          <p className="mt-1 text-sm text-sub">
+            {displayDate(job.date)} · {job.start}–{job.end}
           </p>
-          {steps.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              disabled={busy}
-              onClick={() =>
-                void run(
-                  "set_job_step_done",
-                  { stepId: s.id, done: !s.completedAt },
-                  s.completedAt ? "Task reopened" : "Task completed",
-                )
-              }
-              className="flex w-full items-center gap-3 py-2 text-left text-sm"
-            >
-              <span
-                className={`grid h-5 w-5 place-items-center rounded-md border ${s.completedAt ? "border-ok bg-ok text-white" : "border-sep"}`}
-              >
-                {s.completedAt && <Check size={14} />}
-              </span>
-              {s.label}
-            </button>
-          ))}
-        </div>
-      )}
-      {team.length > 0 && (
-        <p className="mt-3 text-xs text-sub">Team: {team.map((m) => m.name).join(", ")}</p>
-      )}
-      <div className="mt-4 border-t border-sep pt-3 dark:border-dsep">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-sub">Comments</h4>
-        <div className="mt-2 space-y-2">
-          {comments.map((item) => (
-            <div key={item.id} className="rounded-xl bg-fill p-3 text-sm dark:bg-dfill">
-              <b>{item.authorName}</b>
-              <p className="mt-1 whitespace-pre-wrap">{item.body}</p>
-              <small className="text-sub">{new Date(item.createdAt).toLocaleString()}</small>
+          <p className="mt-2 flex gap-1 text-sm">
+            <MapPin size={16} /> {job.destination}
+          </p>
+          {job.instructions && (
+            <p className="mt-3 text-sm leading-relaxed text-sub">{job.instructions}</p>
+          )}
+          {steps.length > 0 && (
+            <div className="mt-4 border-t border-sep pt-3 dark:border-dsep">
+              <p className="mb-2 text-xs font-bold uppercase tracking-wider text-sub">
+                Tasks · {steps.filter((s) => s.completedAt).length}/{steps.length}
+              </p>
+              {steps.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  disabled={busy}
+                  onClick={() =>
+                    void run(
+                      "set_job_step_done",
+                      { stepId: s.id, done: !s.completedAt },
+                      s.completedAt ? "Task reopened" : "Task completed",
+                    )
+                  }
+                  className="flex w-full items-center gap-3 py-2 text-left text-sm"
+                >
+                  <span
+                    className={`grid h-5 w-5 place-items-center rounded-md border ${s.completedAt ? "border-ok bg-ok text-white" : "border-sep"}`}
+                  >
+                    {s.completedAt && <Check size={14} />}
+                  </span>
+                  {s.label}
+                </button>
+              ))}
             </div>
-          ))}
-        </div>
-        <form
-          className="mt-3 flex gap-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (!comment.trim()) return;
-            void run(
-              "add_job_comment",
-              { jobId: job.id, body: comment.trim() },
-              "Comment posted",
-            ).then((ok) => {
-              if (ok) setComment("");
-            });
-          }}
-        >
-          <input
-            aria-label="Task comment"
-            value={comment}
-            onChange={(event) => setComment(event.target.value)}
-            maxLength={2000}
-            placeholder="Write a comment"
-            className="min-w-0 flex-1 rounded-xl bg-fill px-3 py-2 text-sm dark:bg-dfill"
-          />
-          <button
-            type="submit"
-            disabled={busy || !comment.trim()}
-            className="rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-          >
-            Send
-          </button>
-        </form>
-      </div>
-      {job.date === data.today && job.status === "assigned" && state === "working" && (
-        <div className="mt-4">
-          <Action disabled={busy} onClick={() => void act("start_job", { jobId: job.id })}>
-            Start job
-          </Action>
-        </div>
+          )}
+          {team.length > 0 && (
+            <p className="mt-3 text-xs text-sub">Team: {team.map((m) => m.name).join(", ")}</p>
+          )}
+          <div className="mt-4 border-t border-sep pt-3 dark:border-dsep">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-sub">Comments</h4>
+            <div className="mt-2 space-y-2">
+              {comments.map((item) => (
+                <div key={item.id} className="rounded-xl bg-fill p-3 text-sm dark:bg-dfill">
+                  <b>{item.authorName}</b>
+                  <p className="mt-1 whitespace-pre-wrap">{item.body}</p>
+                  <small className="text-sub">{new Date(item.createdAt).toLocaleString()}</small>
+                </div>
+              ))}
+            </div>
+            <form
+              className="mt-3 flex gap-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (!comment.trim()) return;
+                void run(
+                  "add_job_comment",
+                  { jobId: job.id, body: comment.trim() },
+                  "Comment posted",
+                ).then((ok) => {
+                  if (ok) setComment("");
+                });
+              }}
+            >
+              <input
+                aria-label="Task comment"
+                value={comment}
+                onChange={(event) => setComment(event.target.value)}
+                maxLength={2000}
+                placeholder="Write a comment"
+                className="min-w-0 flex-1 rounded-xl bg-fill px-3 py-2 text-sm dark:bg-dfill"
+              />
+              <button
+                type="submit"
+                disabled={busy || !comment.trim()}
+                className="rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                Send
+              </button>
+            </form>
+          </div>
+          {job.date === data.today && job.status === "assigned" && state === "working" && (
+            <div className="mt-4">
+              <Action disabled={busy} onClick={() => void act("start_job", { jobId: job.id })}>
+                Start job
+              </Action>
+            </div>
+          )}
+          {active && (
+            <div className="mt-4">
+              <Action disabled={busy} onClick={() => void act("end_job")}>
+                Return from job
+              </Action>
+            </div>
+          )}
+        </WorkerSheet>
       )}
-      {active && (
-        <div className="mt-4">
-          <Action disabled={busy} onClick={() => void act("end_job")}>
-            Return from job
-          </Action>
-        </div>
-      )}
-    </Card>
+    </>
   );
 }
 
@@ -796,7 +785,7 @@ function Inbox({
   return (
     <>
       <Card>
-        <h2 className="text-[21px] font-bold">From your company</h2>
+        <h2 className="text-[17px] font-semibold">From your company</h2>
         <p className="mt-1 text-sm text-sub">Messages, news and upcoming events</p>
         <div className="mt-4 grid grid-cols-3 gap-1 rounded-xl bg-fill p-1 dark:bg-dfill">
           {(["messages", "news", "events"] as const).map((name) => (
@@ -938,8 +927,6 @@ function Hours({
   busy: boolean;
   run: (action: string, payload: Record<string, unknown>, success: string) => Promise<boolean>;
 }) {
-  const [summary, setSummary] = useState("");
-  const [detail, setDetail] = useState("");
   const shifts = useMemo(
     () =>
       data.shifts
@@ -950,19 +937,6 @@ function Hours({
   const approved = shifts
     .filter((s) => data.timesheets.find((t) => t.shiftId === s.id)?.status === "approved")
     .reduce((sum, s) => sum + s.totals.workedMinutes, 0);
-  const submitLeave = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (
-      await run(
-        "create_request",
-        { kind: "leave", summary: summary.trim(), detail: detail.trim() },
-        "Request sent to your manager",
-      )
-    ) {
-      setSummary("");
-      setDetail("");
-    }
-  };
   return (
     <>
       <Card className="bg-[#eeecff] dark:bg-dcard">
@@ -973,45 +947,6 @@ function Hours({
           Gross pay and exports are prepared after manager approval.
         </p>
       </Card>
-      <Card>
-        <h2 className="text-[17px] font-bold">Request time off</h2>
-        <form onSubmit={(e) => void submitLeave(e)} className="mt-3 space-y-2">
-          <input
-            required
-            maxLength={120}
-            placeholder="Reason or dates"
-            value={summary}
-            onChange={(e) => setSummary(e.target.value)}
-            className="w-full rounded-xl bg-fill p-3 text-sm outline-none dark:bg-dfill"
-          />
-          <textarea
-            maxLength={2000}
-            placeholder="Details for your manager"
-            value={detail}
-            onChange={(e) => setDetail(e.target.value)}
-            className="min-h-20 w-full rounded-xl bg-fill p-3 text-sm outline-none dark:bg-dfill"
-          />
-          <button
-            type="submit"
-            disabled={busy || !summary.trim()}
-            className="press flex min-h-12 w-full items-center justify-center gap-2 rounded-[14px] bg-brand px-4 text-[15px] font-semibold text-white disabled:opacity-45"
-          >
-            <Send size={16} /> Send request
-          </button>
-        </form>
-      </Card>
-      {data.requests
-        .filter((r) => r.employeeId === data.me)
-        .map((r) => (
-          <Card key={r.id}>
-            <div className="flex justify-between gap-2">
-              <h3 className="font-bold">{r.summary}</h3>
-              <span className="text-xs font-bold capitalize text-brand">{r.status}</span>
-            </div>
-            <p className="mt-2 text-sm text-sub">{r.detail || r.kind.replace("_", " ")}</p>
-            {r.reason && <p className="mt-2 text-sm">Manager: {r.reason}</p>}
-          </Card>
-        ))}
       {shifts.map((s: Shift) => {
         const ts = data.timesheets.find((t) => t.shiftId === s.id);
         return (
