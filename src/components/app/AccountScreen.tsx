@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { backendMode, signIn } from "@/lib/backend";
+import { backendMode, resendConfirmation, signIn } from "@/lib/backend";
 export function AccountScreen({
   signed,
   error,
@@ -21,6 +21,21 @@ export function AccountScreen({
   const [manager, setManager] = useState(false);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
+  const [confirmEmail, setConfirmEmail] = useState("");
+  const [resendNote, setResendNote] = useState("");
+  const [resending, setResending] = useState(false);
+  const resend = async () => {
+    setResending(true);
+    setResendNote("");
+    try {
+      await resendConfirmation(confirmEmail);
+      setResendNote("A new confirmation email is on its way.");
+    } catch (e) {
+      setResendNote(e instanceof Error ? e.message : "Could not resend right now");
+    } finally {
+      setResending(false);
+    }
+  };
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setMessage("");
@@ -29,9 +44,18 @@ export function AccountScreen({
     const get = (key: string) => String(form.get(key) || "").trim();
     try {
       if (!signed) {
-        const ok = await signIn(get("email"), String(form.get("password")), create);
+        let ok = false;
+        try {
+          ok = await signIn(get("email"), String(form.get("password")), create);
+        } catch (err) {
+          if (err instanceof Error && /not confirmed/i.test(err.message)) {
+            setConfirmEmail(get("email"));
+            return;
+          }
+          throw err;
+        }
         if (ok) await onAuthenticated();
-        else setMessage("Check your email to confirm your account, then sign in.");
+        else setConfirmEmail(get("email"));
       } else
         await command(
           manager ? "setup" : "activate",

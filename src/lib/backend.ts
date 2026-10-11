@@ -49,6 +49,11 @@ export async function signIn(email: string, password: string, create: boolean) {
   await local(create ? "signup" : "login", { email, password });
   return true;
 }
+export async function resendConfirmation(email: string) {
+  if (!supabase) return;
+  const { error } = await supabase.auth.resend({ type: "signup", email });
+  if (error) throw error;
+}
 export async function signOut() {
   if (supabase) {
     const { error } = await supabase.auth.signOut();
