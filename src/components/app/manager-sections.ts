@@ -17,6 +17,7 @@ import {
   Users,
   CheckSquare,
   Monitor,
+  Bell,
 } from "lucide-react";
 
 export const managerGroups = [
@@ -46,6 +47,7 @@ export const managerGroups = [
       { name: "Team", icon: Users },
       { name: "Requests", icon: CheckSquare },
       { name: "Announcements", icon: Megaphone },
+      { name: "Notifications", icon: Bell },
       { name: "Corrections", icon: FileText },
       { name: "Employees", icon: Users },
       { name: "Employee Access", icon: Monitor },

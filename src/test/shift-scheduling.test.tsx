@@ -51,18 +51,18 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("calendar scheduling", () => {
-  it("shows attendance without requiring managers to assign a shift", () => {
+  it("shows jobs without requiring managers to assign a shift", () => {
     render(<ManagerCalendar data={data as never} />);
     expect(screen.queryByRole("button", { name: "Assign shift" })).not.toBeInTheDocument();
-    expect(screen.getByText(/Workers check in to start/)).toBeInTheDocument();
+    expect(screen.getByText(/No jobs planned/)).toBeInTheDocument();
   });
-  it("selects existing attendance without opening a schedule editor", () => {
+  it("does not display attendance in the job calendar", () => {
     data.shifts = [shift];
     render(<ManagerCalendar data={data as never} />);
-    fireEvent.click(
-      screen.getByRole("button", { name: `View Worker attendance on ${draft.date}` }),
-    );
-    expect(screen.getByText("1 attendance records")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: `View Worker attendance on ${draft.date}` }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("08:00–17:00")).not.toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(data.command).not.toHaveBeenCalled();
   });

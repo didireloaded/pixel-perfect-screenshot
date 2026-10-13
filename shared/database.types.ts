@@ -274,6 +274,54 @@ export type Database = {
           },
         ];
       };
+      sl_calendar_jobs: {
+        Row: {
+          company_id: string;
+          created_at: string;
+          created_by: string;
+          date: string;
+          details: string;
+          employee_ids: string[];
+          id: string;
+          title: string;
+        };
+        Insert: {
+          company_id: string;
+          created_at?: string;
+          created_by: string;
+          date: string;
+          details: string;
+          employee_ids?: string[];
+          id: string;
+          title: string;
+        };
+        Update: {
+          company_id?: string;
+          created_at?: string;
+          created_by?: string;
+          date?: string;
+          details?: string;
+          employee_ids?: string[];
+          id?: string;
+          title?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "sl_calendar_jobs_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "sl_companies";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sl_calendar_jobs_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "sl_employees";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       sl_companies: {
         Row: {
           current_policy_version: number;
@@ -1235,6 +1283,32 @@ export type Database = {
           },
         ];
       };
+      sl_manager_notification_reads: {
+        Row: {
+          employee_id: string;
+          notification_id: string;
+          read_at: string;
+        };
+        Insert: {
+          employee_id: string;
+          notification_id: string;
+          read_at?: string;
+        };
+        Update: {
+          employee_id?: string;
+          notification_id?: string;
+          read_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "sl_manager_notification_reads_employee_id_fkey";
+            columns: ["employee_id"];
+            isOneToOne: false;
+            referencedRelation: "sl_employees";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       sl_messages: {
         Row: {
           body: string;
@@ -1648,6 +1722,10 @@ export type Database = {
           expected_return: string | null;
           id: string;
           kind: string;
+          leave_end: string | null;
+          leave_end_time: string | null;
+          leave_start: string | null;
+          leave_start_time: string | null;
           reason: string | null;
           reviewer: string | null;
           status: string;
@@ -1662,6 +1740,10 @@ export type Database = {
           expected_return?: string | null;
           id?: string;
           kind: string;
+          leave_end?: string | null;
+          leave_end_time?: string | null;
+          leave_start?: string | null;
+          leave_start_time?: string | null;
           reason?: string | null;
           reviewer?: string | null;
           status?: string;
@@ -1676,6 +1758,10 @@ export type Database = {
           expected_return?: string | null;
           id?: string;
           kind?: string;
+          leave_end?: string | null;
+          leave_end_time?: string | null;
+          leave_start?: string | null;
+          leave_start_time?: string | null;
           reason?: string | null;
           reviewer?: string | null;
           status?: string;

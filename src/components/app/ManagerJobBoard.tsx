@@ -51,6 +51,7 @@ export function ManagerJobBoard({
   onAddStep?: (jobId: string, label: string) => Promise<boolean>;
 }) {
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<Job["status"] | "">("");
   const [date, setDate] = useState("");
   const [sort, setSort] = useState<"soonest" | "latest">("soonest");
   const [multi, setMulti] = useState(false);
@@ -64,6 +65,7 @@ export function ManagerJobBoard({
       jobs
         .filter(
           (job) =>
+            (!statusFilter || job.status === statusFilter) &&
             (!date || job.date === date) &&
             (!multi || team.filter((member) => member.jobId === job.id).length > 1) &&
             `${job.title} ${job.destination} ${names(job.assignee)}`
@@ -75,7 +77,7 @@ export function ManagerJobBoard({
             (sort === "soonest" ? 1 : -1) *
             `${a.date} ${a.start}`.localeCompare(`${b.date} ${b.start}`),
         ),
-    [jobs, date, multi, names, query, sort, team],
+    [jobs, date, multi, names, query, sort, team, statusFilter],
   );
   const selected = jobs.find((job) => job.id === selectedId);
   const send = async (event: FormEvent) => {
@@ -144,6 +146,7 @@ export function ManagerJobBoard({
               setDate("");
               setMulti(false);
               setQuery("");
+              setStatusFilter("");
             }}
           >
             <X size={15} />
@@ -151,6 +154,28 @@ export function ManagerJobBoard({
           </button>
         </div>
       )}
+      <div className="mb-5 grid gap-3 sm:grid-cols-3">
+        {columns.map((column) => (
+          <button
+            key={column.key}
+            className={`project-panel text-left ${statusFilter === column.key ? "border-[#6d4aff]" : ""}`}
+            aria-pressed={statusFilter === column.key}
+            onClick={() => setStatusFilter((current) => (current === column.key ? "" : column.key))}
+          >
+            <span className={`manager-task-tag ${column.tone}`}>{column.label}</span>
+            <b className="mt-3 block text-2xl">
+              {jobs.filter((job) => job.status === column.key).length}
+            </b>
+            <small className="text-muted-foreground">
+              {column.key === "completed"
+                ? "Delivered work"
+                : column.key === "in_progress"
+                  ? "Work happening now"
+                  : "Ready to begin"}
+            </small>
+          </button>
+        ))}
+      </div>
       <div className="manager-board-columns">
         {columns.map((column) => {
           const items = visible.filter((job) => job.status === column.key);

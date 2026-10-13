@@ -5,6 +5,52 @@
   height: 100dvh;
   background: #ecebf1;
 }
+.worker-card.worker-goal-card {
+  padding: 18px 20px;
+  color: #fff;
+  background: #3e247d;
+  border-color: #3e247d;
+}
+.worker-goal-card small {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  opacity: 0.8;
+}
+.worker-goal-card h2 {
+  font-size: 20px;
+  font-weight: 650;
+  margin: 5px 0;
+}
+.worker-goal-card p {
+  font-size: 12px;
+  color: #e2d9ff;
+}
+.worker-goal-card progress {
+  display: block;
+  width: 100%;
+  height: 7px;
+  margin: 16px 0 5px;
+  border-radius: 20px;
+  accent-color: #bba6ff;
+}
+.worker-goal-card progress::-webkit-progress-bar {
+  background: #ffffff30;
+  border-radius: 20px;
+}
+.worker-goal-card progress::-webkit-progress-value {
+  background: #bba6ff;
+  border-radius: 20px;
+}
+.worker-goal-card button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 15px;
+  padding: 10px 0 0;
+  border-top: 1px solid #ffffff30;
+  font-size: 12px;
+}
 .worker-device {
   position: relative;
   width: 100%;

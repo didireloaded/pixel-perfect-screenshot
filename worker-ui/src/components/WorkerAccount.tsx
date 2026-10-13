@@ -147,6 +147,12 @@ export function WorkerRequests({
     correction ? `Attendance correction · ${correction.date}` : "",
   );
   const [detail, setDetail] = useState("");
+  const [leaveStart, setLeaveStart] = useState(data.today);
+  const [leaveEnd, setLeaveEnd] = useState(data.today);
+  const [hourly, setHourly] = useState(false);
+  const [leaveStartTime, setLeaveStartTime] = useState("");
+  const [leaveEndTime, setLeaveEndTime] = useState("");
+  const [leaveId, setLeaveId] = useState(() => crypto.randomUUID());
   const correctionMode = kind === "correction" || kind === "missing_clocking";
   const shifts = data.shifts.filter((shift) => shift.employeeId === data.me);
   const [shiftId, setShiftId] = useState(correction?.id ?? shifts[0]?.id ?? "");
@@ -164,7 +170,11 @@ export function WorkerRequests({
     }
     if (
       await run(
-        correctionMode ? "request_correction" : "create_request",
+        correctionMode
+          ? "request_correction"
+          : kind === "leave"
+            ? "create_leave_request"
+            : "create_request",
         correctionMode
           ? {
               shiftId,
@@ -173,12 +183,23 @@ export function WorkerRequests({
               replacementAt: new Date(replacementAt).toISOString(),
               reason: [summary.trim(), detail.trim()].filter(Boolean).join(" — "),
             }
-          : { kind, summary: summary.trim(), detail: detail.trim() },
+          : kind === "leave"
+            ? {
+                id: leaveId,
+                summary: summary.trim(),
+                detail: detail.trim(),
+                leaveStart,
+                leaveEnd: hourly ? leaveStart : leaveEnd,
+                leaveStartTime: hourly ? leaveStartTime : null,
+                leaveEndTime: hourly ? leaveEndTime : null,
+              }
+            : { kind, summary: summary.trim(), detail: detail.trim() },
         "Request sent to your manager",
       )
     ) {
       setSummary("");
       setDetail("");
+      setLeaveId(crypto.randomUUID());
     }
   };
   const requests = data.requests
@@ -199,6 +220,63 @@ export function WorkerRequests({
               <option value="emergency">Emergency</option>
             </ThemedSelect>
           </label>
+          {kind === "leave" && (
+            <>
+              <label>
+                Leave duration
+                <ThemedSelect
+                  value={hourly ? "hourly" : "days"}
+                  onValueChange={(value) => setHourly(value === "hourly")}
+                >
+                  <option value="days">Full day or multiple days</option>
+                  <option value="hourly">Part of a day</option>
+                </ThemedSelect>
+              </label>
+              <label>
+                First day
+                <input
+                  type="date"
+                  required
+                  value={leaveStart}
+                  onChange={(event) => setLeaveStart(event.target.value)}
+                />
+              </label>
+              {!hourly && (
+                <label>
+                  Last day
+                  <input
+                    type="date"
+                    required
+                    min={leaveStart}
+                    value={leaveEnd}
+                    onChange={(event) => setLeaveEnd(event.target.value)}
+                  />
+                </label>
+              )}
+              {hourly && (
+                <>
+                  <label>
+                    Start time
+                    <input
+                      type="time"
+                      required
+                      value={leaveStartTime}
+                      onChange={(event) => setLeaveStartTime(event.target.value)}
+                    />
+                  </label>
+                  <label>
+                    End time
+                    <input
+                      type="time"
+                      required
+                      value={leaveEndTime}
+                      onChange={(event) => setLeaveEndTime(event.target.value)}
+                    />
+                  </label>
+                </>
+              )}
+            </>
+          )}
           {correctionMode && (
             <>
               <label>
@@ -309,6 +387,14 @@ export function WorkerRequests({
             <span className={`worker-request-status ${request.status}`}>{request.status}</span>
           </div>
           <p className="worker-muted-copy">{request.detail || request.kind.replace(/_/g, " ")}</p>
+          {request.leaveStart && (
+            <p className="my-2 text-xs">
+              {request.leaveStart}–{request.leaveEnd}
+              {request.leaveStartTime
+                ? ` · ${request.leaveStartTime}–${request.leaveEndTime}`
+                : " · Full days"}
+            </p>
+          )}
           <small className="text-[10px] text-sub">
             {new Date(request.submittedAt).toLocaleDateString()}
           </small>

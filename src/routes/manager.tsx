@@ -1,4 +1,7 @@
 import { ManagerMap } from "@/components/app/ManagerMap";
+import { ManagerNotifications } from "@/components/app/ManagerNotifications";
+import { ManagerRequests } from "@/components/app/ManagerRequests";
+import { managerNotifications } from "../../shared/manager-notifications";
 import { EmployeeDirectory } from "@/components/app/EmployeeDirectory";
 import { ManagerJobBrief, ManagerJobBriefs } from "@/components/app/ManagerJobBrief";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
@@ -72,18 +75,10 @@ function Manager() {
         ) : undefined
       }
       onRefresh={() => void d.refresh()}
+      notificationCount={managerNotifications(d).filter((item) => !item.read).length}
       onSignOut={() => void d.logout()}
     >
-      {tab === "Overview" && (
-        <ManagerOverview
-          jobs={d.jobs}
-          shifts={d.shifts}
-          employees={staff}
-          events={d.events}
-          today={d.today}
-          onSelect={setTab}
-        />
-      )}
+      {tab === "Overview" && <ManagerOverview data={d} onSelect={setTab} />}
       {tab === "Notes" && <ManagerNotes />}
       {tab === "Reports" && <ManagerReports />}
       {tab === "Attendance" && <ManagerAttendance />}
@@ -98,6 +93,7 @@ function Manager() {
       {tab === "Corrections" && <CorrectionReview />}
       {tab === "Announcements" && <CompanyNotices />}
       {tab === "Messages" && <ManagerMessages />}
+      {tab === "Notifications" && <ManagerNotifications onSelect={setTab} />}
       {tab === "Employee Access" && <KioskDesk />}
       {tab === "Views" && (
         <>
@@ -248,61 +244,7 @@ function Manager() {
           <ManagerJobTools />
         </div>
       )}
-      {tab === "Requests" && (
-        <div className="grid gap-5 lg:grid-cols-2">
-          {!d.requests.length && (
-            <p className="card-surface p-5 text-sm text-muted-foreground">No requests to review.</p>
-          )}
-          {d.requests.map((r) => (
-            <section key={r.id} className="card-surface p-5">
-              <div className="flex justify-between gap-2">
-                <p className="text-xs text-muted-foreground">{names(r.employeeId)}</p>
-                <StatusPill
-                  tone={r.status === "pending" ? "warn" : r.status === "approved" ? "ok" : "bad"}
-                >
-                  {r.status}
-                </StatusPill>
-              </div>
-              <h2 className="mt-3 font-bold">{r.summary}</h2>
-              <p className="mt-2 text-sm">{r.detail || "No details shared."}</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {new Date(r.submittedAt).toLocaleString()}
-              </p>
-              {r.kind === "correction" || r.kind === "missing_clocking" ? (
-                <p className="mt-3 rounded-xl bg-tint-cream p-3 text-xs">
-                  A decision records your response. Use the Corrections tab to review attendance
-                  changes. Payable changes require the configured approval stages.
-                </p>
-              ) : null}
-              {r.status === "pending" && r.employeeId !== d.me && (
-                <div className="mt-4">
-                  <RecordForm
-                    title="Review request"
-                    action="review_request"
-                    extra={{ id: r.id }}
-                    fields={[
-                      {
-                        name: "status",
-                        label: "Decision",
-                        options: [
-                          { value: "approved", label: "Approve" },
-                          { value: "declined", label: "Decline" },
-                        ],
-                      },
-                      { name: "reason", label: "Reason" },
-                    ]}
-                  />
-                </div>
-              )}
-              {r.reason && (
-                <p className="mt-3 rounded-xl bg-muted p-3 text-sm">
-                  {r.reviewer}: {r.reason}
-                </p>
-              )}
-            </section>
-          ))}
-        </div>
-      )}
+      {tab === "Requests" && <ManagerRequests />}
       {tab === "Employees" && <EmployeeDirectory />}
       <Dialog open={showJobForm} onOpenChange={setShowJobForm}>
         <DialogContent className="max-h-[90dvh] overflow-y-auto">

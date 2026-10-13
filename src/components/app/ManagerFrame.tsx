@@ -19,6 +19,7 @@ export function ManagerFrame({
   managerName = "Manager",
   onRefresh,
   onSignOut,
+  notificationCount = 0,
   insights,
   children,
 }: {
@@ -28,6 +29,7 @@ export function ManagerFrame({
   managerName?: string;
   onRefresh?: () => void;
   onSignOut?: () => void;
+  notificationCount?: number;
   insights?: ReactNode;
   children: ReactNode;
 }) {
@@ -160,10 +162,15 @@ export function ManagerFrame({
               </button>
               <button
                 className="project-icon-button"
-                aria-label="Open requests and approvals"
-                onClick={() => select("Requests")}
+                aria-label="Open notifications"
+                onClick={() => select("Notifications")}
               >
                 <Bell size={19} />
+                {notificationCount > 0 && (
+                  <span className="project-notification-count" aria-hidden="true">
+                    {notificationCount > 99 ? "99+" : notificationCount}
+                  </span>
+                )}
               </button>
               <button
                 className="project-icon-button"

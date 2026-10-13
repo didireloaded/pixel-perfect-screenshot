@@ -101,7 +101,7 @@ export function ManagerReports() {
       </div>
       <div className="project-report-metrics">
         <article>
-          <span>Scheduled</span>
+          <span>Workday records</span>
           <b>{shifts.length}</b>
         </article>
         <article>
@@ -123,7 +123,7 @@ export function ManagerReports() {
           <span>Shift</span>
           <span>Clock in</span>
           <span>Clock out</span>
-          <span>Worked</span>
+          <span>Recorded hours</span>
         </div>
         {shifts.map((shift) => {
           const employee = d.employees.find((item) => item.id === shift.employeeId);
@@ -147,7 +147,8 @@ export function ManagerReports() {
               <span>{time(first?.capturedAt)}</span>
               <span>{time(last?.capturedAt)}</span>
               <span>
-                {Math.floor(shift.totals.workedMinutes / 60)}h {shift.totals.workedMinutes % 60}m
+                {Math.floor(shift.totals.recordedMinutes / 60)}h {shift.totals.recordedMinutes % 60}
+                m
               </span>
             </div>
           );

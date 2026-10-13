@@ -34,13 +34,18 @@ export function ManagerInsights({
   ];
   const ids = new Set(
     data.employees
-      .filter((employee) => employee.role === "employee" && (!team || employee.team === team))
+      .filter(
+        (employee) =>
+          employee.role === "employee" &&
+          (!employee.accessStatus || employee.accessStatus === "active") &&
+          (!team || employee.team === team),
+      )
       .map((employee) => employee.id),
   );
   const shifts = data.shifts.filter(
     (shift) => shift.date === data.today && ids.has(shift.employeeId),
   );
-  const scheduled = new Set(shifts.map((shift) => shift.employeeId)).size;
+  const staffCount = ids.size;
   const recorded = new Set(
     data.events
       .filter(
@@ -57,7 +62,7 @@ export function ManagerInsights({
         )
         .map((state) => state.employeeId),
     ).size;
-  const percentage = scheduled ? Math.round((recorded / scheduled) * 100) : 0;
+  const percentage = staffCount ? Math.round((recorded / staffCount) * 100) : 0;
   const next = data.shifts
     .filter((shift) => ids.has(shift.employeeId) && shift.date >= data.today)
     .sort((a, b) => `${a.date}${a.start}`.localeCompare(`${b.date}${b.start}`))[0];
@@ -92,9 +97,9 @@ export function ManagerInsights({
           className="insight-donut"
           role="img"
           aria-label={
-            scheduled
-              ? `${percentage}% of scheduled workers have clocked in`
-              : "No workers scheduled today"
+            staffCount
+              ? `${percentage}% of active employees have clocked in today`
+              : "No active employees in this team"
           }
         >
           <PieChart width={196} height={196}>
@@ -113,14 +118,14 @@ export function ManagerInsights({
             </Pie>
           </PieChart>
           <div>
-            <strong>{scheduled ? `${percentage}%` : "—"}</strong>
+            <strong>{staffCount ? `${percentage}%` : "—"}</strong>
             <span>Team attendance</span>
           </div>
         </div>
         <h2>Today’s team</h2>
         <div className="insight-stat-grid">
           {[
-            ["Scheduled", scheduled, "blue"],
+            ["Employees", staffCount, "blue"],
             ["Working", stateCount(["working", "on_job"]), "orange"],
             ["On break", stateCount(["on_lunch"]), "pink"],
             ["Clocked out", stateCount(["clocked_out"]), "purple"],

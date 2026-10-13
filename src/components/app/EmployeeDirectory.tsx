@@ -33,12 +33,16 @@ export function EmployeeDirectory() {
   const d = useAttendance();
   const [query, setQuery] = useState("");
   const [department, setDepartment] = useState("");
+  const [status, setStatus] = useState("active");
+  const [role, setRole] = useState("");
   const [selected, setSelected] = useState("");
   const [editing, setEditing] = useState(false);
   const employee = d.employees.find((e) => e.id === selected);
   const departments = [...new Set(d.employees.map((e) => e.team || "Unassigned"))].sort();
   const filtered = d.employees.filter(
     (e) =>
+      (!status || (e.accessStatus || "active") === status) &&
+      (!role || e.role === role) &&
       (!department || (e.team || "Unassigned") === department) &&
       `${e.name} ${e.no} ${e.jobTitle || ""} ${e.team}`.toLowerCase().includes(query.toLowerCase()),
   );
@@ -58,6 +62,30 @@ export function EmployeeDirectory() {
           </div>
         </div>
         <div className="mt-5 flex flex-wrap gap-3">
+          {(
+            [
+              ["active", "Active"],
+              ["pending", "Pending approval"],
+              ["rejected", "Declined"],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              className={`sl-map-tool ${status === value ? "selected" : ""}`}
+              aria-pressed={status === value}
+              onClick={() => setStatus(value)}
+            >
+              {label}{" "}
+              <span>
+                {
+                  d.employees.filter((employee) => (employee.accessStatus || "active") === value)
+                    .length
+                }
+              </span>
+            </button>
+          ))}
+        </div>
+        <div className="mt-4 flex flex-wrap gap-3">
           <label className="flex min-w-[220px] flex-1 items-center gap-2 rounded-xl border border-border bg-muted px-3">
             <Search size={16} />
             <input
@@ -80,13 +108,18 @@ export function EmployeeDirectory() {
               </option>
             ))}
           </ThemedSelect>
+          <ThemedSelect aria-label="Filter by role" value={role} onValueChange={setRole}>
+            <option value="">All roles</option>
+            <option value="employee">Employees</option>
+            <option value="manager">Managers</option>
+          </ThemedSelect>
         </div>
       </section>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="space-y-3">
         {filtered.map((e) => (
           <button
             key={e.id}
-            className="project-panel text-left transition hover:border-[#cfc0fa]"
+            className="project-panel flex w-full flex-wrap items-center justify-between gap-4 text-left transition hover:border-[#cfc0fa]"
             onClick={() => {
               setSelected(e.id);
               setEditing(false);
@@ -104,7 +137,7 @@ export function EmployeeDirectory() {
                 </p>
               </div>
             </div>
-            <div className="mt-5 flex justify-between text-xs">
+            <div className="flex items-center gap-6 text-xs">
               <span>{e.no}</span>
               <span className="rounded-full bg-muted px-2 py-1 capitalize">
                 {e.accessStatus || "active"}
@@ -206,6 +239,55 @@ export function EmployeeDirectory() {
                 <p className="mt-6 whitespace-pre-wrap text-sm leading-relaxed">
                   {employee.bio || "No bio added yet."}
                 </p>
+                <div className="my-5 grid grid-cols-3 gap-3">
+                  {[
+                    [
+                      "Workdays recorded",
+                      new Set(
+                        d.events
+                          .filter(
+                            (event) =>
+                              event.employeeId === employee.id && event.type === "clock_in",
+                          )
+                          .map((event) => event.shiftId),
+                      ).size,
+                    ],
+                    [
+                      "Recorded hours",
+                      (
+                        d.shifts
+                          .filter((shift) => shift.employeeId === employee.id)
+                          .reduce((sum, shift) => sum + shift.totals.recordedMinutes, 0) / 60
+                      ).toFixed(1),
+                    ],
+                    [
+                      "Completed jobs",
+                      d.jobs.filter(
+                        (job) => job.assignee === employee.id && job.status === "completed",
+                      ).length,
+                    ],
+                  ].map(([label, value]) => (
+                    <div key={label} className="rounded-2xl bg-muted p-3">
+                      <b className="text-xl">{value}</b>
+                      <small className="mt-1 block text-muted-foreground">{label}</small>
+                    </div>
+                  ))}
+                </div>
+                <h3 className="text-sm font-semibold">Assigned work</h3>
+                {d.jobs
+                  .filter((job) => job.assignee === employee.id)
+                  .slice(0, 5)
+                  .map((job) => (
+                    <div key={job.id} className="my-2 rounded-xl border border-border p-3 text-sm">
+                      <b>{job.title}</b>
+                      <p className="text-xs text-muted-foreground">
+                        {job.date} · {job.status.replaceAll("_", " ")}
+                      </p>
+                    </div>
+                  ))}
+                {!d.jobs.some((job) => job.assignee === employee.id) && (
+                  <p className="my-3 text-sm text-muted-foreground">No field jobs assigned.</p>
+                )}
                 <div className="my-5 space-y-2 text-sm text-muted-foreground">
                   {employee.email && (
                     <p className="flex gap-2">

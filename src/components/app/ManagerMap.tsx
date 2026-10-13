@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import type { Map as MapboxMap, Marker } from "mapbox-gl";
+import type { Map as MapboxMap, Marker, GeoJSONSource } from "mapbox-gl";
+import { geofencePolygon } from "../../../shared/geofence-polygon";
 import { LocateFixed, MapPin, RefreshCw, Users, Briefcase, ShieldCheck } from "lucide-react";
 import { useAttendance } from "@/lib/app-store";
 import { STATE_LABEL } from "@/lib/attendance";
@@ -13,6 +14,8 @@ type Point = {
   lng: number;
   lat: number;
   kind: "site" | "job" | "worker";
+  radiusM?: number | undefined;
+  photoUrl?: string | undefined;
 };
 export function ManagerMap() {
   const d = useAttendance();
@@ -27,12 +30,24 @@ export function ManagerMap() {
   const [sitesVisible, setSitesVisible] = useState(true);
   const [jobsVisible, setJobsVisible] = useState(true);
   const token = import.meta.env["VITE_MAPBOX_ACCESS_TOKEN"];
+  const localTime = new Intl.DateTimeFormat("en-GB", {
+    timeZone: d.company.timezone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(new Date(now));
   const presence = d.sitePresence.filter(
     (p) =>
       p.latitude != null &&
       p.longitude != null &&
       now - Date.parse(p.checkedAt) < 180000 &&
-      d.shifts.some((s) => s.id === p.shiftId && s.date === d.today) &&
+      d.shifts.some(
+        (s) =>
+          s.id === p.shiftId &&
+          s.date === d.today &&
+          localTime >= s.start &&
+          localTime < s.trackingStop,
+      ) &&
       d.states.some((s) => s.shiftId === p.shiftId && ["working", "on_job"].includes(s.state)),
   );
   const workers = presence.filter(
@@ -49,6 +64,7 @@ export function ManagerMap() {
             lng: s.longitude!,
             lat: s.latitude!,
             kind: "site" as const,
+            radiusM: s.radiusM,
           }))
       : []),
     ...(jobsVisible
@@ -67,6 +83,7 @@ export function ManagerMap() {
             lng: j.longitude!,
             lat: j.latitude!,
             kind: "job" as const,
+            radiusM: j.radiusM,
           }))
       : []),
     ...workers.map((p) => ({
@@ -76,6 +93,7 @@ export function ManagerMap() {
       lng: p.longitude!,
       lat: p.latitude!,
       kind: "worker" as const,
+      photoUrl: d.employees.find((employee) => employee.id === p.employeeId)?.photoUrl,
     })),
   ];
   const pointsRef = useRef(points);
@@ -95,7 +113,7 @@ export function ManagerMap() {
     );
   };
   useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 10000);
+    const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
   useEffect(() => {
@@ -149,6 +167,36 @@ export function ManagerMap() {
     let disposed = false;
     void import("mapbox-gl").then(({ default: mapboxgl }) => {
       if (disposed || !map.current) return;
+      const boundaries = {
+        type: "FeatureCollection" as const,
+        features: pointsRef.current
+          .filter((point) => point.radiusM && point.kind !== "worker")
+          .map((point) => ({
+            type: "Feature" as const,
+            properties: { name: point.name },
+            geometry: {
+              type: "Polygon" as const,
+              coordinates: [geofencePolygon(point.lat, point.lng, point.radiusM!)],
+            },
+          })),
+      };
+      const source = map.current.getSource("work-boundaries") as GeoJSONSource | undefined;
+      if (source) source.setData(boundaries);
+      else {
+        map.current.addSource("work-boundaries", { type: "geojson", data: boundaries });
+        map.current.addLayer({
+          id: "work-boundary-fill",
+          type: "fill",
+          source: "work-boundaries",
+          paint: { "fill-color": "#6d4aff", "fill-opacity": 0.08 },
+        });
+        map.current.addLayer({
+          id: "work-boundary-line",
+          type: "line",
+          source: "work-boundaries",
+          paint: { "line-color": "#6d4aff", "line-width": 2, "line-dasharray": [3, 2] },
+        });
+      }
       const ids = new Set(pointsRef.current.map((p) => `${p.kind}:${p.id}`));
       markers.current.forEach((marker, id) => {
         if (!ids.has(id)) {
@@ -158,8 +206,14 @@ export function ManagerMap() {
       });
       pointsRef.current.forEach((p) => {
         const id = `${p.kind}:${p.id}`;
-        const existing = markers.current.get(id);
+        let existing = markers.current.get(id);
+        if (existing && existing.getElement().dataset["photoUrl"] !== (p.photoUrl ?? "")) {
+          existing.remove();
+          markers.current.delete(id);
+          existing = undefined;
+        }
         if (existing) {
+          existing.getElement().setAttribute("aria-label", p.name);
           existing.setLngLat([p.lng, p.lat]);
           const info = document.createElement("div");
           const title = document.createElement("strong");
@@ -171,6 +225,7 @@ export function ManagerMap() {
           return;
         }
         const button = document.createElement("button");
+        button.dataset["photoUrl"] = p.photoUrl ?? "";
         button.type = "button";
         button.className = `sl-map-marker ${p.kind}`;
         button.setAttribute("aria-label", p.name);
@@ -184,6 +239,17 @@ export function ManagerMap() {
             : p.kind === "job"
               ? "J"
               : "W";
+        if (p.kind === "worker" && p.photoUrl) {
+          const image = document.createElement("img");
+          image.src = p.photoUrl;
+          image.alt = p.name;
+          image.referrerPolicy = "no-referrer";
+          button.style.position = "relative";
+          image.style.cssText =
+            "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%";
+          image.onerror = () => image.remove();
+          button.append(image);
+        }
         const info = document.createElement("div");
         const title = document.createElement("strong");
         title.textContent = p.name;
@@ -214,6 +280,31 @@ export function ManagerMap() {
             {presence.length} sharing now · {d.sites.length}{" "}
             {d.sites.length === 1 ? "workplace" : "workplaces"} · positions expire after 3 minutes
           </p>
+          <div className="mt-3 flex flex-wrap gap-3 text-xs">
+            <span className="rounded-full bg-[#e7f7ef] px-3 py-2">
+              {
+                d.states.filter(
+                  (state) =>
+                    ["working", "on_job"].includes(state.state) &&
+                    d.shifts.some((shift) => shift.id === state.shiftId && shift.date === d.today),
+                ).length
+              }{" "}
+              working
+            </span>
+            <span className="rounded-full bg-[#fff4dc] px-3 py-2">
+              {
+                d.states.filter(
+                  (state) =>
+                    state.state === "on_lunch" &&
+                    d.shifts.some((shift) => shift.id === state.shiftId && shift.date === d.today),
+                ).length
+              }{" "}
+              on lunch · location hidden
+            </span>
+            <span className="rounded-full bg-muted px-3 py-2">
+              {presence.length} current positions
+            </span>
+          </div>
         </div>
         <button
           className="sl-map-tool"
@@ -317,7 +408,9 @@ export function ManagerMap() {
                         ? "On job · live"
                         : "At workplace · live"
                       : state === "working" || state === "on_job"
-                        ? "Location unavailable"
+                        ? shift && localTime >= shift.trackingStop
+                          ? "Tracking ended · clock-out pending"
+                          : "Location unavailable"
                         : state
                           ? STATE_LABEL[state]
                           : "Off duty"}

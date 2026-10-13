@@ -13,12 +13,14 @@ import {
 } from "lucide-react";
 import type { AttendanceSnapshot, AttendanceState, EventType } from "../../../shared/attendance";
 import { WorkerCard, formatHours, formatTime } from "./WorkerUI";
+import { liveWorkMinutes } from "../../../shared/live-work-minutes";
 export function WorkerHome({
   data,
   state,
   busy,
   onAction,
   onDeparture,
+  onEmergency,
   onJobs,
   onMonitoring,
   monitoring,
@@ -29,6 +31,7 @@ export function WorkerHome({
   busy: boolean;
   onAction: (type: EventType) => void;
   onDeparture: () => void;
+  onEmergency?: () => void;
   onJobs: () => void;
   onMonitoring: () => void;
   monitoring: boolean;
@@ -51,7 +54,8 @@ export function WorkerHome({
     state === "on_lunch" && lastLunch
       ? Math.floor(Math.max(0, now - lastLunch.capturedAt) / 60000)
       : (shift?.totals.lunchMinutes ?? 0);
-  const total = shift?.totals.workedMinutes ?? 0;
+  const work = liveWorkMinutes(shift, state, events, now);
+  const total = work.minutes;
   const hasLunch = Boolean(
     lastLunch && lastReturn && lastReturn.capturedAt >= lastLunch.capturedAt,
   );
@@ -72,7 +76,9 @@ export function WorkerHome({
           ? "end_job"
           : state === "on_personal"
             ? "end_personal"
-            : null;
+            : state === "working"
+              ? "clock_out"
+              : null;
   const nextJob = data.jobs
     .filter(
       (job) => job.assignee === data.me && job.status !== "completed" && job.date >= data.today,
@@ -107,7 +113,7 @@ export function WorkerHome({
         {[
           ["Check In", formatTime(first?.capturedAt, data.company.timezone)],
           ["Check Out", formatTime(last?.capturedAt, data.company.timezone)],
-          ["Total Hours", formatHours(total)],
+          [work.estimated ? "Hours · estimate" : "Recorded Hours", formatHours(total)],
         ].map(([label, value]) => (
           <div key={label}>
             <span>{label}</span>
@@ -115,6 +121,29 @@ export function WorkerHome({
           </div>
         ))}
       </div>
+      <WorkerCard className="worker-goal-card">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <small>TODAY'S WORK</small>
+            <h2>{state === "not_clocked_in" ? "Ready to start" : stateTitle}</h2>
+            <p>
+              {formatHours(total)} {work.estimated ? "live estimate" : "recorded"} ·{" "}
+              {formatHours(shift?.regularMinutes ?? 480)} regular-hour target
+            </p>
+          </div>
+          <Clock3 size={24} />
+        </div>
+        <progress
+          aria-label="Regular hours progress"
+          max={shift?.regularMinutes ?? 480}
+          value={Math.min(total, shift?.regularMinutes ?? 480)}
+        />
+        {state === "working" && onEmergency && (
+          <button disabled={busy} onClick={onEmergency}>
+            Emergency departure <ArrowUpRight size={15} />
+          </button>
+        )}
+      </WorkerCard>
       <div className={`worker-lunch ${state === "on_lunch" ? "active" : ""}`}>
         <span className="worker-lunch-label">
           <Coffee size={19} />
@@ -147,14 +176,22 @@ export function WorkerHome({
                       ? "End lunch"
                       : state === "on_job"
                         ? "Return from job"
-                        : "Return to work"
+                        : state === "working"
+                          ? "Clock out"
+                          : "Return to work"
                 }
                 disabled={busy}
                 onClick={() => onAction(action)}
               >
-                <span>{busy ? "Saving…" : stateTitle}</span>
+                <span>{busy ? "Saving…" : action === "clock_out" ? "Clock out" : stateTitle}</span>
                 {state !== "not_clocked_in" && (
-                  <small>{state === "on_lunch" ? "End Lunch" : "Return to work"}</small>
+                  <small>
+                    {state === "working"
+                      ? `${formatHours(total)} worked`
+                      : state === "on_lunch"
+                        ? "End Lunch"
+                        : "Return to work"}
+                  </small>
                 )}
               </button>
             ) : (
@@ -179,10 +216,12 @@ export function WorkerHome({
             <ArrowUpRight size={16} />
             Leave temporarily
           </button>
-          <button className="clock-out" disabled={busy} onClick={() => onAction("clock_out")}>
-            <Clock3 size={16} />
-            Clock out
-          </button>
+          {state === "on_job" && (
+            <button className="clock-out" disabled={busy} onClick={() => onAction("clock_out")}>
+              <Clock3 size={16} />
+              Clock out
+            </button>
+          )}
         </div>
       )}
       <WorkerCard className="worker-worksite">
@@ -211,7 +250,7 @@ export function WorkerHome({
         {(activeJob ? activeJob.latitude != null : site?.latitude != null) && (
           <button onClick={onMonitoring}>
             <ShieldCheck size={14} />
-            {monitoring ? "Location sharing on" : "Enable location sharing"}
+            {monitoring ? "Location sharing enabled" : "Enable location sharing"}
           </button>
         )}
       </WorkerCard>

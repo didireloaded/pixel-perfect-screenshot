@@ -12,6 +12,11 @@ test("matching hosted timestamps does not reapply local migrations", async () =>
     db = await createLocalDatabase(directory);
     const count = (await db.query("select count(*)::int n from local_private.migrations")).rows[0]
       .n;
+    const tableCount = (
+      await db.query(
+        "select count(*)::int n from pg_tables where schemaname='public' and tablename like 'sl_%'",
+      )
+    ).rows[0].n;
     await db.query(
       "update local_private.migrations set name='20000101000000_' || regexp_replace(name,'^[0-9]+_','')",
     );
@@ -28,7 +33,7 @@ test("matching hosted timestamps does not reapply local migrations", async () =>
           "select count(*)::int n from pg_tables where schemaname='public' and tablename like 'sl_%'",
         )
       ).rows[0].n,
-      30,
+      tableCount,
     );
   } finally {
     if (db) await db.close();

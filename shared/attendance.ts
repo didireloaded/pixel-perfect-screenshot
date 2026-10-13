@@ -108,6 +108,10 @@ export interface Job {
   overtime?: boolean;
 }
 export interface Req {
+  leaveStart?: string | null;
+  leaveEnd?: string | null;
+  leaveStartTime?: string | null;
+  leaveEndTime?: string | null;
   id: string;
   employeeId: string;
   kind: RequestKind;
@@ -143,9 +147,15 @@ export interface Period {
   lockedAt: string;
 }
 export interface CalendarJob {
-  id: string; date: string; title: string; details: string; employeeIds: string[]; assignedNames: string[];
+  id: string;
+  date: string;
+  title: string;
+  details: string;
+  employeeIds: string[];
+  assignedNames: string[];
 }
 export interface AttendanceSnapshot {
+  readNotificationIds?: string[];
   calendarJobs?: CalendarJob[];
   me: string;
   role: "manager" | "employee";

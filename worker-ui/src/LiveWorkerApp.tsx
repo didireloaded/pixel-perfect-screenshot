@@ -20,7 +20,7 @@ import {
 import type { AttendanceSnapshot, EventType, Job, Shift } from "../../shared/attendance";
 import * as backend from "./backend";
 import { WorkerHome } from "./components/WorkerHome";
-import { AttendanceCalendar } from "./components/AttendanceCalendar";
+import { WorkerJobCalendar } from "./components/WorkerJobCalendar";
 import {
   WorkerCard as Card,
   WorkerAction as Action,
@@ -83,6 +83,11 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  useEffect(() => {
+    if (!notice) return;
+    const timer = window.setTimeout(() => setNotice(""), 8000);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
   const [locationEnabled, setLocationEnabled] = useState(false);
   const [visible, setVisible] = useState(() => document.visibilityState === "visible");
   const [clockInOpen, setClockInOpen] = useState(false);
@@ -361,7 +366,7 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
             <span className="worker-header-spacer" />
             <h1>
               {tab === "calendar"
-                ? "Attendance Calendar"
+                ? "Job Calendar"
                 : tab === "hours"
                   ? "Working Hours"
                   : tabs.find((item) => item.id === tab)?.label}
@@ -401,6 +406,10 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
             busy={busy || locating || !online}
             onAction={(type) => void act(type)}
             onDeparture={() => setDepartureOpen(true)}
+            onEmergency={() => {
+              setDepartureKind("emergency");
+              setDepartureOpen(true);
+            }}
             onJobs={() => switchTab("jobs")}
             monitoring={locationEnabled}
             onMonitoring={() => {
@@ -410,15 +419,7 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
             }}
           />
         )}
-        {!secondary && tab === "calendar" && (
-          <AttendanceCalendar
-            data={data}
-            onCorrection={(selected) => {
-              setCorrection(selected);
-              setSecondary("requests");
-            }}
-          />
-        )}
+        {!secondary && tab === "calendar" && <WorkerJobCalendar data={data} />}
         {!secondary && tab === "jobs" && (
           <>
             <div className="worker-segmented">
