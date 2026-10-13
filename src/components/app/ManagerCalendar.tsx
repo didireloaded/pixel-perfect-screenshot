@@ -1,7 +1,9 @@
 import { ThemedSelect } from "../../../shared/ThemedSelect";
 import { useState } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import type { AttendanceSnapshot } from "../../../shared/attendance";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { CalendarJobForm } from "./CalendarJobForm";
 const day = (value: string) => new Date(`${value}T12:00:00Z`);
 const add = (value: string, count: number) => {
   const next = day(value);
@@ -11,10 +13,14 @@ const add = (value: string, count: number) => {
 export function ManagerCalendar({
   data,
 }: {
-  data: Pick<AttendanceSnapshot, "today" | "shifts" | "employees" | "sites" | "jobs" | "notices">;
+  data: Pick<
+    AttendanceSnapshot,
+    "today" | "shifts" | "employees" | "sites" | "jobs" | "notices" | "calendarJobs"
+  >;
 }) {
   const [selected, setSelected] = useState(data.today);
   const [mode, setMode] = useState<"month" | "week">("month");
+  const [newJobDate, setNewJobDate] = useState<string | null>(null);
   const anchor = mode === "month" ? `${selected.slice(0, 7)}-01` : selected;
   const first = add(anchor, -((day(anchor).getUTCDay() + 6) % 7));
   const dates = Array.from({ length: mode === "month" ? 42 : 7 }, (_, index) => add(first, index));
@@ -64,6 +70,9 @@ export function ManagerCalendar({
           <button className="project-icon-button" aria-label="Next period" onClick={() => move(1)}>
             <ChevronRight size={17} />
           </button>
+          <button className="manager-add-button" onClick={() => setNewJobDate(selected)}>
+            <Plus size={15} /> New job
+          </button>
         </div>
       </div>
       <div className={`manager-week-grid ${mode === "month" ? "month-view" : ""}`}>
@@ -81,6 +90,19 @@ export function ManagerCalendar({
               {date === data.today && <small>Today</small>}
             </button>
             <div className="manager-week-items">
+              {(data.calendarJobs ?? [])
+                .filter((job) => job.date === date)
+                .map((job) => (
+                  <button className="calendar-job" key={job.id} onClick={() => setSelected(date)}>
+                    <b>{job.title}</b>
+                    <small>
+                      {job.assignedNames.length
+                        ? `Assigned: ${job.assignedNames.join(", ")}`
+                        : "Open assignment"}
+                    </small>
+                    <span>{job.details}</span>
+                  </button>
+                ))}
               {data.shifts
                 .filter((shift) => shift.date === date)
                 .map((shift) => (
@@ -150,6 +172,22 @@ export function ManagerCalendar({
               </time>
             </article>
           ))}
+        {(data.calendarJobs ?? [])
+          .filter((job) => job.date === selected)
+          .map((job) => (
+            <article key={job.id}>
+              <CalendarDays size={18} />
+              <div>
+                <b>{job.title}</b>
+                <small>
+                  {job.assignedNames.length
+                    ? `Assigned: ${job.assignedNames.join(", ")}`
+                    : "Open assignment"}
+                </small>
+                <p>{job.details}</p>
+              </div>
+            </article>
+          ))}
         {!shifts.length && (
           <div className="project-empty">
             No attendance records for this day. Workers check in to start their workday.
@@ -184,6 +222,15 @@ export function ManagerCalendar({
           </article>
         ))}
       </div>
+      <Dialog open={!!newJobDate} onOpenChange={(open) => !open && setNewJobDate(null)}>
+        <DialogContent>
+          <DialogTitle>Add job to calendar</DialogTitle>
+          <DialogDescription>
+            Add date and job details. Employee assignment is optional.
+          </DialogDescription>
+          {newJobDate && <CalendarJobForm date={newJobDate} onSaved={() => setNewJobDate(null)} />}
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

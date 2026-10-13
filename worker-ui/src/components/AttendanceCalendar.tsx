@@ -178,6 +178,29 @@ export function AttendanceCalendar({
         <h2>Your Attendance</h2>
         <span>{shifts.length} shifts</span>
       </div>
+      <div className="worker-section-heading">
+        <h2>Jobs</h2>
+        <span>{(data.calendarJobs ?? []).filter((job) => job.date.startsWith(month)).length}</span>
+      </div>
+      <div className="worker-attendance-list">
+        {(data.calendarJobs ?? [])
+          .filter((job) => job.date.startsWith(month))
+          .map((job) => (
+            <article className="worker-attendance-row" key={job.id}>
+              <span className="worker-day-number">{job.date.slice(-2)}</span>
+              <span className="worker-attendance-cells">
+                <span>
+                  <small>{job.title}</small>
+                  <b>{job.details}</b>
+                </span>
+                <span>
+                  <small>Assigned</small>
+                  <b>{job.assignedNames.length ? job.assignedNames.join(", ") : "Everyone"}</b>
+                </span>
+              </span>
+            </article>
+          ))}
+      </div>
       <div className="worker-attendance-list">
         {shifts.map((shift) => {
           const events = eventsFor(shift);
