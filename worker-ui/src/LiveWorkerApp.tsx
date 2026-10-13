@@ -1,3 +1,7 @@
+import { activeJobForShift } from "../../shared/active-job";
+import { watchWorkPosition } from "../../shared/watch-work-position";
+import { NoticeCard } from "./components/NoticeDetails";
+import { ThemedSelect } from "../../shared/ThemedSelect";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Bell,
@@ -24,7 +28,6 @@ import {
   EmptyState,
 } from "./components/WorkerUI";
 import { WorkerProfile, WorkerRequests, WorkerNotifications } from "./components/WorkerAccount";
-import type { AttendanceSnapshot as Snapshot } from "../../shared/attendance";
 
 type Result = { snapshot: AttendanceSnapshot; status?: string; reason?: string };
 type Tab = "today" | "calendar" | "jobs" | "inbox" | "hours";
@@ -53,14 +56,8 @@ const displayDate = (iso: string) =>
     month: "short",
     timeZone: "UTC",
   });
-export default function LiveWorkerApp({
-  onSignOut,
-  previewData,
-}: {
-  onSignOut: () => void;
-  previewData?: Snapshot;
-}) {
-  const [data, setData] = useState<AttendanceSnapshot | null>(previewData ?? null);
+export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) {
+  const [data, setData] = useState<AttendanceSnapshot | null>(null);
   const [secondary, setSecondary] = useState<"profile" | "requests" | "notifications" | null>(null);
   const [correction, setCorrection] = useState<Shift | null>(null);
   const [jobFilter, setJobFilter] = useState<"all" | "assigned" | "in_progress" | "completed">(
@@ -83,15 +80,19 @@ export default function LiveWorkerApp({
   }, []);
   const [tab, setTab] = useState<Tab>("today");
   const [busy, setBusy] = useState(false);
-  const [loading, setLoading] = useState(!previewData);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [locationEnabled, setLocationEnabled] = useState(false);
   const [visible, setVisible] = useState(() => document.visibilityState === "visible");
+  const [clockInOpen, setClockInOpen] = useState(false);
+  const [expectedEnd, setExpectedEnd] = useState("17:00");
+  const [shareDuringWork, setShareDuringWork] = useState(true);
+  const [locating, setLocating] = useState(false);
+  const clockInLock = useRef(false);
   const [departureOpen, setDepartureOpen] = useState(false);
   const [departureKind, setDepartureKind] = useState<"personal" | "emergency">("personal");
   const [departureNote, setDepartureNote] = useState("");
-  const lastPositionSent = useRef(0);
   const writeLock = useRef(false);
   const revision = useRef(0);
   useEffect(() => {
@@ -100,7 +101,7 @@ export default function LiveWorkerApp({
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, []);
   const refresh = useCallback(async () => {
-    if (previewData || writeLock.current) return;
+    if (writeLock.current) return;
     const token = ++revision.current;
     try {
       const next = await backend.snapshot<AttendanceSnapshot>();
@@ -114,28 +115,16 @@ export default function LiveWorkerApp({
     } finally {
       setLoading(false);
     }
-  }, [previewData]);
+  }, []);
   useEffect(() => {
-    if (previewData) return;
     void refresh();
-    const timer = window.setInterval(() => {
-      if (document.visibilityState === "visible") void refresh();
-    }, 15000);
-    const visible = () => {
-      if (document.visibilityState === "visible") void refresh();
-    };
-    document.addEventListener("visibilitychange", visible);
-    return () => {
-      window.clearInterval(timer);
-      document.removeEventListener("visibilitychange", visible);
-    };
-  }, [refresh, previewData]);
+  }, [refresh]);
+  useEffect(() => {
+    if (!data?.company.id) return;
+    return backend.watch(data.company.id, refresh);
+  }, [data?.company.id, refresh]);
   const run = useCallback(
     async (action: string, payload: Record<string, unknown>, success: string) => {
-      if (previewData) {
-        setNotice("Design preview — connect your account to save changes.");
-        return false;
-      }
       if (writeLock.current || !navigator.onLine) {
         setError(
           navigator.onLine
@@ -166,21 +155,24 @@ export default function LiveWorkerApp({
         setBusy(false);
       }
     },
-    [previewData],
+    [],
   );
 
   const act = async (type: EventType, extra: Record<string, unknown> = {}) => {
-    if (previewData) {
-      setNotice("Design preview — attendance is not recorded.");
-      return false;
-    }
     let location: Record<string, number> | undefined;
     const shift = data?.shifts.find((s) => s.employeeId === data.me && s.date === data.today);
-    if (!shift) {
-      setError("No shift is assigned for today");
+    if (type === "clock_in" && !extra.expectedEnd) {
+      setClockInOpen(true);
       return false;
     }
+    if (!shift && type !== "clock_in") {
+      setError("Check in to start your workday first");
+      return false;
+    }
+    if (clockInLock.current) return false;
+    clockInLock.current = true;
     if (type === "clock_in" && data?.policy?.require_gps_stamp) {
+      setLocating(true);
       try {
         const position = await new Promise<GeolocationPosition>((resolve, reject) =>
           navigator.geolocation.getCurrentPosition(resolve, reject, {
@@ -198,81 +190,86 @@ export default function LiveWorkerApp({
         setError(
           "Location is required to clock in under your company policy. Enable location and try again.",
         );
+        clockInLock.current = false;
         return false;
+      } finally {
+        setLocating(false);
       }
     }
-    return await run(
-      "transition",
-      { id: crypto.randomUUID(), type, ...(location ? { location } : {}), ...extra },
-      eventLabels[type],
-    );
+    try {
+      return await run(
+        type === "clock_in" ? "start_workday" : "transition",
+        {
+          id: crypto.randomUUID(),
+          ...(type === "clock_in" ? {} : { type }),
+          ...(location ? { location } : {}),
+          ...extra,
+        },
+        eventLabels[type],
+      );
+    } finally {
+      clockInLock.current = false;
+    }
   };
   const me = data?.employees.find((e) => e.id === data.me);
   const shift = data?.shifts.find((s) => s.employeeId === data.me && s.date === data.today);
   const state = data?.states.find((s) => s.shiftId === shift?.id)?.state ?? "not_clocked_in";
   const myJobs = data?.jobs.filter((j) => j.assignee === data.me) ?? [];
-  const activeJob = myJobs.find((j) => j.shiftId === shift?.id && j.status === "in_progress");
+  const activeJob = data ? activeJobForShift(data.events, myJobs, shift?.id) : undefined;
   const unread = data?.messages.filter((m) => m.recipientId === data.me && !m.readAt).length ?? 0;
   const site = data?.sites.find((s) => s.id === shift?.siteId);
   const monitorKey = data && data.me ? `shiftline-site-monitor:${data.company.id}:${data.me}` : "";
   useEffect(() => {
     if (monitorKey) setLocationEnabled(localStorage.getItem(monitorKey) === "on");
   }, [monitorKey]);
+  const shiftId = shift?.id,
+    shiftDate = shift?.date,
+    shiftStart = shift?.start,
+    trackingStop = shift?.trackingStop,
+    timezone = data?.company.timezone;
+  const targetLatitude = state === "on_job" ? activeJob?.latitude : site?.latitude;
+  const targetLongitude = state === "on_job" ? activeJob?.longitude : site?.longitude;
   useEffect(() => {
     if (
-      previewData ||
-      !data ||
-      !shift ||
-      !site ||
+      !shiftId ||
+      !shiftDate ||
+      !shiftStart ||
+      !trackingStop ||
+      !timezone ||
       !locationEnabled ||
       !visible ||
-      state !== "working" ||
-      site.latitude == null ||
-      site.longitude == null ||
+      !online ||
+      !["working", "on_job"].includes(state) ||
+      targetLatitude == null ||
+      targetLongitude == null ||
       !navigator.geolocation
     )
       return;
-    const companyTime = () =>
-      new Intl.DateTimeFormat("en-GB", {
-        timeZone: data.company.timezone,
-        hour: "2-digit",
-        minute: "2-digit",
-        hourCycle: "h23",
-      }).format(new Date());
-    const allowed = () => companyTime() >= shift.start && companyTime() < shift.trackingStop;
-    if (!allowed()) return;
-    const watch = navigator.geolocation.watchPosition(
-      (position) => {
-        if (!allowed() || Date.now() - lastPositionSent.current < 60000) return;
-        lastPositionSent.current = Date.now();
-        void backend
-          .command<{ snapshot: AttendanceSnapshot; status?: string }>("report_position", {
-            shiftId: shift.id,
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            accuracyM: position.coords.accuracy,
-            source: "web",
-          })
-          .then((result) => {
-            if (result.status === "exit")
-              setNotice("You left the worksite. Your manager has been alerted.");
-            if (result.status === "return") setNotice("You are back at the worksite.");
-          })
-          .catch((cause) =>
-            setError(cause instanceof Error ? cause.message : "Worksite check failed"),
-          );
+    return watchWorkPosition(
+      { id: shiftId, date: shiftDate, start: shiftStart, trackingStop },
+      timezone,
+      async (action, payload) => {
+        const result = await backend.command<Result>(action, payload);
+        if (result.status === "exit")
+          setNotice("You left the assigned work location. Your manager has been alerted.");
+        if (result.status === "return") setNotice("You are back at the assigned work location.");
+        return result;
       },
-      () => setError("Worksite checks are paused because location is unavailable."),
-      { enableHighAccuracy: true, maximumAge: 30000, timeout: 15000 },
+      setError,
     );
-    const stop = window.setInterval(() => {
-      if (!allowed()) navigator.geolocation.clearWatch(watch);
-    }, 1000);
-    return () => {
-      navigator.geolocation.clearWatch(watch);
-      window.clearInterval(stop);
-    };
-  }, [data, shift, site, locationEnabled, visible, state, previewData]);
+  }, [
+    shiftId,
+    shiftDate,
+    shiftStart,
+    trackingStop,
+    timezone,
+    locationEnabled,
+    visible,
+    online,
+    state,
+    targetLatitude,
+    targetLongitude,
+  ]);
 
   if (loading)
     return (
@@ -307,7 +304,6 @@ export default function LiveWorkerApp({
     );
   return (
     <div className="relative flex h-full flex-col bg-page text-ink dark:bg-dpage dark:text-white">
-      {previewData && <div className="worker-preview-label">Design preview · sample records</div>}
       <header className={`worker-header ${tab !== "today" || secondary ? "compact" : ""}`}>
         {secondary ? (
           <>
@@ -399,9 +395,10 @@ export default function LiveWorkerApp({
         )}
         {!secondary && tab === "today" && (
           <WorkerHome
+            onAcknowledge={(id) => run("ack_notice", { id }, "Acknowledged")}
             data={data}
             state={state}
-            busy={busy || !online}
+            busy={busy || locating || !online}
             onAction={(type) => void act(type)}
             onDeparture={() => setDepartureOpen(true)}
             onJobs={() => switchTab("jobs")}
@@ -409,7 +406,7 @@ export default function LiveWorkerApp({
             onMonitoring={() => {
               const next = !locationEnabled;
               setLocationEnabled(next);
-              if (!previewData) localStorage.setItem(monitorKey, next ? "on" : "off");
+              localStorage.setItem(monitorKey, next ? "on" : "off");
             }}
           />
         )}
@@ -449,7 +446,7 @@ export default function LiveWorkerApp({
                   key={j.id}
                   job={j}
                   data={data}
-                  busy={busy || !online}
+                  busy={busy || locating || !online}
                   run={run}
                   act={act}
                   active={activeJob?.id === j.id}
@@ -479,7 +476,7 @@ export default function LiveWorkerApp({
             onMonitoring={() => {
               const next = !locationEnabled;
               setLocationEnabled(next);
-              if (!previewData) localStorage.setItem(monitorKey, next ? "on" : "off");
+              localStorage.setItem(monitorKey, next ? "on" : "off");
             }}
           />
         )}
@@ -498,6 +495,58 @@ export default function LiveWorkerApp({
           />
         )}
       </div>
+      {clockInOpen && (
+        <WorkerSheet
+          title="Start your workday"
+          onClose={() => {
+            if (!busy && !locating) setClockInOpen(false);
+          }}
+        >
+          <p className="worker-muted-copy">
+            Your check-in time is recorded when you confirm. Choose your expected finish so location
+            sharing stops on time.
+          </p>
+          <form
+            onSubmit={async (event) => {
+              event.preventDefault();
+              if (await act("clock_in", { expectedEnd })) {
+                setLocationEnabled(shareDuringWork);
+                localStorage.setItem(monitorKey, shareDuringWork ? "on" : "off");
+                setClockInOpen(false);
+              }
+            }}
+          >
+            <label className="block my-4">
+              Expected finish today
+              <input
+                aria-label="Expected finish today"
+                type="time"
+                required
+                value={expectedEnd}
+                onChange={(event) => setExpectedEnd(event.target.value)}
+                className="block w-full rounded-xl border p-3 mt-2"
+              />
+            </label>
+            <p className="worker-muted-copy">
+              Lunch is planned for 12:00–13:00. Tap Start lunch and End lunch to record your actual
+              break. Regular time uses the existing eight-hour rule; extra time needs approval.
+            </p>
+            <label className="flex gap-2 my-4">
+              <input
+                type="checkbox"
+                checked={shareDuringWork}
+                onChange={(event) => setShareDuringWork(event.target.checked)}
+              />
+              Share my location while working. Pauses on lunch, personal time, clock-out or expected
+              finish.
+            </label>
+            {error && <p role="alert">{error}</p>}
+            <button className="worker-action mt-5" disabled={busy || locating || !online}>
+              {locating ? "Checking location…" : busy ? "Checking in…" : "Check in now"}
+            </button>
+          </form>
+        </WorkerSheet>
+      )}
       {departureOpen && (
         <WorkerSheet title="Leave temporarily" onClose={() => setDepartureOpen(false)}>
           <p className="worker-muted-copy">
@@ -511,15 +560,13 @@ export default function LiveWorkerApp({
           <div className="worker-request-form">
             <label>
               Reason
-              <select
+              <ThemedSelect
                 value={departureKind}
-                onChange={(event) =>
-                  setDepartureKind(event.target.value as "personal" | "emergency")
-                }
+                onValueChange={(value) => setDepartureKind(value as "personal" | "emergency")}
               >
                 <option value="personal">Personal</option>
                 <option value="emergency">Emergency</option>
-              </select>
+              </ThemedSelect>
             </label>
             <label>
               Note
@@ -557,10 +604,6 @@ export default function LiveWorkerApp({
           <div className="mt-5 space-y-3">
             <Action
               onClick={() => {
-                if (previewData) {
-                  onSignOut();
-                  return;
-                }
                 void backend
                   .signOut()
                   .then(onSignOut)
@@ -671,6 +714,22 @@ function JobCard({
           <p className="mt-2 flex gap-1 text-sm">
             <MapPin size={16} /> {job.destination}
           </p>
+          <p className="mt-3 rounded-xl bg-fill p-3 text-xs leading-relaxed dark:bg-dfill">
+            {job.lunchOption === "none"
+              ? "No lunch scheduled for this job. Contact your manager if you need a break."
+              : "Lunch follows your shift schedule. Location sharing pauses during lunch."}
+            {job.overtime && " Overtime job: recorded hours still require approval."}
+          </p>
+          {job.latitude != null && job.longitude != null && (
+            <a
+              className="mt-2 inline-block text-xs font-semibold text-brand"
+              target="_blank"
+              rel="noreferrer"
+              href={`https://www.google.com/maps/search/?api=1&query=${job.latitude},${job.longitude}`}
+            >
+              Open job directions ↗
+            </a>
+          )}
           {job.instructions && (
             <p className="mt-3 text-sm leading-relaxed text-sub">{job.instructions}</p>
           )}
@@ -748,16 +807,30 @@ function JobCard({
               </button>
             </form>
           </div>
-          {job.date === data.today && job.status === "assigned" && state === "working" && (
+          {job.date === data.today &&
+            job.status !== "completed" &&
+            job.assignee === data.me &&
+            state === "working" && (
+              <div className="mt-4">
+                <Action disabled={busy} onClick={() => void act("start_job", { jobId: job.id })}>
+                  Out on job
+                </Action>
+              </div>
+            )}
+          {active && (
             <div className="mt-4">
-              <Action disabled={busy} onClick={() => void act("start_job", { jobId: job.id })}>
-                Start job
+              <Action
+                secondary
+                disabled={busy}
+                onClick={() => void act(state === "on_lunch" ? "end_lunch" : "start_lunch")}
+              >
+                {state === "on_lunch" ? "End lunch · resume job" : "Take lunch on this job"}
               </Action>
             </div>
           )}
           {active && (
             <div className="mt-4">
-              <Action disabled={busy} onClick={() => void act("end_job")}>
+              <Action disabled={busy || state === "on_lunch"} onClick={() => void act("end_job")}>
                 Return from job
               </Action>
             </div>
@@ -873,25 +946,12 @@ function Inbox({
       {section === "news" &&
         (notices.length ? (
           notices.map((n) => (
-            <Card key={n.id}>
-              <h3 className="font-bold">{n.title}</h3>
-              <p className="mt-1 text-xs text-sub">
-                {displayDate(n.startsOn)}
-                {n.endsOn !== n.startsOn ? ` – ${displayDate(n.endsOn)}` : ""}
-              </p>
-              <p className="mt-3 whitespace-pre-wrap text-sm">{n.body}</p>
-              {n.requiresAck && !n.acknowledged && (
-                <div className="mt-3">
-                  <Action
-                    secondary
-                    disabled={busy}
-                    onClick={() => void run("ack_notice", { id: n.id }, "Acknowledged")}
-                  >
-                    Acknowledge
-                  </Action>
-                </div>
-              )}
-            </Card>
+            <NoticeCard
+              key={n.id}
+              notice={n}
+              busy={busy}
+              onAcknowledge={() => run("ack_notice", { id: n.id }, "Acknowledged")}
+            />
           ))
         ) : (
           <Card>
@@ -901,13 +961,12 @@ function Inbox({
       {section === "events" &&
         (events.length ? (
           events.map((n) => (
-            <Card key={n.id}>
-              <h3 className="font-bold">{n.title}</h3>
-              <p className="mt-1 text-xs text-sub">
-                {displayDate(n.startsOn)} · {n.startsTime ?? "Time to be confirmed"}
-              </p>
-              <p className="mt-3 whitespace-pre-wrap text-sm">{n.body}</p>
-            </Card>
+            <NoticeCard
+              key={n.id}
+              notice={n}
+              busy={busy}
+              onAcknowledge={() => run("ack_notice", { id: n.id }, "Acknowledged")}
+            />
           ))
         ) : (
           <Card>

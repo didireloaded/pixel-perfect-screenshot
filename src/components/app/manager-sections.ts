@@ -13,11 +13,9 @@ import {
   MessageSquare,
   NotebookPen,
   Search,
-  Settings2,
   ShieldCheck,
   Users,
   CheckSquare,
-  ScrollText,
   Monitor,
 } from "lucide-react";
 
@@ -49,10 +47,9 @@ export const managerGroups = [
       { name: "Requests", icon: CheckSquare },
       { name: "Announcements", icon: Megaphone },
       { name: "Corrections", icon: FileText },
-      { name: "Policies", icon: Settings2 },
-      { name: "Audit", icon: ScrollText },
+      { name: "Employees", icon: Users },
       { name: "Employee Access", icon: Monitor },
     ],
   },
 ] as const;
-export type ManagerSection = (typeof managerGroups)[number]["items"][number]["name"];
+export type ManagerSection = (typeof managerGroups)[number]["items"][number]["name"] | "Settings";

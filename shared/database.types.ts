@@ -1,4 +1,3 @@
-// Generated from the hosted Shiftline schema on 2026-10-11. Regenerate after migrations; do not edit.
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export type Database = {
@@ -543,39 +542,60 @@ export type Database = {
       };
       sl_employees: {
         Row: {
+          access_status: string;
           activation_expires: string | null;
           activation_hash: string | null;
+          bio: string;
           company_id: string;
+          email: string;
           id: string;
+          job_title: string;
+          login_method: string;
           name: string;
           no: string;
           payroll_admin: boolean;
+          phone: string;
+          photo_url: string;
           role: string;
           site_id: string;
           team: string;
           user_id: string | null;
         };
         Insert: {
+          access_status?: string;
           activation_expires?: string | null;
           activation_hash?: string | null;
+          bio?: string;
           company_id: string;
+          email?: string;
           id?: string;
+          job_title?: string;
+          login_method?: string;
           name: string;
           no: string;
           payroll_admin?: boolean;
+          phone?: string;
+          photo_url?: string;
           role: string;
           site_id: string;
           team?: string;
           user_id?: string | null;
         };
         Update: {
+          access_status?: string;
           activation_expires?: string | null;
           activation_hash?: string | null;
+          bio?: string;
           company_id?: string;
+          email?: string;
           id?: string;
+          job_title?: string;
+          login_method?: string;
           name?: string;
           no?: string;
           payroll_admin?: boolean;
+          phone?: string;
+          photo_url?: string;
           role?: string;
           site_id?: string;
           team?: string;
@@ -1002,6 +1022,11 @@ export type Database = {
           end_time: string;
           id: string;
           instructions: string;
+          latitude: number | null;
+          longitude: number | null;
+          lunch_option: string;
+          overtime: boolean;
+          radius_m: number;
           shift_id: string;
           start_time: string;
           status: string;
@@ -1015,6 +1040,11 @@ export type Database = {
           end_time: string;
           id?: string;
           instructions?: string;
+          latitude?: number | null;
+          longitude?: number | null;
+          lunch_option?: string;
+          overtime?: boolean;
+          radius_m?: number;
           shift_id: string;
           start_time: string;
           status?: string;
@@ -1028,6 +1058,11 @@ export type Database = {
           end_time?: string;
           id?: string;
           instructions?: string;
+          latitude?: number | null;
+          longitude?: number | null;
+          lunch_option?: string;
+          overtime?: boolean;
+          radius_m?: number;
           shift_id?: string;
           start_time?: string;
           status?: string;
@@ -1809,6 +1844,7 @@ export type Database = {
           distance_m: number;
           employee_id: string;
           id: string;
+          job_id: string | null;
           kind: string;
           observed_at: string;
           shift_id: string;
@@ -1820,6 +1856,7 @@ export type Database = {
           distance_m: number;
           employee_id: string;
           id?: string;
+          job_id?: string | null;
           kind: string;
           observed_at?: string;
           shift_id: string;
@@ -1831,12 +1868,20 @@ export type Database = {
           distance_m?: number;
           employee_id?: string;
           id?: string;
+          job_id?: string | null;
           kind?: string;
           observed_at?: string;
           shift_id?: string;
           source?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "sl_alert_job_shift_fk";
+            columns: ["job_id", "shift_id", "company_id"];
+            isOneToOne: false;
+            referencedRelation: "sl_jobs";
+            referencedColumns: ["id", "shift_id", "company_id"];
+          },
           {
             foreignKeyName: "sl_site_alerts_company_id_fkey";
             columns: ["company_id"];
@@ -1883,30 +1928,49 @@ export type Database = {
       };
       sl_site_presence: {
         Row: {
+          accuracy_m: number | null;
           checked_at: string;
           company_id: string;
           employee_id: string;
           inside: boolean;
+          job_id: string | null;
+          latitude: number | null;
+          longitude: number | null;
           shift_id: string;
           site_id: string;
         };
         Insert: {
+          accuracy_m?: number | null;
           checked_at?: string;
           company_id: string;
           employee_id: string;
           inside: boolean;
+          job_id?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
           shift_id: string;
           site_id: string;
         };
         Update: {
+          accuracy_m?: number | null;
           checked_at?: string;
           company_id?: string;
           employee_id?: string;
           inside?: boolean;
+          job_id?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
           shift_id?: string;
           site_id?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "sl_presence_job_shift_fk";
+            columns: ["job_id", "shift_id", "company_id"];
+            isOneToOne: false;
+            referencedRelation: "sl_jobs";
+            referencedColumns: ["id", "shift_id", "company_id"];
+          },
           {
             foreignKeyName: "sl_site_presence_company_id_fkey";
             columns: ["company_id"];
@@ -2260,6 +2324,27 @@ export type Database = {
     Functions: {
       sl_command: { Args: { p_action: string; p_data: Json }; Returns: Json };
       sl_snapshot: { Args: never; Returns: Json };
+      sl_worker_access_target: {
+        Args: { p_employee_id: string };
+        Returns: Json;
+      };
+      sl_worker_code_replaced: {
+        Args: { p_employee_id: string; p_manager_user_id: string };
+        Returns: undefined;
+      };
+      sl_worker_register: {
+        Args: {
+          p_company_id: string;
+          p_no: string;
+          p_profile: Json;
+          p_user_id: string;
+        };
+        Returns: Json;
+      };
+      sl_worker_signup_start: {
+        Args: { p_ip_hash: string; p_phone_hash: string };
+        Returns: Json;
+      };
     };
     Enums: {
       [_ in never]: never;

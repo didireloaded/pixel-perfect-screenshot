@@ -1,6 +1,15 @@
+import { activeJobForShift } from "../../shared/active-job";
+import { watchWorkPosition } from "../../shared/watch-work-position";
 // Attendance writes and totals belong to the PostgreSQL API.
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { useLocation } from "@tanstack/react-router";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { toast } from "sonner";
 import {
   deriveState,
@@ -9,8 +18,7 @@ import {
   type AttendanceState,
 } from "./attendance";
 import * as api from "./backend";
-import { AccountScreen } from "@/components/app/AccountScreen";
-import { ManagerPreview } from "@/components/app/ManagerPreview";
+import { AccountScreen, PasswordRecovery } from "@/components/app/AccountScreen";
 import type {
   AttendanceSnapshot as Snapshot,
   Employee,
@@ -130,19 +138,21 @@ const EMPTY: Totals = {
 };
 const C = createContext<Ctx | null>(null);
 export function AttendanceProvider({ children }: { children: ReactNode }) {
-  const managerRoute = useLocation({ select: (location) => location.pathname === "/manager" });
   const [data, setData] = useState<Snapshot | null>(null);
-  const [previewDismissed, setPreviewDismissed] = useState(false);
   const [signed, setSigned] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [recovering, setRecovering] = useState(false);
   const [busy, setBusy] = useState(false);
   const [online, setOnline] = useState(true);
+  const [visible, setVisible] = useState(true);
   const [location, setLocation] = useState<LocationStatus>("inactive");
   const [locationMonitoringEnabled, setMonitoringEnabled] = useState(false);
   const lock = useRef(false);
   const revision = useRef(0);
-  const refresh = async () => {
+  const identity = useRef<string | null>(null);
+  const authRevision = useRef(0);
+  const refresh = useCallback(async () => {
     if (lock.current) return;
     const token = ++revision.current;
     try {
@@ -151,35 +161,70 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
       setSigned(auth);
       if (auth) {
         const s = await api.snapshot<Snapshot>();
-        if (token === revision.current) setData(s);
+        if (token === revision.current) setData(s.onboarding ? null : s);
       } else setData(null);
       setError("");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Server unavailable");
+      if (token === revision.current)
+        setError(e instanceof Error ? e.message : "Server unavailable");
     } finally {
-      setLoading(false);
+      if (token === revision.current) setLoading(false);
     }
-  };
+  }, []);
   useEffect(() => {
-    void refresh();
-    const network = () => setOnline(navigator.onLine);
+    let deferred: ReturnType<typeof setTimeout> | undefined;
+    const unsubscribe = api.onAuthChange((event, userId) => {
+      if (userId !== identity.current) {
+        identity.current = userId;
+        ++authRevision.current;
+        ++revision.current;
+        setData(null);
+        setSigned(Boolean(userId));
+        if (userId) setLoading(true);
+      }
+      if (event === "PASSWORD_RECOVERY") setRecovering(true);
+      if (!userId) {
+        ++authRevision.current;
+        ++revision.current;
+        setData(null);
+        setSigned(false);
+        setLoading(false);
+        setRecovering(false);
+        return;
+      }
+      clearTimeout(deferred);
+      deferred = setTimeout(() => void refresh(), 0);
+    });
+    const network = () => {
+      setOnline(navigator.onLine);
+      if (navigator.onLine) void refresh();
+    };
     network();
     window.addEventListener("online", network);
     window.addEventListener("offline", network);
-    const timer = setInterval(() => void refresh(), 30000);
     return () => {
-      clearInterval(timer);
+      clearTimeout(deferred);
+      unsubscribe();
       window.removeEventListener("online", network);
       window.removeEventListener("offline", network);
     };
-  }, []);
+  }, [refresh]);
+  useEffect(() => {
+    if (!data?.company?.id) return;
+    return api.watch(data.company.id, refresh);
+  }, [data?.company?.id, refresh]);
   const command = async (action: string, payload: Record<string, unknown>) => {
-    if (lock.current) return null;
+    if (lock.current || !navigator.onLine) {
+      if (!navigator.onLine) toast.error("Reconnect to save this action");
+      return null;
+    }
+    const authToken = authRevision.current;
     lock.current = true;
     ++revision.current;
     setBusy(true);
     try {
       const result = await api.command<CommandResult>(action, payload);
+      if (authToken !== authRevision.current) return null;
       setData(result.snapshot);
       setError("");
       return result;
@@ -189,6 +234,7 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
     } finally {
       lock.current = false;
       setBusy(false);
+      if (authToken !== authRevision.current) void refresh();
     }
   };
   const logout = async () => {
@@ -212,88 +258,67 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
   const activeShift = data?.shifts.find((s) => s.employeeId === data.me && s.date === data.today);
   const activeSite = data?.sites.find((s) => s.id === activeShift?.siteId);
   const activeState = data?.states.find((s) => s.shiftId === activeShift?.id)?.state;
-  const commandRef = useRef(command);
-  commandRef.current = command;
+  useEffect(() => {
+    const update = () => setVisible(document.visibilityState === "visible");
+    update();
+    document.addEventListener("visibilitychange", update);
+    return () => document.removeEventListener("visibilitychange", update);
+  }, []);
+  const activeJob = data ? activeJobForShift(data.events, data.jobs, activeShift?.id) : undefined;
+  const positionShiftId = activeShift?.id,
+    positionDate = activeShift?.date,
+    positionStart = activeShift?.start,
+    positionStop = activeShift?.trackingStop,
+    positionTimezone = data?.company.timezone;
+  const targetLatitude = activeState === "on_job" ? activeJob?.latitude : activeSite?.latitude;
+  const targetLongitude = activeState === "on_job" ? activeJob?.longitude : activeSite?.longitude;
   useEffect(() => {
     if (
-      !data ||
+      !positionShiftId ||
+      !positionDate ||
+      !positionStart ||
+      !positionStop ||
+      !positionTimezone ||
       !online ||
-      !activeShift ||
+      !visible ||
       !locationMonitoringEnabled ||
-      activeSite?.latitude == null ||
-      activeSite.longitude == null
+      targetLatitude == null ||
+      targetLongitude == null ||
+      !navigator.geolocation
     ) {
       setLocation("inactive");
       return;
     }
-    if (activeState !== "working") {
-      setLocation(
-        activeState === "clocked_out" || activeState === "not_clocked_in" ? "inactive" : "paused",
-      );
+    if (!activeState || !["working", "on_job"].includes(activeState)) {
+      setLocation("paused");
       return;
     }
-    if (!navigator.geolocation) {
-      setLocation("unavailable");
-      return;
-    }
-    const companyTime = () =>
-      new Intl.DateTimeFormat("en-GB", {
-        timeZone: data.company.timezone,
-        hour: "2-digit",
-        minute: "2-digit",
-        hourCycle: "h23",
-      }).format(new Date());
-    let watch: number | null = null;
-    let lastSent = 0;
-    const allowed = () => {
-      const current = companyTime();
-      return current >= activeShift.start && current < activeShift.trackingStop;
-    };
-    const update = () => {
-      if (!allowed()) {
-        if (watch !== null) navigator.geolocation.clearWatch(watch);
-        watch = null;
-        setLocation("inactive");
-      } else if (watch === null) {
-        watch = navigator.geolocation.watchPosition(
-          (position) => {
-            if (!allowed() || Date.now() - lastSent < 60000 || lock.current) return;
-            lastSent = Date.now();
-            setLocation("active");
-            void commandRef
-              .current("report_position", {
-                shiftId: activeShift.id,
-                latitude: position.coords.latitude,
-                longitude: position.coords.longitude,
-                accuracyM: position.coords.accuracy,
-                source: "web",
-              })
-              .then((result) => {
-                if (result?.status === "exit")
-                  toast.warning("You have left the worksite. Your manager has been alerted.");
-                if (result?.status === "return") toast.success("You are back at the worksite.");
-              });
-          },
-          () => setLocation("unavailable"),
-          { enableHighAccuracy: false, maximumAge: 30000, timeout: 15000 },
-        );
-      }
-    };
-    update();
-    const timer = window.setInterval(update, 15000);
-    return () => {
-      window.clearInterval(timer);
-      if (watch !== null) navigator.geolocation.clearWatch(watch);
-    };
+    return watchWorkPosition(
+      { id: positionShiftId, date: positionDate, start: positionStart, trackingStop: positionStop },
+      positionTimezone,
+      async (action, payload) => {
+        const result = await api.command<CommandResult>(action, payload);
+        if (action === "report_position") setLocation("active");
+        if (result.status === "exit")
+          toast.warning("You left the assigned work location. Your manager has been alerted.");
+        return result;
+      },
+      (message) => {
+        setLocation("unavailable");
+        toast.error(message);
+      },
+    );
   }, [
-    data?.company.timezone,
-    activeShift?.id,
-    activeShift?.start,
-    activeShift?.trackingStop,
-    activeSite?.latitude,
-    activeSite?.longitude,
+    positionTimezone,
+    positionShiftId,
+    positionDate,
+    positionStart,
+    positionStop,
+    targetLatitude,
+    targetLongitude,
     activeState,
     online,
+    visible,
     locationMonitoringEnabled,
   ]);
   useEffect(() => {
@@ -335,14 +360,21 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
     activeState,
     data?.events,
   ]);
+  if (recovering)
+    return (
+      <PasswordRecovery
+        onComplete={() => {
+          setRecovering(false);
+          void refresh();
+        }}
+      />
+    );
   if (loading)
     return (
       <div className="grid min-h-screen place-items-center" role="status">
         Connecting…
       </div>
     );
-  if (import.meta.env.DEV && managerRoute && !signed && !previewDismissed)
-    return <ManagerPreview onConnect={() => setPreviewDismissed(true)} />;
   if (!signed || !data || data.onboarding)
     return (
       <AccountScreen

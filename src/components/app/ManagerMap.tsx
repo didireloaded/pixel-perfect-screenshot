@@ -1,0 +1,337 @@
+import { useEffect, useRef, useState } from "react";
+import type { Map as MapboxMap, Marker } from "mapbox-gl";
+import { LocateFixed, MapPin, RefreshCw, Users, Briefcase, ShieldCheck } from "lucide-react";
+import { useAttendance } from "@/lib/app-store";
+import { STATE_LABEL } from "@/lib/attendance";
+import "mapbox-gl/dist/mapbox-gl.css";
+import "./manager-map.css";
+
+type Point = {
+  id: string;
+  name: string;
+  detail: string;
+  lng: number;
+  lat: number;
+  kind: "site" | "job" | "worker";
+};
+export function ManagerMap() {
+  const d = useAttendance();
+  const container = useRef<HTMLDivElement>(null);
+  const map = useRef<MapboxMap | null>(null);
+  const markers = useRef(new Map<string, Marker>());
+  const boundsSet = useRef(false);
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState("");
+  const [now, setNow] = useState(Date.now());
+  const [filter, setFilter] = useState<"all" | "workplace" | "jobs">("all");
+  const [sitesVisible, setSitesVisible] = useState(true);
+  const [jobsVisible, setJobsVisible] = useState(true);
+  const token = import.meta.env["VITE_MAPBOX_ACCESS_TOKEN"];
+  const presence = d.sitePresence.filter(
+    (p) =>
+      p.latitude != null &&
+      p.longitude != null &&
+      now - Date.parse(p.checkedAt) < 180000 &&
+      d.shifts.some((s) => s.id === p.shiftId && s.date === d.today) &&
+      d.states.some((s) => s.shiftId === p.shiftId && ["working", "on_job"].includes(s.state)),
+  );
+  const workers = presence.filter(
+    (p) => filter === "all" || (filter === "jobs" ? !!p.jobId : !p.jobId),
+  );
+  const points: Point[] = [
+    ...(sitesVisible
+      ? d.sites
+          .filter((s) => s.latitude != null && s.longitude != null)
+          .map((s) => ({
+            id: s.id,
+            name: s.name,
+            detail: `${s.address} · ${s.radiusM}m worksite boundary`,
+            lng: s.longitude!,
+            lat: s.latitude!,
+            kind: "site" as const,
+          }))
+      : []),
+    ...(jobsVisible
+      ? d.jobs
+          .filter(
+            (j) =>
+              j.date === d.today &&
+              j.status !== "completed" &&
+              j.latitude != null &&
+              j.longitude != null,
+          )
+          .map((j) => ({
+            id: j.id,
+            name: j.title,
+            detail: `${j.destination} · ${j.start}–${j.end}`,
+            lng: j.longitude!,
+            lat: j.latitude!,
+            kind: "job" as const,
+          }))
+      : []),
+    ...workers.map((p) => ({
+      id: p.employeeId,
+      name: d.employees.find((e) => e.id === p.employeeId)?.name || "Employee",
+      detail: `${p.jobId ? d.jobs.find((j) => j.id === p.jobId)?.title || "On job" : "At workplace"} · ${p.inside ? "Inside boundary" : "Outside boundary"} · accuracy ±${Math.round(p.accuracyM ?? 0)}m · ${new Date(p.checkedAt).toLocaleTimeString()}`,
+      lng: p.longitude!,
+      lat: p.latitude!,
+      kind: "worker" as const,
+    })),
+  ];
+  const pointsRef = useRef(points);
+  pointsRef.current = points;
+  const fit = (workersOnly = false) => {
+    const all = pointsRef.current.filter((point) => !workersOnly || point.kind === "worker");
+    if (!map.current || !all.length) return;
+    const lngs = all.map((p) => p.lng),
+      lats = all.map((p) => p.lat);
+    boundsSet.current = true;
+    map.current.fitBounds(
+      [
+        [Math.min(...lngs), Math.min(...lats)],
+        [Math.max(...lngs), Math.max(...lats)],
+      ],
+      { padding: 90, maxZoom: 16, duration: 600 },
+    );
+  };
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 10000);
+    return () => clearInterval(timer);
+  }, []);
+  useEffect(() => {
+    if (!container.current || !token) return;
+    let disposed = false;
+    let instance: MapboxMap | null = null;
+    const activeMarkers = markers.current;
+    void import("mapbox-gl")
+      .then(({ default: mapboxgl }) => {
+        if (disposed || !container.current) return;
+        const first = pointsRef.current[0];
+        instance = new mapboxgl.Map({
+          container: container.current,
+          accessToken: token,
+          style: "mapbox://styles/mapbox/light-v11",
+          center: first ? [first.lng, first.lat] : [0, 0],
+          zoom: first ? 15 : 1,
+          attributionControl: true,
+        });
+        map.current = instance;
+        instance.addControl(new mapboxgl.NavigationControl(), "top-right");
+        instance.addControl(new mapboxgl.FullscreenControl(), "top-right");
+        instance.on("load", () => {
+          if (!disposed) {
+            setReady(true);
+            setError("");
+            fit();
+          }
+        });
+        instance.on("error", () => {
+          if (!disposed)
+            setError("The map could not load. Check the connection and Mapbox token permissions.");
+        });
+      })
+      .catch(() => {
+        if (!disposed) setError("The map could not start. Try refreshing this page.");
+      });
+    return () => {
+      disposed = true;
+      setReady(false);
+      activeMarkers.forEach((m) => m.remove());
+      activeMarkers.clear();
+      instance?.remove();
+      map.current = null;
+      boundsSet.current = false;
+    };
+  }, [token]);
+  const pointsKey = JSON.stringify(points);
+  useEffect(() => {
+    if (!ready || !map.current) return;
+    let disposed = false;
+    void import("mapbox-gl").then(({ default: mapboxgl }) => {
+      if (disposed || !map.current) return;
+      const ids = new Set(pointsRef.current.map((p) => `${p.kind}:${p.id}`));
+      markers.current.forEach((marker, id) => {
+        if (!ids.has(id)) {
+          marker.remove();
+          markers.current.delete(id);
+        }
+      });
+      pointsRef.current.forEach((p) => {
+        const id = `${p.kind}:${p.id}`;
+        const existing = markers.current.get(id);
+        if (existing) {
+          existing.setLngLat([p.lng, p.lat]);
+          const info = document.createElement("div");
+          const title = document.createElement("strong");
+          title.textContent = p.name;
+          const detail = document.createElement("p");
+          detail.textContent = p.detail;
+          info.append(title, detail);
+          existing.getPopup()?.setDOMContent(info);
+          return;
+        }
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `sl-map-marker ${p.kind}`;
+        button.setAttribute("aria-label", p.name);
+        button.textContent =
+          p.kind === "worker"
+            ? p.name
+                .split(" ")
+                .map((n) => n[0])
+                .slice(0, 2)
+                .join("")
+            : p.kind === "job"
+              ? "J"
+              : "W";
+        const info = document.createElement("div");
+        const title = document.createElement("strong");
+        title.textContent = p.name;
+        const detail = document.createElement("p");
+        detail.textContent = p.detail;
+        info.append(title, detail);
+        const marker = new mapboxgl.Marker({ element: button })
+          .setLngLat([p.lng, p.lat])
+          .setPopup(new mapboxgl.Popup({ offset: 24 }).setDOMContent(info))
+          .addTo(map.current!);
+        markers.current.set(id, marker);
+      });
+      if (!boundsSet.current && pointsRef.current.length) fit();
+    });
+    return () => {
+      disposed = true;
+    };
+  }, [ready, pointsKey]);
+  return (
+    <section className="sl-map-page">
+      <header>
+        <div>
+          <p className="project-panel-kicker">
+            <MapPin size={16} /> LIVE WORKSPACE
+          </p>
+          <h2>Team locations</h2>
+          <p className="project-panel-sub">
+            {presence.length} sharing now · {d.sites.length}{" "}
+            {d.sites.length === 1 ? "workplace" : "workplaces"} · positions expire after 3 minutes
+          </p>
+        </div>
+        <button
+          className="sl-map-tool"
+          disabled={d.busy || !d.online}
+          onClick={() => void d.refresh()}
+        >
+          <RefreshCw size={15} /> Refresh
+        </button>
+      </header>
+      <div className="sl-map-stage">
+        <div
+          ref={container}
+          className="sl-map-canvas"
+          aria-label="Map of current on-duty employee locations"
+        />
+        {(!token || error) && (
+          <div className="sl-map-error" role="alert">
+            {error || "Add VITE_MAPBOX_ACCESS_TOKEN to enable the map."}
+          </div>
+        )}
+        <div className="sl-map-legend">
+          <span className="site" /> Workplace <span className="job" /> Job site{" "}
+          <span className="worker" /> Employee
+        </div>
+      </div>
+      <div className="sl-map-controls">
+        <button className="sl-map-tool" onClick={() => fit()} disabled={!ready}>
+          <LocateFixed size={16} /> Fit all
+        </button>
+        <button
+          className="sl-map-tool"
+          onClick={() => fit(true)}
+          disabled={!ready || !workers.length}
+        >
+          <Users size={16} /> Fit workers
+        </button>
+        {(["all", "workplace", "jobs"] as const).map((value) => (
+          <button
+            key={value}
+            className={`sl-map-tool ${filter === value ? "selected" : ""}`}
+            aria-pressed={filter === value}
+            onClick={() => setFilter(value)}
+          >
+            {value === "all" ? (
+              <Users size={16} />
+            ) : value === "jobs" ? (
+              <Briefcase size={16} />
+            ) : (
+              <MapPin size={16} />
+            )}
+            {value === "all" ? "All workers" : value === "jobs" ? "On jobs" : "At workplace"}
+          </button>
+        ))}
+        <button
+          className="sl-map-tool"
+          aria-pressed={sitesVisible}
+          onClick={() => setSitesVisible(!sitesVisible)}
+        >
+          Workplaces {sitesVisible ? "on" : "off"}
+        </button>
+        <button
+          className="sl-map-tool"
+          aria-pressed={jobsVisible}
+          onClick={() => setJobsVisible(!jobsVisible)}
+        >
+          Job sites {jobsVisible ? "on" : "off"}
+        </button>
+      </div>
+      <div className="sl-map-team">
+        {d.employees
+          .filter((e) => e.role === "employee" && e.accessStatus !== "rejected")
+          .map((e) => {
+            const shift = d.shifts.find((s) => s.employeeId === e.id && s.date === d.today);
+            const state = d.states.find((s) => s.shiftId === shift?.id)?.state;
+            const current = workers.find((p) => p.employeeId === e.id);
+            return (
+              <button
+                key={e.id}
+                className="sl-map-worker"
+                disabled={!current}
+                onClick={() => {
+                  if (current)
+                    map.current?.flyTo({
+                      center: [current.longitude!, current.latitude!],
+                      zoom: 17,
+                    });
+                }}
+              >
+                <span className={`sl-map-avatar ${current ? "sharing" : ""}`}>
+                  {e.name
+                    .split(" ")
+                    .map((n) => n[0])
+                    .slice(0, 2)
+                    .join("")}
+                </span>
+                <span>
+                  <b>{e.name}</b>
+                  <small>
+                    {current
+                      ? current.jobId
+                        ? "On job · live"
+                        : "At workplace · live"
+                      : state === "working" || state === "on_job"
+                        ? "Location unavailable"
+                        : state
+                          ? STATE_LABEL[state]
+                          : "Off duty"}
+                  </small>
+                </span>
+              </button>
+            );
+          })}
+        {!d.employees.some((e) => e.role === "employee") && <p>No employees registered yet.</p>}
+      </div>
+      <footer>
+        <ShieldCheck size={15} /> Lunch, personal time and off-duty locations are hidden. Web
+        sharing requires the worker app to remain visible and connected.
+      </footer>
+    </section>
+  );
+}

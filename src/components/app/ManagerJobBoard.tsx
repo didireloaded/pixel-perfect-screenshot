@@ -1,3 +1,4 @@
+import { ThemedSelect } from "../../../shared/ThemedSelect";
 import { useMemo, useState, type FormEvent } from "react";
 import {
   CalendarDays,
@@ -292,18 +293,16 @@ export function ManagerJobBoard({
               {onMove && (
                 <label className="manager-status-control">
                   Move task
-                  <select
+                  <ThemedSelect
                     value={selected.status}
-                    onChange={(event) =>
-                      void onMove(selected.id, event.target.value as Job["status"])
-                    }
+                    onValueChange={(value) => void onMove(selected.id, value as Job["status"])}
                   >
                     {columns.map((column) => (
                       <option key={column.key} value={column.key}>
                         {column.label}
                       </option>
                     ))}
-                  </select>
+                  </ThemedSelect>
                 </label>
               )}
               <h3>Assigned team</h3>

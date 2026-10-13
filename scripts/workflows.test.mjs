@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { createLocalDatabase, runRpc } from "./local-api.mjs";
+import { createLocalDatabase, runRpc } from "./test-database.mjs";
 
 test("notices, on-duty site alerts and frozen gross pay stay company-scoped", async () => {
   const db = await createLocalDatabase();

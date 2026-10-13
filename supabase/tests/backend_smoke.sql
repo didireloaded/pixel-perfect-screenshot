@@ -12,12 +12,14 @@ begin
  perform set_config('request.jwt.claim.sub',manager::text,true);
  setup:=public.sl_command('setup',jsonb_build_object('company','Backend smoke test','name','Test Manager','site','Test Yard','timezone','Africa/Windhoek'));
  company:=(setup->'snapshot'->'company'->>'id')::uuid;
+ if not shiftline_private.can_receive_updates('shiftline:'||company::text) then raise exception 'FAIL: manager live topic scope'; end if;
  site:=(setup->'snapshot'->'sites'->0->>'id')::uuid;
  invitation:=public.sl_command('create_employee',jsonb_build_object('name','Test Worker','no','SMOKE-1','siteId',site));
  second_invitation:=public.sl_command('create_employee',jsonb_build_object('name','Test Teammate','no','SMOKE-2','siteId',site));
  employee:=(invitation->>'employeeId')::uuid;
  perform set_config('request.jwt.claim.sub',worker::text,true);
  perform public.sl_command('activate',jsonb_build_object('employeeNo','SMOKE-1','code',invitation->>'activationCode'));
+ if not shiftline_private.can_receive_updates('shiftline:'||company::text) then raise exception 'FAIL: worker live topic scope'; end if;
  begin
   perform public.sl_command('create_employee',jsonb_build_object('name','Forbidden','no','NO','siteId',site));
   raise exception 'FAIL: worker gained manager permissions';
@@ -27,6 +29,7 @@ begin
  perform set_config('request.jwt.claim.sub',teammate::text,true);
  perform public.sl_command('activate',jsonb_build_object('employeeNo','SMOKE-2','code',second_invitation->>'activationCode'));
  perform set_config('request.jwt.claim.sub',outsider::text,true);
+ if shiftline_private.can_receive_updates('shiftline:'||company::text) then raise exception 'FAIL: outsider joined live topic'; end if;
  other_company:=public.sl_command('setup',jsonb_build_object('company','Other smoke company','name','Other Manager','site','Other Yard','timezone','Africa/Windhoek'));
  begin
   insert into public.sl_employees(company_id,no,name,site_id,role) values(company,'BAD','Invalid',(other_company->'snapshot'->'sites'->0->>'id')::uuid,'employee');
@@ -62,6 +65,8 @@ begin
  perform set_config('request.jwt.claim.sub',manager::text,true);
  data:=public.sl_snapshot();
  if data->>'schemaVersion'<>'11' or jsonb_array_length(data->'events')<>4 or jsonb_array_length(data->'messages')<>2 then raise exception 'FAIL: shared manager snapshot'; end if;
+ if not exists(select 1 from realtime.messages rm where rm.topic='shiftline:'||company::text and rm.event='refresh' and rm.private and (rm.payload-'id')='{}'::jsonb) then raise exception 'FAIL: database live notifications'; end if;
+ if exists(select 1 from realtime.messages rm where rm.topic='shiftline:'||company::text and (not rm.private or (rm.payload-'id')<>'{}'::jsonb)) then raise exception 'FAIL: notification contained business data'; end if;
  perform set_config('request.jwt.claim.sub',outsider::text,true);
  data:=public.sl_snapshot();
  if jsonb_array_length(data->'events')<>0 or jsonb_array_length(data->'jobs')<>0 or jsonb_array_length(data->'messages')<>0 then raise exception 'FAIL: company data isolation'; end if;

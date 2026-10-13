@@ -1,6 +1,6 @@
 # Shiftline implementation
 
-The employee UI preserves the Lovable design tokens, card layout and bottom navigation. Today, Jobs, My hours and Requests now use server-validated records. The manager dashboard handles employees, sites, shifts, jobs, requests, approvals, audit history and payroll CSVs.
+The employee UI preserves the Lovable design tokens, card layout and bottom navigation. Today, Jobs, My hours and Requests now use server-validated records. The manager dashboard handles employees, sites, shifts, job briefs, requests, approvals and current work locations. Audit evidence and gross-pay exports stay in the backend.
 
 ## Run locally
 
@@ -11,14 +11,14 @@ npm ci
 npm run dev
 ```
 
-Without Supabase environment values, the development server runs embedded PostgreSQL (PGlite). Its database, local account password hashes and sessions persist in `.shiftline-local/`, which is ignored by Git. This is a development service on your computer; it is not a hosted production backend. It uses the same attendance migration and RPCs as Supabase. Local accounts do not send email or verify email addresses.
+Both development servers and production builds use the configured Supabase backend and real accounts. There is no local authentication bypass or automatic sample-data fallback. The isolated PGlite SQL harness is used only by automated tests. Production builds require both connection values and reject secret/service-role credentials.
 
-1. Create an account with an email and a password of at least 12 characters.
+1. Managers create an account with an email and a password of at least 12 characters. Worker signup collects only full name and an international phone number.
 2. Select **I am setting up a company**, then enter the company, manager name, site and timezone.
 3. Open **Manage employees, shifts and approvals**.
-4. Add an employee. Privately give them their employee number and the generated activation code. Codes expire after 48 hours, are stored hashed, and can be used once. Replace expired codes from Employees.
+4. Ask workers to register from the worker app. The system issues each person an employee number and private eight-character login code. They must save both before continuing.
 5. Assign the employee a shift in Schedule, and optionally a job inside that shift.
-6. The employee creates their own account, then enters their number and activation code.
+6. Review new registrations in Team. Their name and phone are contact details, not proof of identity: confirm who they are before approving workplace access. Pending/rejected accounts cannot read company records, receive company live updates or record attendance. Once approved, the waiting screen opens the app automatically. Replace lost login codes in Team and share them privately; existing sessions remain signed in.
 7. The employee clocks in, starts/ends lunch or an assigned job, then clocks out. Times are recorded by the database server. Web actions require a connection. The Expo client saves attendance intents to SQLite before showing “Saved on this phone”; server confirmation is shown separately.
 8. The employee submits the completed timesheet from My hours, requesting any recorded overtime.
 9. The manager approves the timesheet and the amount of overtime. A manager cannot approve their own timesheet.
@@ -34,15 +34,15 @@ Shifts in this release start and end on the same company-local date. Jobs remain
 
 GitHub sync transfers source code. It does not apply migrations or connect authentication by itself.
 
-The dedicated Shiftline project is `hfhiuxijpbujoahtnkjt`. Its first seven migrations were applied on 9 October 2026; four further migrations for chat, the manager workspace, task status and backend integrity were applied on 11 October 2026. The SQL filenames in this repository now match the migration versions recorded by Supabase, so subsequent CLI migrations can continue from that history. The project starts with no company or employee records; the first manager must sign up and complete company setup in the app. Local web and native clients read their ignored `.env.local` files. The separate `mobile-ui/` design demo intentionally remains on mock data.
+The dedicated Shiftline project is `hfhiuxijpbujoahtnkjt`. Its first seven migrations were applied on 9 October 2026; four further migrations for chat, the manager workspace, task status and backend integrity were applied on 11 October 2026. The SQL filenames in this repository now match the migration versions recorded by Supabase, so subsequent CLI migrations can continue from that history. The project starts with no company or employee records; the first manager must sign up and complete company setup in the app. Local web and native clients read their ignored `.env.local` files. The obsolete `mobile-ui/` mock prototype has been removed. The live-sync migration was applied on 12 October 2026; twelve migrations now match the hosted history.
 
 1. Enable a dedicated database for this Lovable project, or connect its dedicated Supabase project. Do not reuse an unrelated project's database.
 2. Apply every SQL file in `supabase/migrations/` in filename order using the Supabase SQL editor or CLI migration workflow for that project. Apply each migration once. They create only `sl_*` tables and the `shiftline_private` schema; they do not alter existing application tables.
-3. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in the app's build environment. The legacy public anon key is supported as `VITE_SUPABASE_ANON_KEY`. Never put service-role credentials in browser environment variables.
-4. Enable email/password sign-in, keep anonymous sign-in disabled, configure the site URL and allowed redirects, and set a minimum password length of 12. For a real launch, configure email delivery and keep email confirmation enabled.
-5. Rebuild/restart the app. Create and confirm the manager's account, then complete company setup. Employees confirm their own account before consuming activation codes.
+3. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in the app's build environment. A legacy public anon JWT can also be supplied in `VITE_SUPABASE_PUBLISHABLE_KEY`. Never put service-role credentials in browser environment variables.
+4. Enable email/password sign-in, keep anonymous sign-in disabled, configure the manager site URL and allowed redirects, and use an Auth minimum password length no greater than 8 for the generated worker codes (the manager signup UI requires 12). Keep manager email confirmation enabled and configure its email delivery. Workers do not need mail or SMS delivery.
+5. Rebuild/restart the app. Create and confirm the manager's account, then complete company setup. Employees confirm their own account before entering workplace access codes.
 
-If Lovable reports missing `projects:write`, remove and add its connector with current permissions. The implementation can still be synced from GitHub; provisioning cannot be performed with a read-only connector. A production build without connection values displays **Connect Shiftline**, rather than falling back to browser storage or simulated success. The local development account service is not included in the deployed application.
+If Lovable reports missing `projects:write`, remove and add its connector with current permissions. The implementation can still be synced from GitHub; provisioning cannot be performed with a read-only connector. A production build without connection values fails with a configuration error. An unconfigured development app displays **Connect Shiftline**. No local account service is loaded.
 
 RPCs are `sl_snapshot()` and `sl_command(p_action, p_data)`. Every command checks `auth.uid()` and current database membership. Company writes are serialized in transactions; attendance IDs deduplicate retries; employee activation is locked and consumed atomically. Default-deny RLS and revoked table privileges prevent direct client mutations or broad reads. Scoped RPCs expose only the current employee's data or their company's manager data. Activation secrets are excluded from snapshots and audit records.
 
@@ -73,6 +73,16 @@ Apply all migrations in filename order before deploying the new app. Back up the
 
 Web and native TypeScript, unit tests, actual PostgreSQL integration tests and native Metro bundling are checked locally. These do not prove physical-device SQLite recovery, operating-system background scheduling, GPS behavior, hosted Supabase Auth or email delivery. Verify these on iOS and Android development builds after cloud connection.
 
-With employee consent, web and native clients check the worksite while the app is open and the employee is actively working, then pause for breaks, job departures, offline state and shift end. The server stores alert distance and accuracy, not location coordinates. Operating-system background geofence detection with the app closed, unattended kiosk/QR scanning and APNs/FCM manager push are not implemented. Auto-suggest currently produces server warnings, not automatic arrival prompts. Notices communicate holidays and closures; an automatic jurisdiction holiday/pay engine is not included.
+With employee consent, web clients share current positions at the workplace or assigned job while visible and on duty. Lunch, personal time, offline/hidden tabs and shift end pause sharing. Managers receive only fresh current points; no route history is stored. The hosted minute-by-minute cleanup physically expires stale/off-duty positions. Exit/return alerts separately retain distance and accuracy. The older Expo client has not yet received all the new web job/location screens. Operating-system background geofence detection with the app closed, unattended kiosk/QR scanning and APNs/FCM manager push are not implemented. Auto-suggest currently produces server warnings, not automatic arrival prompts. Notices communicate holidays and closures; an automatic jurisdiction holiday/pay engine is not included.
 
 The Expo dependency tree currently reports transitive build-tool advisories in Metro/Expo dependencies. A forced downgrade is not a safe remedy; review compatible upstream fixes before distribution.
+
+## Deploying worker registration
+
+Deploy `supabase/functions/worker-access/index.ts` and its dependencies after applying the worker-access migration. It is public for registration (`verify_jwt=false`); code replacement verifies the manager JWT and same-company authorization inside the function. Supabase provides `SUPABASE_SERVICE_ROLE_KEY` only to the function runtime. Never put it in either frontend environment file.
+
+Public registration resolves exactly one configured company, failing closed for zero or multiple companies. This deployment currently has one real workplace. Multi-company public registration needs an explicit workplace invitation/link before enabling it. Signup is bounded to 5 attempts per IP/hour, 2 per phone/day and 50 globally/hour; native Supabase Auth handles login rate limits. Phone numbers are normalized, required and unverified. Credentials are generated cryptographically, stored only as Auth password hashes, and never put in snapshots or audits. Employee-number sequence gaps are normal after failed/rolled-back provisioning.
+
+Run server tests with `npx --yes deno@2.5.6 test --allow-env --allow-net supabase/functions/worker-access/handler.test.ts`. SQL verification is included in `npm run test:database`. The hosted `supabase/tests/worker_access_smoke.sql` checks registration, approval and access isolation inside a rolled-back transaction.
+
+For the manager map, configure `VITE_MAPBOX_ACCESS_TOKEN` with a public `pk.` token in the root `.env.local` and deployed build environment. Keep the same Supabase project in both clients. Worksite settings are under the manager account menu; job location/lunch/overtime details are in Tasks and Project management. See [docs/backend.md](docs/backend.md) for the current schema and position-expiry rules.

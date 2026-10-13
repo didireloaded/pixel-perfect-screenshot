@@ -11,6 +11,10 @@ export default defineConfig({
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
   },
   resolve: {
-    alias: { "@": path.resolve(__dirname, "./src") },
+    dedupe: ["react", "react-dom"],
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+      "lucide-react": path.resolve(__dirname, "node_modules/lucide-react"),
+    },
   },
 });

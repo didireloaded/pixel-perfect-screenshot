@@ -99,12 +99,7 @@ export interface ShiftPolicy {
 
 // ─── Timesheet + approval ──────────────────────────────────────────────────
 
-export type TimesheetStatus =
-  | "Open"
-  | "Submitted"
-  | "Awaiting review"
-  | "Approved"
-  | "Locked";
+export type TimesheetStatus = "Open" | "Submitted" | "Awaiting review" | "Approved" | "Locked";
 
 export type ApprovalState = "none" | "requested_pending" | "approved" | "declined";
 
@@ -271,7 +266,7 @@ interface Paired {
 function pairIntervals(
   events: AttendanceEvent[],
   startType: EventType,
-  endType: EventType
+  endType: EventType,
 ): Paired {
   const starts = events.filter((e) => e.type === startType).sort(byTime);
   const ends = events.filter((e) => e.type === endType).sort(byTime);
@@ -295,7 +290,7 @@ export function scheduledMinutesOf(policy: ShiftPolicy): number {
 
 export function deriveShiftTotals(
   events: readonly AttendanceEvent[],
-  policy: ShiftPolicy
+  policy: ShiftPolicy,
 ): ShiftTotals {
   const issues: CalcIssue[] = [];
   const excludedEventIds: string[] = [];
@@ -320,8 +315,7 @@ export function deriveShiftTotals(
   for (const e of chronological) {
     const twin = kept.find(
       (k) =>
-        k.type === e.type &&
-        Math.abs(at(e.at) - at(k.at)) <= policy.duplicateWindowSeconds * 1000
+        k.type === e.type && Math.abs(at(e.at) - at(k.at)) <= policy.duplicateWindowSeconds * 1000,
     );
     if (twin) {
       excludedEventIds.push(e.id);
@@ -350,7 +344,7 @@ export function deriveShiftTotals(
 
   // 4. A correction awaiting a manager decision also makes it provisional.
   const pendingCorrection = kept.find(
-    (e) => e.source === "correction" && (e.sync === "pending" || e.sync === "unsynced")
+    (e) => e.source === "correction" && (e.sync === "pending" || e.sync === "unsynced"),
   );
   if (pendingCorrection) {
     issues.push({
@@ -375,7 +369,8 @@ export function deriveShiftTotals(
     issues.push({
       code: "missing_clock_out",
       severity: "provisional",
-      message: "No clock-out recorded yet, so the shift has no end point and worked time is still open.",
+      message:
+        "No clock-out recorded yet, so the shift has no end point and worked time is still open.",
     });
   }
 
@@ -407,7 +402,8 @@ export function deriveShiftTotals(
       issues.push({
         code: "negative_interval",
         severity: "provisional",
-        message: "The recorded clock-out is earlier than the clock-in. Worked time is shown as zero until this is corrected.",
+        message:
+          "The recorded clock-out is earlier than the clock-in. Worked time is shown as zero until this is corrected.",
       });
     }
   }
@@ -421,7 +417,7 @@ export function deriveShiftTotals(
     p: { start: AttendanceEvent; end?: AttendanceEvent },
     kind: Interval["kind"],
     unpaid: boolean,
-    label: string
+    label: string,
   ): Interval => {
     const resolved = !!p.end;
     let minutes = 0;
@@ -483,8 +479,8 @@ export function deriveShiftTotals(
       p,
       "job",
       !policy.jobTimePaid,
-      p.start.jobTitle ? `Job · ${p.start.jobTitle}` : "Assigned job"
-    )
+      p.start.jobTitle ? `Job · ${p.start.jobTitle}` : "Assigned job",
+    ),
   );
 
   for (const orphan of [...lunch.orphanEnds, ...departures.orphanEnds, ...jobs.orphanEnds]) {
@@ -528,28 +524,28 @@ export function deriveShiftTotals(
   const breakdown: string[] = [];
   if (clockIn && clockOut) {
     breakdown.push(
-      `Clocked time ${fmtMinutes(Math.round(clockedMinutes))} − unpaid breaks ${fmtMinutes(unpaidMinutes)} = worked time ${fmtMinutes(workedMinutes)}`
+      `Clocked time ${fmtMinutes(Math.round(clockedMinutes))} − unpaid breaks ${fmtMinutes(unpaidMinutes)} = worked time ${fmtMinutes(workedMinutes)}`,
     );
   } else {
     breakdown.push(
-      `Clocked time incomplete — ${!clockIn ? "no clock-in" : "no clock-out"} recorded, so worked time cannot be finalised`
+      `Clocked time incomplete — ${!clockIn ? "no clock-in" : "no clock-out"} recorded, so worked time cannot be finalised`,
     );
   }
   if (overtimeEligibleMinutes > 0) {
     breakdown.push(
-      `Regular ${fmtMinutes(regularMinutes)} + overtime eligible ${fmtMinutes(overtimeEligibleMinutes)}`
+      `Regular ${fmtMinutes(regularMinutes)} + overtime eligible ${fmtMinutes(overtimeEligibleMinutes)}`,
     );
   } else {
     breakdown.push(`Regular ${fmtMinutes(regularMinutes)} + overtime eligible 0h 00m`);
   }
   if (jobMinutes > 0) {
     breakdown.push(
-      `Includes ${fmtMinutes(jobMinutes)} on assigned jobs, which is paid working time`
+      `Includes ${fmtMinutes(jobMinutes)} on assigned jobs, which is paid working time`,
     );
   }
   if (policy.roundingMinutes > 0 && rawOvertime > overtimeEligibleMinutes) {
     breakdown.push(
-      `Overtime rounded down to the nearest ${policy.roundingMinutes} minutes per policy`
+      `Overtime rounded down to the nearest ${policy.roundingMinutes} minutes per policy`,
     );
   }
 
@@ -591,13 +587,13 @@ export interface OvertimeValidation {
 export function validateOvertimeRequest(
   requestedMinutes: number,
   totals: ShiftTotals,
-  policy: ShiftPolicy
+  policy: ShiftPolicy,
 ): OvertimeValidation {
   const errors: string[] = [];
   const warnings: string[] = [];
   const cappedMinutes = floorTo(
     Math.max(0, Math.min(requestedMinutes, totals.overtimeEligibleMinutes)),
-    policy.roundingMinutes
+    policy.roundingMinutes,
   );
 
   if (!(requestedMinutes > 0)) {
@@ -605,27 +601,27 @@ export function validateOvertimeRequest(
   }
   if (totals.overtimeEligibleMinutes <= 0) {
     errors.push(
-      `Recorded time supports no overtime for this shift. Worked ${fmtMinutes(totals.workedMinutes)} against a ${fmtMinutes(policy.overtimeAfterMinutes)} threshold.`
+      `Recorded time supports no overtime for this shift. Worked ${fmtMinutes(totals.workedMinutes)} against a ${fmtMinutes(policy.overtimeAfterMinutes)} threshold.`,
     );
   }
   if (requestedMinutes > totals.overtimeEligibleMinutes) {
     errors.push(
-      `You can only request up to ${fmtMinutes(totals.overtimeEligibleMinutes)}, which is what your recorded time supports.`
+      `You can only request up to ${fmtMinutes(totals.overtimeEligibleMinutes)}, which is what your recorded time supports.`,
     );
   }
   if (totals.provisional) {
     const blocking = totals.issues.filter(
-      (i) => i.severity === "provisional" || i.severity === "review"
+      (i) => i.severity === "provisional" || i.severity === "review",
     );
     errors.push(
       `This calculation is provisional and cannot be submitted yet: ${blocking
         .map((i) => i.message)
-        .join(" ")}`
+        .join(" ")}`,
     );
   }
   if (requestedMinutes % (policy.roundingMinutes || 1) !== 0) {
     warnings.push(
-      `Requests are rounded down to the nearest ${policy.roundingMinutes} minutes, so ${fmtMinutes(requestedMinutes)} becomes ${fmtMinutes(cappedMinutes)}.`
+      `Requests are rounded down to the nearest ${policy.roundingMinutes} minutes, so ${fmtMinutes(requestedMinutes)} becomes ${fmtMinutes(cappedMinutes)}.`,
     );
   }
 
@@ -636,11 +632,7 @@ export function validateOvertimeRequest(
  * Suggested request amounts for the picker. Always ends on the full eligible
  * amount and never offers more than the calculation supports.
  */
-export function overtimeChips(
-  eligibleMinutes: number,
-  roundingMinutes: number,
-  max = 6
-): number[] {
+export function overtimeChips(eligibleMinutes: number, roundingMinutes: number, max = 6): number[] {
   const unit = roundingMinutes > 0 ? roundingMinutes : 5;
   if (eligibleMinutes <= 0) return [];
   const step = Math.max(unit, Math.ceil(eligibleMinutes / max / unit) * unit);
@@ -655,7 +647,7 @@ export function pendingMinutes(claim?: OvertimeClaim): number {
 }
 
 export function approvedMinutes(claim?: OvertimeClaim): number {
-  return claim && claim.state === "approved" ? claim.decision?.approvedMinutes ?? 0 : 0;
+  return claim && claim.state === "approved" ? (claim.decision?.approvedMinutes ?? 0) : 0;
 }
 
 export function declinedMinutes(claim?: OvertimeClaim): number {
@@ -695,9 +687,7 @@ export function buildDayView(record: ShiftRecord): DayView {
     decisionReason: claim?.decision?.reason,
     decidedBy: claim?.decision?.decidedBy,
     provisional: totals.provisional,
-    provisionalReasons: totals.issues
-      .filter((i) => i.severity !== "info")
-      .map((i) => i.message),
+    provisionalReasons: totals.issues.filter((i) => i.severity !== "info").map((i) => i.message),
   };
 }
 

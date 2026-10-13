@@ -1,3 +1,4 @@
+import { ThemedSelect } from "../../../shared/ThemedSelect";
 import { useState } from "react";
 import { CalendarDays, ChevronRight, Clock3, Mail, Users } from "lucide-react";
 import { Pie, PieChart, Cell } from "recharts";
@@ -72,16 +73,16 @@ export function ManagerInsights({
         <div className="insight-team">
           <label>
             <span>SELECTED TEAM</span>
-            <select
+            <ThemedSelect
               aria-label="Select team for insights"
               value={team}
-              onChange={(event) => setTeam(event.target.value)}
+              onValueChange={(value) => setTeam(value)}
             >
               <option value="">All teams</option>
               {teams.map((name) => (
                 <option key={name}>{name}</option>
               ))}
-            </select>
+            </ThemedSelect>
           </label>
           <span className="insight-team-icon">
             <Users size={21} />

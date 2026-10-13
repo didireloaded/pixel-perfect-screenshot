@@ -1,3 +1,5 @@
-`local-api.mjs` supplies the development-only PostgreSQL adapter and local password/session endpoints. Vite loads it only during development. The deployed application talks directly to Supabase Auth and the scoped SQL RPCs.
+`test-database.mjs` supplies an isolated PostgreSQL test harness with Supabase-style roles and the actual migrations. It is never imported by either application or Vite server. Test fixtures do not touch the hosted project or create application demo accounts.
 
-`database.test.mjs` runs the migration in a fresh in-memory PostgreSQL database. Fixtures never touch the local working database or a hosted project.
+`npm run test:database` verifies tenant/role isolation, activation, attendance, messaging, task progress, approvals, privacy and private company invalidations. `supabase/tests/backend_smoke.sql` verifies the hosted schema in a transaction that rolls back all fixtures.
+
+`shift-scheduling.test.mjs` covers duplicate assignment, explicit/stale edits, company permissions, captured attendance and locked periods. `workplace-operations.test.mjs` covers job lunch/resumption, latest-position expiry and privacy, job-site targets, safe job creation retries, board/attendance consistency and directory permissions. Hosted `supabase/tests/workplace_operations_smoke.sql` and `shift_scheduling_smoke.sql` verify these against real PostgreSQL using rollback-only fixtures.

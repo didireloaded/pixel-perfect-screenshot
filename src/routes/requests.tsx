@@ -1,3 +1,4 @@
+import { ThemedSelect } from "../../shared/ThemedSelect";
 import { createFileRoute } from "@tanstack/react-router";
 import { CalendarDays, Clock3, ChevronRight, ArrowLeft, Inbox } from "lucide-react";
 import { useState, type FormEvent } from "react";
@@ -153,12 +154,12 @@ function Requests() {
                 <>
                   <label className="block text-sm font-medium">
                     Shift
-                    <select
+                    <ThemedSelect
                       name="shiftId"
                       required
                       value={shiftId}
-                      onChange={(e) => {
-                        setShiftId(e.target.value);
+                      onValueChange={(value) => {
+                        setShiftId(value);
                         setEventId("");
                       }}
                       className="mt-2 h-12 w-full rounded-2xl bg-muted px-3"
@@ -169,14 +170,14 @@ function Requests() {
                           {s.date} · {s.start}–{s.end}
                         </option>
                       ))}
-                    </select>
+                    </ThemedSelect>
                   </label>
                   <label className="block text-sm font-medium">
                     What needs fixing?
-                    <select
+                    <ThemedSelect
                       name="eventId"
                       value={eventId}
-                      onChange={(e) => setEventId(e.target.value)}
+                      onValueChange={(value) => setEventId(value)}
                       className="mt-2 h-12 w-full rounded-2xl bg-muted px-3"
                     >
                       <option value="">A missing clocking</option>
@@ -189,12 +190,12 @@ function Requests() {
                           })}
                         </option>
                       ))}
-                    </select>
+                    </ThemedSelect>
                   </label>
                   {!eventId && (
                     <label className="block text-sm font-medium">
                       Action
-                      <select
+                      <ThemedSelect
                         name="eventType"
                         className="mt-2 h-12 w-full rounded-2xl bg-muted px-3"
                       >
@@ -202,7 +203,7 @@ function Requests() {
                         <option value="clock_out">Clock out</option>
                         <option value="start_lunch">Start lunch</option>
                         <option value="end_lunch">End lunch</option>
-                      </select>
+                      </ThemedSelect>
                     </label>
                   )}
                   <label className="block text-sm font-medium">

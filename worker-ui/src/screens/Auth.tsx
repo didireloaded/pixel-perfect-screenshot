@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Eye, EyeOff, Mail, CheckCircle2 } from "lucide-react";
-import { Logo, StatusBar, HomeIndicator, Button, Field, inputCls, SuccessCheck } from "../ui";
+import { Eye, EyeOff, Clock3 } from "lucide-react";
+import { Logo, StatusBar, HomeIndicator, Button, Field, inputCls } from "../ui";
 import { useApp } from "../state";
 import { cn } from "../utils/cn";
 import * as backend from "../backend";
@@ -67,31 +67,15 @@ export function Welcome() {
   );
 }
 
-// ─── Sign in ───────────────────────────────────────────────────────────────
+import type { WorkerCredentials } from "../../../shared/worker-signup";
+
 export function SignIn() {
-  const { setPhase, toast } = useApp();
-  const [email, setEmail] = useState("");
-  const [pw, setPw] = useState("");
-  const [showPw, setShowPw] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const { setPhase } = useApp();
+  const [number, setNumber] = useState("");
+  const [code, setCode] = useState("");
+  const [showCode, setShowCode] = useState(false);
+  const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
-
-  const submit = async () => {
-    if (!email.includes("@")) return setErr("Enter a valid email address.");
-    if (pw.length < 4) return setErr("Enter your password to continue.");
-    setErr(null);
-    setLoading(true);
-    try {
-      await backend.signIn(email, pw);
-      const data = await backend.snapshot<{ onboarding?: boolean }>();
-      setPhase(data.onboarding ? "activate" : "app");
-    } catch (error) {
-      setErr(error instanceof Error ? error.message : "Sign in failed");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="flex h-full flex-col bg-page dark:bg-dpage">
       <StatusBar />
@@ -102,105 +86,182 @@ export function SignIn() {
         >
           ‹ Back
         </button>
-        <div className="mt-8 flex flex-col items-start">
+        <div className="mt-8">
           <Logo size={56} />
           <h1 className="mt-6 text-[28px] font-bold tracking-tight text-ink dark:text-white">
             Welcome back
           </h1>
           <p className="mt-1 text-[16px] text-sub dark:text-dsub">
-            Sign in to your Shiftline account.
+            Use your employee number and private access code.
           </p>
         </div>
-        <div className="mt-8 space-y-4">
-          <Field label="Email address">
+        <form
+          className="mt-8 space-y-4"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            setErr("");
+            setLoading(true);
+            try {
+              await backend.signInWorker(number, code);
+              const data = await backend.snapshot<{ onboarding?: boolean }>();
+              setPhase(data.onboarding ? "waiting" : "app");
+            } catch (error) {
+              setErr(error instanceof Error ? error.message : "Sign in failed");
+            } finally {
+              setLoading(false);
+            }
+          }}
+        >
+          <Field label="Employee number" htmlFor="signin-number">
             <input
+              id="signin-number"
               className={inputCls}
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@company.com"
-              autoCapitalize="none"
+              value={number}
+              onChange={(event) => setNumber(event.target.value)}
+              placeholder="SL-100001"
+              autoComplete="username"
+              autoCapitalize="characters"
+              required
             />
           </Field>
-          <Field label="Password" error={err ?? undefined}>
+          <Field label="Access code" htmlFor="signin-code" error={err || undefined}>
             <div className="relative">
               <input
-                className={cn(inputCls, "pr-12", err && "ring-2 ring-bad/50")}
-                type={showPw ? "text" : "password"}
-                value={pw}
-                onChange={(e) => {
-                  setPw(e.target.value);
-                  setErr(null);
-                }}
-                placeholder="Your password"
+                id="signin-code"
+                className={cn(inputCls, "pr-12")}
+                type={showCode ? "text" : "password"}
+                value={code}
+                onChange={(event) => setCode(event.target.value)}
+                placeholder="Your private code"
+                autoComplete="current-password"
+                autoCapitalize="none"
+                autoCorrect="off"
+                required
               />
               <button
-                onClick={() => setShowPw(!showPw)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sub dark:text-dsub"
-                aria-label="Toggle password visibility"
+                type="button"
+                onClick={() => setShowCode(!showCode)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sub"
+                aria-label={showCode ? "Hide access code" : "Show access code"}
               >
-                {showPw ? <EyeOff size={20} /> : <Eye size={20} />}
+                {showCode ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
             </div>
           </Field>
-          <div className="flex justify-end">
-            <button
-              className="press rounded px-1 text-[15px] font-medium text-brand"
-              onClick={async () => {
-                if (!email.includes("@")) return setErr("Enter your email address first.");
-                try {
-                  await backend.resetPassword(email);
-                  toast("Password reset link sent", "info");
-                } catch (error) {
-                  setErr(error instanceof Error ? error.message : "Could not send reset link");
-                }
-              }}
-            >
-              Forgot password?
-            </button>
-          </div>
-          <Button onClick={submit} loading={loading}>
+          <p className="text-[13px] text-sub dark:text-dsub">
+            Lost your code? Ask your manager for a replacement. Your phone number alone cannot
+            recover an account.
+          </p>
+          <Button type="submit" loading={loading}>
             {loading ? "Signing in…" : "Sign In"}
           </Button>
-          <p className="pt-2 text-center text-[15px] text-sub dark:text-dsub">
-            New to Shiftline?{" "}
-            <button className="font-semibold text-brand" onClick={() => setPhase("signup")}>
-              Create account
-            </button>
-          </p>
-        </div>
+          <button
+            type="button"
+            className="w-full text-[15px] font-semibold text-brand"
+            onClick={() => setPhase("signup")}
+          >
+            Create account
+          </button>
+        </form>
       </div>
       <HomeIndicator />
     </div>
   );
 }
 
-// ─── Create account ────────────────────────────────────────────────────────
 export function CreateAccount() {
-  const { setPhase } = useApp();
-  const [email, setEmail] = useState("");
-  const [pw, setPw] = useState("");
-  const [pw2, setPw2] = useState("");
-  const [err, setErr] = useState<string | null>(null);
+  const { setPhase, toast } = useApp();
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [credentials, setCredentials] = useState<WorkerCredentials | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
-
-  const pwOk = pw.length >= 8;
-  const submit = async () => {
-    if (!email.includes("@")) return setErr("Enter a valid email address.");
-    if (!pwOk) return setErr("Password must be at least 8 characters.");
-    if (pw !== pw2) return setErr("Passwords don't match.");
-    setErr(null);
-    setLoading(true);
-    try {
-      const session = await backend.signUp(email, pw);
-      setPhase(session ? "activate" : "verify");
-    } catch (error) {
-      setErr(error instanceof Error ? error.message : "Account creation failed");
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  if (credentials)
+    return (
+      <div className="flex h-full flex-col bg-page dark:bg-dpage">
+        <StatusBar />
+        <div className="no-scrollbar flex-1 overflow-y-auto px-7 py-8">
+          <Logo size={56} />
+          <h1 className="mt-6 text-[28px] font-bold text-ink dark:text-white">
+            Save your access details
+          </h1>
+          <p className="mt-2 text-[16px] text-sub dark:text-dsub">
+            Your account has been created. These details are shown once. Keep the code private.
+          </p>
+          <dl className="mt-6 space-y-4 rounded-card bg-brand-soft/70 p-5 dark:bg-brand/15">
+            <div>
+              <dt className="text-sm text-sub dark:text-dsub">Employee number</dt>
+              <dd className="mt-1 select-all font-mono text-xl text-ink dark:text-white">
+                {credentials.employeeNo}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-sm text-sub dark:text-dsub">Access code</dt>
+              <dd className="mt-1 select-all font-mono text-xl text-ink dark:text-white">
+                {credentials.accessCode}
+              </dd>
+            </div>
+          </dl>
+          <Button
+            variant="secondary"
+            className="mt-4"
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(
+                  `Employee number: ${credentials.employeeNo}\nAccess code: ${credentials.accessCode}`,
+                );
+                toast("Access details copied");
+              } catch {
+                setErr("Select and copy your details above, or write them down.");
+              }
+            }}
+          >
+            Copy access details
+          </Button>
+          <label className="my-5 flex items-center gap-3 text-[15px] text-ink dark:text-white">
+            <input
+              type="checkbox"
+              checked={saved}
+              onChange={(event) => setSaved(event.target.checked)}
+            />
+            I have saved my employee number and code
+          </label>
+          {err && (
+            <p role="alert" className="mb-4 text-sm text-bad">
+              {err}
+            </p>
+          )}
+          <Button
+            disabled={!saved}
+            loading={loading}
+            onClick={async () => {
+              setLoading(true);
+              setErr("");
+              try {
+                await backend.signInWorker(credentials.employeeNo, credentials.accessCode);
+                const data = await backend.snapshot<{ onboarding?: boolean }>();
+                setPhase(data.onboarding ? "waiting" : "app");
+              } catch (error) {
+                setErr(
+                  error instanceof Error
+                    ? error.message
+                    : "Could not sign in. Keep your access details and try again.",
+                );
+              } finally {
+                setLoading(false);
+              }
+            }}
+          >
+            Continue
+          </Button>
+          <p className="mt-4 text-[13px] text-sub dark:text-dsub">
+            Your manager will approve your workplace access. No email confirmation is needed.
+          </p>
+        </div>
+        <HomeIndicator />
+      </div>
+    );
   return (
     <div className="flex h-full flex-col bg-page dark:bg-dpage">
       <StatusBar />
@@ -214,216 +275,178 @@ export function CreateAccount() {
         <h1 className="mt-7 text-[28px] font-bold tracking-tight text-ink dark:text-white">
           Create your account
         </h1>
-        <p className="mt-1 text-[16px] text-sub dark:text-dsub">
-          Use the email address your employer has on file.
+        <p className="mt-2 text-[16px] text-sub dark:text-dsub">
+          Enter your name and phone number. We’ll give you an employee number and access code.
         </p>
-        <div className="mt-7 space-y-4">
-          <Field label="Email address">
-            <input
-              className={inputCls}
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@company.com"
-              autoCapitalize="none"
-            />
-          </Field>
-          <Field label="Password">
-            <input
-              className={inputCls}
-              type="password"
-              value={pw}
-              onChange={(e) => setPw(e.target.value)}
-              placeholder="At least 8 characters"
-            />
-          </Field>
-          <Field label="Confirm password" error={err ?? undefined}>
-            <input
-              className={cn(inputCls, err && "ring-2 ring-bad/50")}
-              type="password"
-              value={pw2}
-              onChange={(e) => {
-                setPw2(e.target.value);
-                setErr(null);
-              }}
-              placeholder="Repeat your password"
-            />
-          </Field>
-          <div className="flex items-center gap-2 px-1 text-[13px] text-sub dark:text-dsub">
-            <CheckCircle2 size={15} className={pwOk ? "text-ok" : "text-sep dark:text-dsep"} />
-            Minimum 8 characters, avoid common words
-          </div>
-          <Button onClick={submit} loading={loading}>
-            {loading ? "Creating account…" : "Create Account"}
-          </Button>
-          <p className="pt-2 text-center text-[15px] text-sub dark:text-dsub">
-            Already have an account?{" "}
-            <button className="font-semibold text-brand" onClick={() => setPhase("signin")}>
-              Sign in
-            </button>
-          </p>
-        </div>
-      </div>
-      <HomeIndicator />
-    </div>
-  );
-}
-
-// ─── Verify email ──────────────────────────────────────────────────────────
-export function VerifyEmail() {
-  const { setPhase, toast } = useApp();
-  return (
-    <div className="flex h-full flex-col bg-page dark:bg-dpage">
-      <StatusBar />
-      <div className="flex flex-1 flex-col items-center justify-center px-8 text-center">
-        <div className="anim-pop-in flex h-[76px] w-[76px] items-center justify-center rounded-full bg-brand/12">
-          <Mail size={34} className="text-brand" />
-        </div>
-        <h1
-          className="anim-rise mt-6 text-[28px] font-bold tracking-tight text-ink dark:text-white"
-          style={{ animationDelay: "0.1s" }}
-        >
-          Check your email
-        </h1>
-        <p
-          className="anim-rise mt-2 max-w-[280px] text-[16px] leading-relaxed text-sub dark:text-dsub"
-          style={{ animationDelay: "0.2s" }}
-        >
-          We sent a verification link to your email address. Tap the link, then continue below.
-        </p>
-      </div>
-      <div className="space-y-3 px-7 pb-6">
-        <Button
-          onClick={async () => {
+        <form
+          className="mt-7 space-y-5"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            setLoading(true);
+            setErr("");
             try {
-              if (!(await backend.hasSession()))
-                throw new Error("Verify your email, then sign in.");
-              const data = await backend.snapshot<{ onboarding?: boolean }>();
-              setPhase(data.onboarding ? "activate" : "app");
+              setCredentials(await backend.registerWorker({ fullName, phone }));
             } catch (error) {
-              toast(error instanceof Error ? error.message : "Sign in required", "error");
-              setPhase("signin");
+              setErr(error instanceof Error ? error.message : "Account creation failed");
+            } finally {
+              setLoading(false);
             }
           }}
         >
-          I've Verified My Email
-        </Button>
+          <Field label="Full name" htmlFor="signup-name">
+            <input
+              id="signup-name"
+              className={inputCls}
+              value={fullName}
+              onChange={(event) => setFullName(event.target.value)}
+              placeholder="Your first and last name"
+              maxLength={100}
+              autoComplete="name"
+              required
+            />
+          </Field>
+          <Field label="Phone number" htmlFor="signup-phone" error={err || undefined}>
+            <input
+              id="signup-phone"
+              className={inputCls}
+              type="tel"
+              value={phone}
+              onChange={(event) => setPhone(event.target.value)}
+              placeholder="+264 81 123 4567"
+              maxLength={40}
+              autoComplete="tel"
+              required
+            />
+          </Field>
+          <p className="text-[13px] text-sub dark:text-dsub">
+            Include your country code. Your name and phone number will appear in your manager’s Team
+            list. We do not send a confirmation email or SMS.
+          </p>
+          <Button type="submit" loading={loading}>
+            {loading ? "Creating account…" : "Create Account"}
+          </Button>
+          <button
+            type="button"
+            className="w-full text-[15px] font-semibold text-brand"
+            onClick={() => setPhase("signin")}
+          >
+            Already registered? Sign in
+          </button>
+        </form>
       </div>
       <HomeIndicator />
     </div>
   );
 }
 
-// ─── Employee activation ───────────────────────────────────────────────────
-export function Activate() {
+export function AccessWaiting() {
   const { setPhase } = useApp();
-  const [empNo, setEmpNo] = useState(backend.testEmployee ? "EMP-1042" : "");
-  const [code, setCode] = useState(backend.testEmployee ? "SHIFT-1042" : "");
-  const [err, setErr] = useState<string | null>(null);
+  const [profile, setProfile] = useState<{
+    status: string;
+    name: string;
+    employeeNo: string;
+    phone: string;
+  } | null>(null);
+  const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
-  const [done, setDone] = useState(false);
-
-  const submit = async () => {
-    if (empNo.trim().length < 4) return setErr("Enter your employee number, e.g. EMP-1042.");
-    if (code.trim().length < 6) return setErr("Enter your activation code.");
-    setErr(null);
-    setLoading(true);
-    try {
-      await backend.command("activate", { employeeNo: empNo.trim(), code: code.trim() });
-      setDone(true);
-    } catch (error) {
-      setErr(error instanceof Error ? error.message : "Activation failed");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (done) {
-    return (
-      <div className="flex h-full flex-col bg-page dark:bg-dpage">
-        <StatusBar />
-        <div className="flex flex-1 flex-col items-center justify-center px-8 text-center">
-          <SuccessCheck tone="purple" />
-          <h1
-            className="anim-rise mt-6 text-[28px] font-bold tracking-tight text-ink dark:text-white"
-            style={{ animationDelay: "0.15s" }}
-          >
-            Your account is linked
-          </h1>
-          <p
-            className="anim-rise mt-2 max-w-[280px] text-[16px] leading-relaxed text-sub dark:text-dsub"
-            style={{ animationDelay: "0.25s" }}
-          >
-            Your employee account is ready. Your shifts, attendance and hours are available.
-          </p>
-        </div>
-        <div className="px-7 pb-6">
-          <Button onClick={() => setPhase("app")}>Go to Shiftline</Button>
-        </div>
-        <HomeIndicator />
-      </div>
-    );
-  }
-
+  useEffect(() => {
+    let active = true;
+    let running = false;
+    const refresh = async () => {
+      if (running || document.visibilityState === "hidden" || !navigator.onLine) return;
+      running = true;
+      try {
+        const data = await backend.snapshot<{
+          onboarding?: boolean;
+          workerAccess?: typeof profile;
+        }>();
+        if (active) {
+          setErr("");
+          if (!data.onboarding) setPhase("app");
+          else setProfile(data.workerAccess ?? null);
+        }
+      } catch (error) {
+        if (active) setErr(error instanceof Error ? error.message : "Could not check access");
+      } finally {
+        running = false;
+      }
+    };
+    void refresh();
+    const timer = setInterval(() => void refresh(), 15000);
+    window.addEventListener("focus", refresh);
+    window.addEventListener("online", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      active = false;
+      clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("online", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [setPhase]);
+  const rejected = profile?.status === "rejected";
   return (
     <div className="flex h-full flex-col bg-page dark:bg-dpage">
       <StatusBar />
-      <div className="no-scrollbar flex-1 overflow-y-auto px-7 pb-8">
-        <div className="mt-2 flex items-center gap-1.5 text-[13px] font-semibold uppercase tracking-wide text-sub dark:text-dsub">
-          {backend.testEmployee ? "Local test employee · EMP-1042 / SHIFT-1042" : "Step 2 of 2"}
-        </div>
-        <h1 className="mt-2 text-[28px] font-bold tracking-tight text-ink dark:text-white">
-          Activate your workplace
+      <div className="flex flex-1 flex-col justify-center px-7 py-8">
+        <Clock3 size={44} className="text-brand" />
+        <h1 className="mt-6 text-[28px] font-bold text-ink dark:text-white">
+          {rejected ? "Contact your manager" : "Waiting for approval"}
         </h1>
-        <p className="mt-1 text-[16px] leading-relaxed text-sub dark:text-dsub">
-          Link this account to your employer so your shifts and hours show up.
+        <p className="mt-3 text-[16px] text-sub dark:text-dsub">
+          {rejected
+            ? "Your registration was not approved. Speak to your manager to check your details."
+            : "Your manager needs to approve your account before you can see shifts, jobs and messages. This screen checks for approval automatically."}
         </p>
-        <div className="mt-7 space-y-4">
-          <Field label="Employee number">
-            <input
-              className={inputCls}
-              value={empNo}
-              onChange={(e) => setEmpNo(e.target.value)}
-              aria-label="Employee number"
-              placeholder="EMP-0000"
-              autoCapitalize="characters"
-            />
-          </Field>
-          <Field label="Activation code" error={err ?? undefined}>
-            <input
-              className={cn(inputCls, "tracking-[0.3em]", err && "ring-2 ring-bad/50")}
-              value={code}
-              onChange={(e) => {
-                setCode(e.target.value);
-                setErr(null);
-              }}
-              placeholder="Paste your activation code"
-              aria-label="Activation code"
-              maxLength={32}
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-            />
-          </Field>
-          <div className="rounded-card bg-brand-soft/70 p-4 dark:bg-brand/15">
-            <p className="text-[14px] leading-relaxed text-brand dark:text-[#9D91F2]">
-              {backend.testEmployee
-                ? "Development test access. EMP-1042 and SHIFT-1042 are reusable here; attendance stays in the local test database."
-                : "Paste the complete activation code from your manager. It can contain letters and numbers and is valid for 48 hours."}
+        {profile && (
+          <div className="my-6 rounded-card bg-fill p-4 dark:bg-dfill">
+            <p className="font-semibold text-ink dark:text-white">{profile.name}</p>
+            <p className="mt-1 text-sm text-sub dark:text-dsub">
+              {profile.employeeNo} · {profile.phone}
             </p>
           </div>
-          <Button onClick={submit} loading={loading}>
-            {loading ? "Activating…" : "Activate Account"}
-          </Button>
-          {import.meta.env.DEV && !backend.testEmployee && (
-            <a
-              className="block text-center text-[14px] font-semibold text-brand"
-              href="/?test=employee"
-            >
-              Use local test employee
-            </a>
-          )}
-        </div>
+        )}
+        {err && (
+          <p role="alert" className="my-4 text-sm text-bad">
+            {err}
+          </p>
+        )}
+        <Button
+          loading={loading}
+          className="mt-4"
+          onClick={async () => {
+            setLoading(true);
+            setErr("");
+            try {
+              const data = await backend.snapshot<{
+                onboarding?: boolean;
+                workerAccess?: typeof profile;
+              }>();
+              if (!data.onboarding) setPhase("app");
+              else setProfile(data.workerAccess ?? null);
+            } catch (error) {
+              setErr(error instanceof Error ? error.message : "Could not check access");
+            } finally {
+              setLoading(false);
+            }
+          }}
+        >
+          Check approval
+        </Button>
+        <Button
+          variant="plain"
+          className="mt-3"
+          onClick={async () => {
+            try {
+              await backend.signOut();
+              setPhase("welcome");
+            } catch (error) {
+              setErr(error instanceof Error ? error.message : "Could not sign out");
+            }
+          }}
+        >
+          Sign out
+        </Button>
       </div>
       <HomeIndicator />
     </div>

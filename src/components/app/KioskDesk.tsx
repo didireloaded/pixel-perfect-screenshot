@@ -1,4 +1,6 @@
+import { ThemedSelect } from "../../../shared/ThemedSelect";
 import { useState, type FormEvent } from "react";
+import { Link } from "@tanstack/react-router";
 import { KeyRound, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,8 +19,6 @@ const ACTIONS: { value: EventType; label: string }[] = [
 ];
 export function KioskDesk() {
   const d = useAttendance();
-  const [activation, setActivation] = useState<string | null>(null);
-  const [pending, setPending] = useState("");
   const [selected, setSelected] = useState("");
   const [issued, setIssued] = useState<{ number: string; code: string } | null>(null);
   const [number, setNumber] = useState("");
@@ -68,16 +68,17 @@ export function KioskDesk() {
     <div className="grid gap-5 lg:grid-cols-2">
       <section className="card-surface p-5 lg:col-span-2">
         <h2 className="text-lg font-bold">Employee app access</h2>
-        <p className="mt-2 text-sm text-muted-foreground">Create employees in Team, then issue their app activation code here. Codes expire after 48 hours and can be used once.</p>
-        <label className="mt-4 block">Employee awaiting activation
-          <select className="mt-2 h-12 w-full rounded-2xl bg-muted px-3" value={pending} onChange={e => {setPending(e.target.value); setActivation(null);}}>
-            <option value="">Choose employee</option>
-            {d.employees.filter(e => e.role === "employee" && !e.activated).map(e => <option key={e.id} value={e.id}>{e.name} · {e.no}</option>)}
-          </select>
-        </label>
-        <Button className="mt-4" disabled={!pending || d.busy || !d.online} onClick={async () => { const result = await d.command("issue_activation", {employeeId:pending}); if(result?.activationCode) setActivation(result.activationCode); }}>Issue activation code</Button>
-        {activation && <p role="status" className="mt-4 break-all">Employee number: <strong>{d.employees.find(e => e.id === pending)?.no}</strong><br />Activation code: <code className="select-all">{activation}</code></p>}
-        {import.meta.env.DEV && <p className="mt-4">Local test worker: <strong>EMP-1042</strong> · Code: <strong>SHIFT-1042</strong> · <a className="underline" href="http://127.0.0.1:8083/?test=employee" target="_blank" rel="noreferrer">Open worker app</a>. Uses separate local test data.</p>}
+        <p className="mt-2 text-sm text-muted-foreground">
+          Workers register with their name and phone number. Approve new accounts and replace lost
+          login codes in Team. Supervised attendance codes below are separate from app login codes.
+        </p>
+        <Link
+          to="/manager"
+          search={{ tab: "Team" }}
+          className="mt-4 inline-block font-semibold text-primary"
+        >
+          Manage employee access →
+        </Link>
       </section>
       <section className="card-surface p-5">
         <div className="flex items-center gap-2">
@@ -85,28 +86,33 @@ export function KioskDesk() {
           <h2 className="text-lg font-bold">Employee serial codes</h2>
         </div>
         <p className="mt-2 text-sm text-muted-foreground">
-          Generate a private code for an activated employee. The new code replaces their previous
-          code and is shown only once.
+          Generate a private code for a joined employee. The new code replaces their previous code
+          and is shown only once.
         </p>
         <label className="mt-4 block text-sm font-medium">
           Employee
-          <select
+          <ThemedSelect
             value={selected}
-            onChange={(e) => {
-              setSelected(e.target.value);
+            onValueChange={(value) => {
+              setSelected(value);
               setIssued(null);
             }}
             className="mt-2 h-12 w-full rounded-2xl bg-muted px-3"
           >
             <option value="">Choose an employee</option>
             {d.employees
-              .filter((e) => e.role === "employee" && e.activated)
+              .filter(
+                (e) =>
+                  e.role === "employee" &&
+                  e.activated &&
+                  (!e.accessStatus || e.accessStatus === "active"),
+              )
               .map((e) => (
                 <option key={e.id} value={e.id}>
                   {e.name} · {e.no}
                 </option>
               ))}
-          </select>
+          </ThemedSelect>
         </label>
         <Button
           variant="hero"
@@ -170,9 +176,9 @@ export function KioskDesk() {
         </label>
         <label className="block text-sm font-medium">
           Action
-          <select
+          <ThemedSelect
             value={action}
-            onChange={(e) => setAction(e.target.value as EventType)}
+            onValueChange={(value) => setAction(value as EventType)}
             className="mt-2 h-12 w-full rounded-2xl bg-muted px-3"
           >
             {ACTIONS.map((a) => (
@@ -180,15 +186,15 @@ export function KioskDesk() {
                 {a.label}
               </option>
             ))}
-          </select>
+          </ThemedSelect>
         </label>
         {action === "start_job" && (
           <label className="block text-sm font-medium">
             Assigned job
-            <select
+            <ThemedSelect
               required
               value={jobId}
-              onChange={(e) => setJobId(e.target.value)}
+              onValueChange={(value) => setJobId(value)}
               className="mt-2 h-12 w-full rounded-2xl bg-muted px-3"
             >
               <option value="">Choose a job</option>
@@ -197,7 +203,7 @@ export function KioskDesk() {
                   {j.title}
                 </option>
               ))}
-            </select>
+            </ThemedSelect>
           </label>
         )}
         <Button

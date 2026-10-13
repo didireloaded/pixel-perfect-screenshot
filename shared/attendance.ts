@@ -38,6 +38,13 @@ export interface Employee {
   role: string;
   activated: boolean;
   payrollAdmin: boolean;
+  email?: string;
+  phone?: string;
+  accessStatus?: "active" | "pending" | "rejected";
+  codeLogin?: boolean;
+  jobTitle?: string;
+  bio?: string;
+  photoUrl?: string;
 }
 export interface Site {
   id: string;
@@ -94,6 +101,11 @@ export interface Job {
   supervisor: string;
   status: "assigned" | "in_progress" | "completed";
   assignee: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  radiusM?: number;
+  lunchOption?: "scheduled" | "none";
+  overtime?: boolean;
 }
 export interface Req {
   id: string;
@@ -130,7 +142,11 @@ export interface Period {
   end: string;
   lockedAt: string;
 }
+export interface CalendarJob {
+  id: string; date: string; title: string; details: string; employeeIds: string[]; assignedNames: string[];
+}
 export interface AttendanceSnapshot {
+  calendarJobs?: CalendarJob[];
   me: string;
   role: "manager" | "employee";
   company: { id: string; name: string; timezone: string };
@@ -334,6 +350,29 @@ export const SYNC_LABELS = {
   FAILED: "Needs attention",
 } as const;
 
-export interface JobComment { id: string; jobId: string; authorId: string; authorName: string; body: string; createdAt: string; }
-export interface ManagerNote { id: string; title: string; body: string; authorName: string; createdAt: string; }
-export interface SitePresence { employeeId: string; siteId: string; shiftId: string; inside: boolean; checkedAt: string; }
+export interface JobComment {
+  id: string;
+  jobId: string;
+  authorId: string;
+  authorName: string;
+  body: string;
+  createdAt: string;
+}
+export interface ManagerNote {
+  id: string;
+  title: string;
+  body: string;
+  authorName: string;
+  createdAt: string;
+}
+export interface SitePresence {
+  employeeId: string;
+  siteId: string;
+  shiftId: string;
+  inside: boolean;
+  checkedAt: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  accuracyM?: number | null;
+  jobId?: string | null;
+}

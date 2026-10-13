@@ -49,3 +49,4 @@ mobile-ui/android/
 supabase/.temp/
 
 .shiftline-test-worker/
+.shiftline-dev-access/

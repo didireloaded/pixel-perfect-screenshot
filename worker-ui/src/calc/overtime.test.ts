@@ -63,7 +63,7 @@ function rec(
   events: AttendanceEvent[],
   over: Partial<ShiftPolicy> = {},
   claim?: OvertimeClaim,
-  timesheetStatus: TimesheetStatus = "Open"
+  timesheetStatus: TimesheetStatus = "Open",
 ): ShiftRecord {
   return {
     id,
@@ -90,7 +90,7 @@ describe("worked time derivation", () => {
         ev("lunch_end", "2026-10-08T13:00:00Z"),
         ev("clock_out", "2026-10-08T17:00:00Z"),
       ],
-      pol()
+      pol(),
     );
 
     expect(t.clockedMinutes).toBe(540);
@@ -100,9 +100,7 @@ describe("worked time derivation", () => {
     expect(t.overtimeEligibleMinutes).toBe(0);
     expect(t.provisional).toBe(false);
     expect(t.issues).toEqual([]);
-    expect(t.breakdown[0]).toBe(
-      "Clocked time 9h 00m − unpaid breaks 1h 00m = worked time 8h 00m"
-    );
+    expect(t.breakdown[0]).toBe("Clocked time 9h 00m − unpaid breaks 1h 00m = worked time 8h 00m");
   });
 
   it("deducts emergency departures but keeps assigned-job time as paid work", () => {
@@ -120,7 +118,7 @@ describe("worked time derivation", () => {
         ev("job_end", "2026-10-08T16:00:00Z", { jobTitle: "Site Inspection" }),
         ev("clock_out", "2026-10-08T18:00:00Z"),
       ],
-      pol()
+      pol(),
     );
 
     // 10h00 clocked − 1h00 lunch − 0h30 emergency = 8h30 worked.
@@ -143,7 +141,7 @@ describe("worked time derivation", () => {
         ev("lunch_end", "2026-10-08T13:00:00Z"),
         ev("clock_out", "2026-10-08T17:00:00Z"),
       ],
-      pol({ lunchUnpaid: false })
+      pol({ lunchUnpaid: false }),
     );
 
     expect(t.unpaidMinutes).toBe(0);
@@ -155,7 +153,7 @@ describe("worked time derivation", () => {
   it("never derives more than the clocked span when nothing is deducted", () => {
     const t = deriveShiftTotals(
       [ev("clock_in", "2026-10-08T08:00:00Z"), ev("clock_out", "2026-10-08T17:00:00Z")],
-      pol({ lunchUnpaid: true })
+      pol({ lunchUnpaid: true }),
     );
     expect(t.workedMinutes).toBe(540);
     expect(t.unpaidMinutes).toBe(0);
@@ -174,7 +172,7 @@ describe("overtime policy boundaries", () => {
         ev("lunch_end", "2026-10-08T13:00:00Z"),
         ev("clock_out", "2026-10-08T17:21:00Z"),
       ],
-      pol()
+      pol(),
     );
 
     expect(t.workedMinutes).toBe(506);
@@ -192,7 +190,7 @@ describe("overtime policy boundaries", () => {
         ev("lunch_end", "2026-10-08T13:00:00Z"),
         ev("clock_out", "2026-10-08T17:03:00Z"),
       ],
-      pol()
+      pol(),
     );
 
     expect(t.workedMinutes).toBe(484);
@@ -203,7 +201,7 @@ describe("overtime policy boundaries", () => {
   it("flags a clock-out beyond the cutoff for review and blocks submission", () => {
     const t = deriveShiftTotals(
       [ev("clock_in", "2026-10-08T08:00:00Z"), ev("clock_out", "2026-10-08T22:00:00Z")],
-      pol({ clockOutCutoffMinutes: 240 })
+      pol({ clockOutCutoffMinutes: 240 }),
     );
 
     expect(codes(t)).toContain("beyond_cutoff");
@@ -216,8 +214,8 @@ describe("overtime policy boundaries", () => {
   it("computes a scheduled window that wraps past midnight", () => {
     expect(
       scheduledMinutesOf(
-        pol({ scheduledStart: "2026-10-08T22:00:00Z", scheduledEnd: "2026-10-08T06:00:00Z" })
-      )
+        pol({ scheduledStart: "2026-10-08T22:00:00Z", scheduledEnd: "2026-10-08T06:00:00Z" }),
+      ),
     ).toBe(480);
   });
 });
@@ -236,7 +234,7 @@ describe("overnight and timezone boundaries", () => {
       pol({
         scheduledStart: "2026-10-03T22:00:00Z",
         scheduledEnd: "2026-10-04T06:00:00Z",
-      })
+      }),
     );
 
     expect(t.scheduledMinutes).toBe(480);
@@ -250,14 +248,11 @@ describe("overnight and timezone boundaries", () => {
   it("gives identical totals for the same instants written in different offsets", () => {
     const asUtc = deriveShiftTotals(
       [ev("clock_in", "2026-10-08T08:00:00Z"), ev("clock_out", "2026-10-08T17:00:00Z")],
-      pol()
+      pol(),
     );
     const asLocal = deriveShiftTotals(
-      [
-        ev("clock_in", "2026-10-08T09:00:00+01:00"),
-        ev("clock_out", "2026-10-08T18:00:00+01:00"),
-      ],
-      pol({ timezone: "Europe/London" })
+      [ev("clock_in", "2026-10-08T09:00:00+01:00"), ev("clock_out", "2026-10-08T18:00:00+01:00")],
+      pol({ timezone: "Europe/London" }),
     );
 
     expect(asLocal.clockedMinutes).toBe(asUtc.clockedMinutes);
@@ -276,7 +271,7 @@ describe("provisional calculations", () => {
         ev("lunch_start", "2026-10-08T12:00:00Z"),
         ev("lunch_end", "2026-10-08T13:00:00Z"),
       ],
-      pol()
+      pol(),
     );
 
     expect(codes(t)).toContain("missing_clock_out");
@@ -301,7 +296,7 @@ describe("provisional calculations", () => {
         ev("departure_start", "2026-10-08T15:00:00Z", { departureKind: "personal" }),
         ev("clock_out", "2026-10-08T17:00:00Z"),
       ],
-      pol()
+      pol(),
     );
 
     expect(codes(t)).toContain("unresolved_interval");
@@ -321,7 +316,7 @@ describe("provisional calculations", () => {
         ev("lunch_end", "2026-10-08T13:00:00Z"),
         ev("clock_out", "2026-10-08T17:00:00Z"),
       ],
-      pol()
+      pol(),
     );
     expect(codes(t)).toContain("orphan_interval_end");
     expect(t.provisional).toBe(true);
@@ -333,7 +328,7 @@ describe("provisional calculations", () => {
         ev("clock_in", "2026-10-08T08:00:00Z"),
         ev("clock_out", "2026-10-08T17:00:00Z", { sync: "unsynced" }),
       ],
-      pol()
+      pol(),
     );
 
     expect(codes(t)).toContain("event_syncing");
@@ -352,7 +347,7 @@ describe("provisional calculations", () => {
           actor: "Sarah Chen",
         }),
       ],
-      pol()
+      pol(),
     );
 
     expect(codes(t)).toContain("correction_in_review");
@@ -368,7 +363,7 @@ describe("provisional calculations", () => {
         ev("clock_in", "2026-10-08T08:00:00Z"),
         ev("clock_out", "2026-10-08T17:00:00Z"),
       ],
-      pol()
+      pol(),
     );
 
     expect(codes(t)).toContain("superseded_event");
@@ -406,7 +401,7 @@ describe("duplicate and offline events", () => {
         ev("departure_end", "2026-10-08T14:10:00Z", { departureKind: "personal" }),
         ev("clock_out", "2026-10-08T17:00:00Z"),
       ],
-      pol()
+      pol(),
     );
 
     expect(t.unpaidIntervals).toHaveLength(2);
@@ -453,7 +448,7 @@ describe("validateOvertimeRequest", () => {
       ev("lunch_end", "2026-10-08T13:00:00Z"),
       ev("clock_out", "2026-10-08T17:21:00Z"),
     ],
-    pol()
+    pol(),
   );
 
   it("accepts exactly the supported amount", () => {
@@ -484,7 +479,7 @@ describe("validateOvertimeRequest", () => {
         ev("lunch_end", "2026-10-08T13:00:00Z"),
         ev("clock_out", "2026-10-08T17:00:00Z"),
       ],
-      pol()
+      pol(),
     );
     expect(none.workedMinutes).toBe(480);
     expect(none.overtimeEligibleMinutes).toBe(0);
@@ -501,7 +496,7 @@ describe("validateOvertimeRequest", () => {
         ev("lunch_end", "2026-10-08T13:00:00Z"),
         ev("clock_out", "2026-10-08T17:32:00Z"),
       ],
-      pol()
+      pol(),
     );
     expect(eligible35.overtimeEligibleMinutes).toBe(35);
 
@@ -512,10 +507,7 @@ describe("validateOvertimeRequest", () => {
   });
 
   it("blocks submission while the calculation is provisional", () => {
-    const provisional = deriveShiftTotals(
-      [ev("clock_in", "2026-10-08T08:00:00Z")],
-      pol()
-    );
+    const provisional = deriveShiftTotals([ev("clock_in", "2026-10-08T08:00:00Z")], pol());
     const v = validateOvertimeRequest(30, provisional, pol());
     expect(v.ok).toBe(false);
     expect(v.errors.some((e) => e.includes("provisional"))).toBe(true);
@@ -582,26 +574,32 @@ describe("approval states", () => {
 
   it("exposes the decision reason on the worker view after a decision", () => {
     const day = buildDayView(
-      rec("s1", "Wed 7 Oct", [
-        ev("clock_in", "2026-10-07T07:57:00Z"),
-        ev("lunch_start", "2026-10-07T12:00:00Z"),
-        ev("lunch_end", "2026-10-07T13:00:00Z"),
-        ev("clock_out", "2026-10-07T17:32:00Z"),
-      ], {}, {
-        id: "c7",
-        shiftId: "s1",
-        requestedMinutes: 35,
-        eligibleAtSubmitMinutes: 35,
-        state: "approved",
-        submittedAt: "2026-10-07T18:05:00Z",
-        submittedBy: "Alex Martin",
-        decision: {
-          approvedMinutes: 35,
-          reason: "Safety audit ran over the scheduled end. Approved in full.",
-          decidedBy: "Sarah Chen",
-          decidedAt: "2026-10-08T09:20:00Z",
+      rec(
+        "s1",
+        "Wed 7 Oct",
+        [
+          ev("clock_in", "2026-10-07T07:57:00Z"),
+          ev("lunch_start", "2026-10-07T12:00:00Z"),
+          ev("lunch_end", "2026-10-07T13:00:00Z"),
+          ev("clock_out", "2026-10-07T17:32:00Z"),
+        ],
+        {},
+        {
+          id: "c7",
+          shiftId: "s1",
+          requestedMinutes: 35,
+          eligibleAtSubmitMinutes: 35,
+          state: "approved",
+          submittedAt: "2026-10-07T18:05:00Z",
+          submittedBy: "Alex Martin",
+          decision: {
+            approvedMinutes: 35,
+            reason: "Safety audit ran over the scheduled end. Approved in full.",
+            decidedBy: "Sarah Chen",
+            decidedAt: "2026-10-08T09:20:00Z",
+          },
         },
-      })
+      ),
     );
 
     expect(day.approvalState).toBe("approved");
@@ -614,20 +612,26 @@ describe("approval states", () => {
 
   it("keeps a pending claim visibly pending on the worker view", () => {
     const day = buildDayView(
-      rec("s2", "Mon 5 Oct", [
-        ev("clock_in", "2026-10-05T07:55:00Z"),
-        ev("lunch_start", "2026-10-05T12:00:00Z"),
-        ev("lunch_end", "2026-10-05T13:00:00Z"),
-        ev("clock_out", "2026-10-05T17:21:00Z"),
-      ], {}, {
-        id: "c5",
-        shiftId: "s2",
-        requestedMinutes: 25,
-        eligibleAtSubmitMinutes: 25,
-        state: "requested_pending",
-        submittedAt: "2026-10-05T18:00:00Z",
-        submittedBy: "Alex Martin",
-      })
+      rec(
+        "s2",
+        "Mon 5 Oct",
+        [
+          ev("clock_in", "2026-10-05T07:55:00Z"),
+          ev("lunch_start", "2026-10-05T12:00:00Z"),
+          ev("lunch_end", "2026-10-05T13:00:00Z"),
+          ev("clock_out", "2026-10-05T17:21:00Z"),
+        ],
+        {},
+        {
+          id: "c5",
+          shiftId: "s2",
+          requestedMinutes: 25,
+          eligibleAtSubmitMinutes: 25,
+          state: "requested_pending",
+          submittedAt: "2026-10-05T18:00:00Z",
+          submittedBy: "Alex Martin",
+        },
+      ),
     );
 
     expect(day.approvalState).toBe("requested_pending");
@@ -637,9 +641,7 @@ describe("approval states", () => {
   });
 
   it("lists why a day is provisional on the worker view", () => {
-    const day = buildDayView(
-      rec("s3", "Fri 2 Oct", [ev("clock_in", "2026-10-02T08:01:00Z")])
-    );
+    const day = buildDayView(rec("s3", "Fri 2 Oct", [ev("clock_in", "2026-10-02T08:01:00Z")]));
     expect(day.provisional).toBe(true);
     expect(day.provisionalReasons.some((r) => r.includes("clock-out"))).toBe(true);
     expect(day.eligibleMinutes).toBe(0);
@@ -650,23 +652,37 @@ describe("approval states", () => {
 
 describe("summariseDays", () => {
   const clean = buildDayView(
-    rec("a", "Thu 8 Oct", [
-      ev("clock_in", "2026-10-08T08:00:00Z"),
-      ev("lunch_start", "2026-10-08T12:00:00Z"),
-      ev("lunch_end", "2026-10-08T13:00:00Z"),
-      ev("clock_out", "2026-10-08T17:00:00Z"),
-    ], {}, undefined, "Submitted")
+    rec(
+      "a",
+      "Thu 8 Oct",
+      [
+        ev("clock_in", "2026-10-08T08:00:00Z"),
+        ev("lunch_start", "2026-10-08T12:00:00Z"),
+        ev("lunch_end", "2026-10-08T13:00:00Z"),
+        ev("clock_out", "2026-10-08T17:00:00Z"),
+      ],
+      {},
+      undefined,
+      "Submitted",
+    ),
   );
   const withOt = buildDayView(
-    rec("b", "Wed 7 Oct", [
-      ev("clock_in", "2026-10-07T07:57:00Z"),
-      ev("lunch_start", "2026-10-07T12:00:00Z"),
-      ev("lunch_end", "2026-10-07T13:00:00Z"),
-      ev("clock_out", "2026-10-07T17:32:00Z"),
-    ], {}, undefined, "Awaiting review")
+    rec(
+      "b",
+      "Wed 7 Oct",
+      [
+        ev("clock_in", "2026-10-07T07:57:00Z"),
+        ev("lunch_start", "2026-10-07T12:00:00Z"),
+        ev("lunch_end", "2026-10-07T13:00:00Z"),
+        ev("clock_out", "2026-10-07T17:32:00Z"),
+      ],
+      {},
+      undefined,
+      "Awaiting review",
+    ),
   );
   const provisional = buildDayView(
-    rec("c", "Fri 2 Oct", [ev("clock_in", "2026-10-02T08:01:00Z")], {}, undefined, "Open")
+    rec("c", "Fri 2 Oct", [ev("clock_in", "2026-10-02T08:01:00Z")], {}, undefined, "Open"),
   );
 
   it("sums worked, regular and eligible overtime across the week", () => {
@@ -685,42 +701,54 @@ describe("summariseDays", () => {
 
   it("keeps pending and approved overtime in separate buckets", () => {
     const pendingDay = buildDayView(
-      rec("d", "Mon 5 Oct", [
-        ev("clock_in", "2026-10-05T07:55:00Z"),
-        ev("lunch_start", "2026-10-05T12:00:00Z"),
-        ev("lunch_end", "2026-10-05T13:00:00Z"),
-        ev("clock_out", "2026-10-05T17:21:00Z"),
-      ], {}, {
-        id: "c5",
-        shiftId: "d",
-        requestedMinutes: 25,
-        eligibleAtSubmitMinutes: 25,
-        state: "requested_pending",
-        submittedAt: "2026-10-05T18:00:00Z",
-        submittedBy: "Alex Martin",
-      })
+      rec(
+        "d",
+        "Mon 5 Oct",
+        [
+          ev("clock_in", "2026-10-05T07:55:00Z"),
+          ev("lunch_start", "2026-10-05T12:00:00Z"),
+          ev("lunch_end", "2026-10-05T13:00:00Z"),
+          ev("clock_out", "2026-10-05T17:21:00Z"),
+        ],
+        {},
+        {
+          id: "c5",
+          shiftId: "d",
+          requestedMinutes: 25,
+          eligibleAtSubmitMinutes: 25,
+          state: "requested_pending",
+          submittedAt: "2026-10-05T18:00:00Z",
+          submittedBy: "Alex Martin",
+        },
+      ),
     );
     const approvedDay = buildDayView(
-      rec("e", "Wed 7 Oct", [
-        ev("clock_in", "2026-10-07T07:57:00Z"),
-        ev("lunch_start", "2026-10-07T12:00:00Z"),
-        ev("lunch_end", "2026-10-07T13:00:00Z"),
-        ev("clock_out", "2026-10-07T17:32:00Z"),
-      ], {}, {
-        id: "c7",
-        shiftId: "e",
-        requestedMinutes: 35,
-        eligibleAtSubmitMinutes: 35,
-        state: "approved",
-        submittedAt: "2026-10-07T18:05:00Z",
-        submittedBy: "Alex Martin",
-        decision: {
-          approvedMinutes: 35,
-          reason: "Approved in full.",
-          decidedBy: "Sarah Chen",
-          decidedAt: "2026-10-08T09:20:00Z",
+      rec(
+        "e",
+        "Wed 7 Oct",
+        [
+          ev("clock_in", "2026-10-07T07:57:00Z"),
+          ev("lunch_start", "2026-10-07T12:00:00Z"),
+          ev("lunch_end", "2026-10-07T13:00:00Z"),
+          ev("clock_out", "2026-10-07T17:32:00Z"),
+        ],
+        {},
+        {
+          id: "c7",
+          shiftId: "e",
+          requestedMinutes: 35,
+          eligibleAtSubmitMinutes: 35,
+          state: "approved",
+          submittedAt: "2026-10-07T18:05:00Z",
+          submittedBy: "Alex Martin",
+          decision: {
+            approvedMinutes: 35,
+            reason: "Approved in full.",
+            decidedBy: "Sarah Chen",
+            decidedAt: "2026-10-08T09:20:00Z",
+          },
         },
-      })
+      ),
     );
 
     const s = summariseDays([pendingDay, approvedDay]);

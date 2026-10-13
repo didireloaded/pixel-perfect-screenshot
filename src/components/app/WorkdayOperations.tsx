@@ -1,3 +1,4 @@
+import { ThemedSelect } from "../../../shared/ThemedSelect";
 import { useState, type FormEvent } from "react";
 import { CalendarDays, MapPin, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -38,9 +39,9 @@ export function CompanyNotices() {
         </div>
         <label className="block text-sm font-medium">
           Type
-          <select
+          <ThemedSelect
             value={kind}
-            onChange={(e) => setKind(e.target.value)}
+            onValueChange={(value) => setKind(value)}
             className="mt-2 h-12 w-full rounded-2xl bg-muted px-3"
           >
             <option value="announcement">Announcement</option>
@@ -48,7 +49,7 @@ export function CompanyNotices() {
             <option value="holiday">Public holiday</option>
             <option value="closure">Office closure or maintenance</option>
             <option value="early_release">Leave early</option>
-          </select>
+          </ThemedSelect>
         </label>
         {kind === "event" && (
           <label className="block text-sm font-medium">
@@ -209,10 +210,10 @@ export function GrossPayroll() {
         </p>
         <label className="block text-sm font-medium">
           Employee
-          <select
+          <ThemedSelect
             required
             value={employeeId}
-            onChange={(e) => setEmployeeId(e.target.value)}
+            onValueChange={(value) => setEmployeeId(value)}
             className="mt-2 h-12 w-full rounded-2xl bg-muted px-3"
           >
             <option value="">Choose an employee</option>
@@ -221,7 +222,7 @@ export function GrossPayroll() {
                 {e.name} · {e.no}
               </option>
             ))}
-          </select>
+          </ThemedSelect>
         </label>
         <div className="grid grid-cols-2 gap-3">
           <label className="text-sm font-medium">

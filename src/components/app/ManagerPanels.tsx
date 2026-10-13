@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { CalendarClock, Clock3, MapPin, NotebookPen, Plus, Trash2 } from "lucide-react";
+import { CalendarClock, Clock3, NotebookPen, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RecordForm } from "@/components/app/RecordForm";
 import { useAttendance } from "@/lib/app-store";
@@ -252,121 +252,6 @@ export function ManagerAttendance() {
             <p className="project-empty">No timesheets awaiting review.</p>
           )}
         </div>
-      </section>
-    </div>
-  );
-}
-
-export function ManagerSiteMap() {
-  const d = useAttendance();
-  const [siteId, setSiteId] = useState("");
-  const site = d.sites.find((item) => item.id === siteId) || d.sites[0];
-  const checked = d.sitePresence.filter(
-    (presence) =>
-      presence.siteId === site?.id &&
-      d.states.some(
-        (state) =>
-          state.shiftId === presence.shiftId &&
-          (state.state === "working" || state.state === "on_job"),
-      ),
-  );
-  const siteShifts = d.shifts.filter(
-    (shift) => shift.siteId === site?.id && shift.date === d.today,
-  );
-  const bbox =
-    site?.latitude != null && site.longitude != null
-      ? `${site.longitude - 0.01},${site.latitude - 0.007},${site.longitude + 0.01},${site.latitude + 0.007}`
-      : null;
-  return (
-    <div className="project-map-layout">
-      <section className="project-panel">
-        <div className="project-panel-head">
-          <div>
-            <p className="project-panel-kicker">
-              <MapPin size={16} /> WORKSITE MAP
-            </p>
-            <h2>Team locations</h2>
-            <p className="project-panel-sub">
-              Confirmed worksite checks during active shifts. No off-duty tracking.
-            </p>
-          </div>
-          <select
-            aria-label="Choose worksite"
-            value={site?.id || ""}
-            onChange={(e) => setSiteId(e.target.value)}
-          >
-            {d.sites.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        {bbox && site ? (
-          <iframe
-            className="project-map-frame"
-            title={`Map of ${site.name}`}
-            loading="lazy"
-            referrerPolicy="no-referrer"
-            src={`https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(bbox)}&layer=mapnik&marker=${encodeURIComponent(`${site.latitude},${site.longitude}`)}`}
-          />
-        ) : (
-          <div className="project-map-empty">
-            <MapPin size={28} />
-            <p>Set the worksite coordinates in Policies to show it on the map.</p>
-          </div>
-        )}
-        <p className="project-map-caption">
-          Map shows the worksite marker. Individual GPS coordinates are never shown or retained.
-        </p>
-      </section>
-      <section className="project-panel project-map-roster">
-        <h2>{site?.name || "Worksite"}</h2>
-        <p className="project-panel-sub">
-          {checked.filter((item) => item.inside).length} recently confirmed on site
-        </p>
-        {siteShifts.map((shift) => {
-          const employee = d.employees.find((item) => item.id === shift.employeeId);
-          const presence = checked.find((item) => item.employeeId === shift.employeeId);
-          const state = d.states.find((item) => item.shiftId === shift.id)?.state;
-          return (
-            <article key={shift.id}>
-              <span className="project-presence-avatar">
-                {employee?.name
-                  .split(" ")
-                  .map((part) => part[0])
-                  .join("")}
-              </span>
-              <div>
-                <b>{employee?.name || "Worker"}</b>
-                <p>
-                  {presence
-                    ? presence.inside
-                      ? "Confirmed on site"
-                      : "Outside worksite"
-                    : state === "working"
-                      ? "No recent location check"
-                      : state
-                        ? STATE_LABEL[state]
-                        : "Not clocked in"}
-                </p>
-                {presence && (
-                  <small>
-                    Checked{" "}
-                    {new Date(presence.checkedAt).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </small>
-                )}
-              </div>
-              <span
-                className={`project-presence-dot ${presence?.inside ? "inside" : presence ? "outside" : "unknown"}`}
-              />
-            </article>
-          );
-        })}
-        {!siteShifts.length && <p className="project-empty">No workers scheduled here today.</p>}
       </section>
     </div>
   );

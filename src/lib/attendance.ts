@@ -1,4 +1,4 @@
-// Pure attendance rules. In a live build these run on the server; the demo runs them locally.
+// Pure attendance display rules. PostgreSQL validates and records all attendance writes.
 // All durations are integer minutes; timestamps are epoch milliseconds.
 
 import type { AttendanceState, AttendanceEvent, EventType } from "../../shared/attendance";
@@ -20,7 +20,7 @@ export const STATE_LABEL: Record<AttendanceState, string> = {
 
 const TRANSITIONS: Record<EventType, { from: AttendanceState[]; to: AttendanceState }> = {
   clock_in: { from: ["not_clocked_in"], to: "working" },
-  start_lunch: { from: ["working"], to: "on_lunch" },
+  start_lunch: { from: ["working", "on_job"], to: "on_lunch" },
   end_lunch: { from: ["on_lunch"], to: "working" },
   start_job: { from: ["working"], to: "on_job" },
   end_job: { from: ["on_job"], to: "working" },
@@ -35,7 +35,13 @@ export function canTransition(state: AttendanceState, type: EventType) {
 
 export function deriveState(events: AttendanceEvent[]): AttendanceState {
   let s: AttendanceState = "not_clocked_in";
-  for (const e of sorted(events)) if (canTransition(s, e.type)) s = TRANSITIONS[e.type].to;
+  let jobOpen = false;
+  for (const e of sorted(events)) {
+    if (!canTransition(s, e.type)) continue;
+    if (e.type === "start_job") jobOpen = true;
+    if (e.type === "end_job" || e.type === "clock_out") jobOpen = false;
+    s = e.type === "end_lunch" && jobOpen ? "on_job" : TRANSITIONS[e.type].to;
+  }
   return s;
 }
 

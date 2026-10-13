@@ -1,7 +1,13 @@
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { backendMode, resendConfirmation, signIn } from "@/lib/backend";
+import {
+  backendMode,
+  resendConfirmation,
+  resetPassword,
+  updatePassword,
+  signIn,
+} from "@/lib/backend";
 export function AccountScreen({
   signed,
   error,
@@ -24,6 +30,7 @@ export function AccountScreen({
   const [confirmEmail, setConfirmEmail] = useState("");
   const [resendNote, setResendNote] = useState("");
   const [resending, setResending] = useState(false);
+  const [email, setEmail] = useState("");
   const resend = async () => {
     setResending(true);
     setResendNote("");
@@ -58,7 +65,7 @@ export function AccountScreen({
         else setConfirmEmail(get("email"));
       } else
         await command(
-          manager ? "setup" : "activate",
+          manager ? "setup" : "join_workplace",
           manager
             ? {
                 company: get("company"),
@@ -67,7 +74,7 @@ export function AccountScreen({
                 address: get("address"),
                 timezone: get("timezone"),
               }
-            : { employeeNo: get("employeeNo"), code: get("code") },
+            : { code: get("code") },
         );
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Could not continue");
@@ -80,10 +87,11 @@ export function AccountScreen({
       {label}
       <Input
         name={name}
+        onChange={name === "email" ? (event) => setEmail(event.target.value) : undefined}
         type={type}
         required
         defaultValue={value}
-        minLength={name === "password" ? 12 : 1}
+        minLength={name === "password" ? (create ? 12 : 1) : 1}
         maxLength={name === "password" ? 128 : 200}
         autoComplete={
           name === "password"
@@ -117,12 +125,16 @@ export function AccountScreen({
           </span>
           <h1 className="mt-5 text-2xl font-bold">Confirm your email</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            We sent a confirmation link to <strong className="text-foreground">{confirmEmail}</strong>.
+            We sent a confirmation link to{" "}
+            <strong className="text-foreground">{confirmEmail}</strong>.
           </p>
           <ol className="mt-5 list-decimal space-y-2 pl-5 text-sm">
             <li>Open the email from Shiftline (check spam or promotions too).</li>
             <li>Tap the confirmation link.</li>
-            <li>Come back here and sign in, then enter your employee number and activation code.</li>
+            <li>
+              Come back here and sign in, then set up your company or enter your workplace access
+              code.
+            </li>
           </ol>
           {resendNote && (
             <p role="status" className="mt-4 rounded-2xl bg-tint-cream p-3 text-sm">
@@ -162,7 +174,7 @@ export function AccountScreen({
           {signed
             ? manager
               ? "Set up your company"
-              : "Activate your account"
+              : "Join your workplace"
             : create
               ? "Create your account"
               : "Welcome back"}
@@ -171,20 +183,18 @@ export function AccountScreen({
           {signed
             ? manager
               ? "Create your first site, then add employees and their shifts."
-              : "Enter the employee number and one-time code from your manager."
+              : "Enter the access code from your manager."
             : "Your shift, jobs and hours in one place."}
         </p>
-        {backendMode === "local" && (
-          <p className="mt-4 rounded-2xl bg-tint-cream p-3 text-xs">
-            Local development · records saved on this computer. Cloud and location services are not
-            connected.
-          </p>
-        )}
         <form onSubmit={submit} className="mt-5 space-y-4">
           {!signed ? (
             <>
               {field("email", "Email", "email")}
-              {field("password", "Password (at least 12 characters)", "password")}
+              {field(
+                "password",
+                create ? "Password (at least 12 characters)" : "Password",
+                "password",
+              )}
             </>
           ) : manager ? (
             <>
@@ -195,10 +205,7 @@ export function AccountScreen({
               {field("timezone", "Company timezone", "text", "Africa/Windhoek")}
             </>
           ) : (
-            <>
-              {field("employeeNo", "Employee number")}
-              {field("code", "Activation code")}
-            </>
+            <>{field("code", "Access code")}</>
           )}
           {(message || error) && (
             <p role="alert" className="rounded-2xl bg-tint-pink p-3 text-sm">
@@ -211,12 +218,32 @@ export function AccountScreen({
               : signed
                 ? manager
                   ? "Create company"
-                  : "Activate account"
+                  : "Join workplace"
                 : create
                   ? "Create account"
                   : "Sign in"}
           </Button>
         </form>
+        {!signed && !create && (
+          <Button
+            variant="ghost"
+            className="mt-3 w-full"
+            disabled={pending || !email.trim()}
+            onClick={async () => {
+              setPending(true);
+              try {
+                await resetPassword(email.trim());
+                setMessage("Check your email for a password reset link.");
+              } catch (error) {
+                setMessage(error instanceof Error ? error.message : "Could not request a reset");
+              } finally {
+                setPending(false);
+              }
+            }}
+          >
+            Forgot password?
+          </Button>
+        )}
         <Button
           variant="ghost"
           className="mt-3 w-full"
@@ -228,7 +255,7 @@ export function AccountScreen({
         >
           {signed
             ? manager
-              ? "I have an employee activation code"
+              ? "I have a workplace access code"
               : "I am setting up a company"
             : create
               ? "Already have an account? Sign in"
@@ -240,6 +267,61 @@ export function AccountScreen({
           </Button>
         )}
       </section>
+    </div>
+  );
+}
+
+export function PasswordRecovery({ onComplete }: { onComplete: () => void }) {
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="mx-auto flex min-h-screen max-w-[440px] items-center px-5 py-8">
+      <form
+        className="card-surface w-full space-y-4 p-6"
+        onSubmit={async (event) => {
+          event.preventDefault();
+          setBusy(true);
+          setError("");
+          try {
+            await updatePassword(password);
+            onComplete();
+          } catch (error) {
+            setError(error instanceof Error ? error.message : "Could not change your password");
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        <h1 className="text-2xl font-bold">Choose a new password</h1>
+        <label className="block">
+          New password
+          <Input
+            type="password"
+            autoComplete="new-password"
+            minLength={12}
+            maxLength={128}
+            required
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+          />
+        </label>
+        <label className="block">
+          Confirm password
+          <Input
+            type="password"
+            autoComplete="new-password"
+            required
+            value={confirm}
+            onChange={(event) => setConfirm(event.target.value)}
+          />
+        </label>
+        {error && <p role="alert">{error}</p>}
+        <Button disabled={busy || password.length < 12 || password !== confirm}>
+          {busy ? "Saving…" : "Save password"}
+        </Button>
+      </form>
     </div>
   );
 }

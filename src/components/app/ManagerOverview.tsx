@@ -22,7 +22,7 @@ export function ManagerOverview({
     .slice(0, 7);
   return (
     <div className="manager-overview">
-      <div className="demo-metrics">
+      <div className="overview-metrics">
         {[
           ["Team members", employees.length, "Team"],
           ["Active tasks", jobs.filter((job) => job.status === "in_progress").length, "Tasks"],
@@ -40,12 +40,12 @@ export function ManagerOverview({
           </button>
         ))}
       </div>
-      <div className="demo-two">
+      <div className="overview-two">
         <section className="project-panel">
           <h2>Work across the week</h2>
           <p className="project-panel-sub">Current assignments and past delivery</p>
           {days.map((date) => (
-            <div className="demo-history" key={date}>
+            <div className="overview-history" key={date}>
               <b>{date === today ? "Today" : date}</b>
               <div>
                 {jobs.filter((job) => job.date === date).length} jobs ·{" "}
@@ -68,7 +68,7 @@ export function ManagerOverview({
             .sort((a, b) => a.date.localeCompare(b.date))
             .slice(0, 5)
             .map((job) => (
-              <button className="demo-list-row" key={job.id} onClick={() => onSelect("Tasks")}>
+              <button className="overview-list-row" key={job.id} onClick={() => onSelect("Tasks")}>
                 <b>{job.title}</b>
                 <span>
                   {job.date} · {job.destination}
@@ -80,7 +80,7 @@ export function ManagerOverview({
             .sort((a, b) => b.capturedAt - a.capturedAt)
             .slice(0, 5)
             .map((event) => (
-              <div className="demo-list-row" key={event.id}>
+              <div className="overview-list-row" key={event.id}>
                 <b>{employees.find((person) => person.id === event.employeeId)?.name}</b>
                 <span>
                   {event.type.replaceAll("_", " ")} · {new Date(event.capturedAt).toLocaleString()}
@@ -91,7 +91,7 @@ export function ManagerOverview({
       </div>
       <section className="project-panel">
         <h2>Completed work archive</h2>
-        <div className="demo-project-grid">
+        <div className="overview-project-grid">
           {completed.map((job) => (
             <article key={job.id}>
               <span className="manager-task-tag purple">Completed</span>

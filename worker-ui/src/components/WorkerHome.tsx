@@ -1,3 +1,5 @@
+import { activeJobForShift } from "../../../shared/active-job";
+import { NoticeCard } from "./NoticeDetails";
 import { useEffect, useState } from "react";
 import {
   ArrowUpRight,
@@ -20,6 +22,7 @@ export function WorkerHome({
   onJobs,
   onMonitoring,
   monitoring,
+  onAcknowledge,
 }: {
   data: AttendanceSnapshot;
   state: AttendanceState;
@@ -29,6 +32,7 @@ export function WorkerHome({
   onJobs: () => void;
   onMonitoring: () => void;
   monitoring: boolean;
+  onAcknowledge: (id: string) => Promise<boolean>;
 }) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -74,6 +78,7 @@ export function WorkerHome({
       (job) => job.assignee === data.me && job.status !== "completed" && job.date >= data.today,
     )
     .sort((a, b) => `${a.date}${a.start}`.localeCompare(`${b.date}${b.start}`))[0];
+  const activeJob = activeJobForShift(data.events, data.jobs, shift?.id);
   const site = data.sites.find((item) => item.id === shift?.siteId);
   const notice = data.notices.filter(
     (item) => item.startsOn <= data.today && item.endsOn >= data.today,
@@ -120,7 +125,7 @@ export function WorkerHome({
           </span>
         </span>
         <button
-          disabled={busy || (state !== "working" && state !== "on_lunch")}
+          disabled={busy || (state !== "working" && state !== "on_job" && state !== "on_lunch")}
           onClick={() => onAction(state === "on_lunch" ? "end_lunch" : "start_lunch")}
         >
           {state === "on_lunch" ? "End Lunch" : hasLunch ? "Start again" : "Start"}
@@ -144,7 +149,7 @@ export function WorkerHome({
                         ? "Return from job"
                         : "Return to work"
                 }
-                disabled={busy || !shift}
+                disabled={busy}
                 onClick={() => onAction(action)}
               >
                 <span>{busy ? "Saving…" : stateTitle}</span>
@@ -166,7 +171,7 @@ export function WorkerHome({
         <span className={`worker-status-dot ${state !== "not_clocked_in" ? "active" : ""}`} />
         {shift
           ? `${state === "not_clocked_in" ? "Your shift" : "Today’s shift"} · ${shift.start}–${shift.end}`
-          : "No shift scheduled today"}
+          : "Ready to work? Check in to start your day."}
       </div>
       {(state === "working" || state === "on_job") && (
         <div className="worker-active-actions">
@@ -187,14 +192,26 @@ export function WorkerHome({
           </span>
           <span>
             <small>CURRENT WORKSITE</small>
-            <b>{site?.name ?? "No worksite assigned"}</b>
-            <p>{shift ? `Shift ends at ${shift.end}` : "Your next shift will appear here"}</p>
+            <b>
+              {activeJob
+                ? activeJob.destination
+                : (site?.name ??
+                  data.sites.find(
+                    (item) =>
+                      item.id ===
+                      data.employees.find((employee) => employee.id === data.me)?.siteId,
+                  )?.name ??
+                  "No worksite assigned")}
+            </b>
+            <p>
+              {shift ? `Shift ends at ${shift.end}` : "Your attendance starts when you check in"}
+            </p>
           </span>
         </div>
-        {site?.latitude != null && (
+        {(activeJob ? activeJob.latitude != null : site?.latitude != null) && (
           <button onClick={onMonitoring}>
             <ShieldCheck size={14} />
-            {monitoring ? "Worksite checks on" : "Enable worksite checks"}
+            {monitoring ? "Location sharing on" : "Enable location sharing"}
           </button>
         )}
       </WorkerCard>
@@ -223,11 +240,7 @@ export function WorkerHome({
         </WorkerCard>
       )}
       {notice && (
-        <WorkerCard>
-          <p className="worker-eyebrow">COMPANY UPDATE</p>
-          <h3 className="mt-2 text-sm font-semibold">{notice.title}</h3>
-          <p className="mt-2 text-xs leading-relaxed text-sub">{notice.body}</p>
-        </WorkerCard>
+        <NoticeCard notice={notice} busy={busy} onAcknowledge={() => onAcknowledge(notice.id)} />
       )}
     </>
   );

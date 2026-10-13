@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { createLocalDatabase, runRpc } from "./local-api.mjs";
+import { createLocalDatabase, runRpc } from "./test-database.mjs";
 test("versioned policies, native evidence, two-level corrections and exact locked seconds", async () => {
   const db = await createLocalDatabase();
   const manager = randomUUID(),

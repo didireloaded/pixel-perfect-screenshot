@@ -1,7 +1,7 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { createLocalDatabase, runRpc } from "./local-api.mjs";
+import { createLocalDatabase, runRpc } from "./test-database.mjs";
 let db;
 const manager = randomUUID(),
   employee = randomUUID(),

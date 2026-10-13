@@ -17,10 +17,8 @@ export function ManagerFrame({
   onSelect,
   company = "Project Inc.",
   managerName = "Manager",
-  preview = false,
   onRefresh,
   onSignOut,
-  onConnect,
   insights,
   children,
 }: {
@@ -28,10 +26,8 @@ export function ManagerFrame({
   onSelect: (section: ManagerSection) => void;
   company?: string;
   managerName?: string;
-  preview?: boolean;
   onRefresh?: () => void;
   onSignOut?: () => void;
-  onConnect?: () => void;
   insights?: ReactNode;
   children: ReactNode;
 }) {
@@ -109,12 +105,12 @@ export function ManagerFrame({
           </div>
           <button
             className="project-sidebar-logout"
-            title={preview ? "Connect account" : "Sign out"}
-            aria-label={preview ? "Connect account" : "Sign out"}
-            onClick={preview ? onConnect : onSignOut}
+            title={"Sign out"}
+            aria-label={"Sign out"}
+            onClick={onSignOut}
           >
             <LogOut size={20} />
-            <span>{preview ? "Connect account" : "Sign out"}</span>
+            <span>{"Sign out"}</span>
           </button>
         </aside>
         <main className="project-main">
@@ -154,17 +150,14 @@ export function ManagerFrame({
               )}
             </div>
             <div className="project-top-actions">
-              {preview && <span className="project-preview-tag">Interactive demo</span>}
-              {!preview && (
-                <button
-                  className="project-icon-button"
-                  title="Refresh records"
-                  aria-label="Refresh records"
-                  onClick={onRefresh}
-                >
-                  <RefreshCw size={18} />
-                </button>
-              )}
+              <button
+                className="project-icon-button"
+                title="Refresh records"
+                aria-label="Refresh records"
+                onClick={onRefresh}
+              >
+                <RefreshCw size={18} />
+              </button>
               <button
                 className="project-icon-button"
                 aria-label="Open requests and approvals"
@@ -201,15 +194,13 @@ export function ManagerFrame({
                     <b>{company}</b>
                     <button
                       onClick={() => {
-                        select("Policies");
+                        select("Settings");
                         setAccountOpen(false);
                       }}
                     >
                       Company settings
                     </button>
-                    <button onClick={preview ? onConnect : onSignOut}>
-                      {preview ? "Connect live account" : "Sign out"}
-                    </button>
+                    <button onClick={onSignOut}>{"Sign out"}</button>
                   </div>
                 )}
               </div>
@@ -227,7 +218,15 @@ export function ManagerFrame({
                   <p>
                     {active === "Overview" || active === "Views"
                       ? "Here’s what’s happening with your team today."
-                      : `Your ${active.toLowerCase()}, all in one place.`}
+                      : active === "Map"
+                        ? "Current work locations during active shifts."
+                        : active === "Employees"
+                          ? "Find people by department and work role."
+                          : active === "Project management"
+                            ? "Job briefs, progress and assigned teams."
+                            : active === "Settings"
+                              ? "Workplace settings and attendance rules."
+                              : `Your ${active.toLowerCase()}, all in one place.`}
                   </p>
                 </div>
               )}

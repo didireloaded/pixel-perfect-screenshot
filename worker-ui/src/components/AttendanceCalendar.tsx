@@ -27,7 +27,8 @@ export function AttendanceCalendar({
 }) {
   const [selected, setSelected] = useState(data.today);
   const [fullMonth, setFullMonth] = useState(false);
-  const [detail, setDetail] = useState<Shift | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const detail = data.shifts.find((shift) => shift.id === detailId && shift.employeeId === data.me);
   const date = parseDate(selected);
   const month = selected.slice(0, 7);
   const weekStart = offset(selected, -date.getUTCDay());
@@ -117,7 +118,11 @@ export function AttendanceCalendar({
               onClick={() => setSelected(day)}
             >
               <span>{parseDate(day).getUTCDate().toString().padStart(2, "0")}</span>
-              {attended.has(day) && <i aria-label="Attendance recorded" />}
+              {attended.has(day) ? (
+                <i aria-label="Attendance recorded" />
+              ) : shifts.some((shift) => shift.date === day) ? (
+                <i aria-label="Shift scheduled" />
+              ) : null}
             </button>
           ))}
         </div>
@@ -183,22 +188,28 @@ export function AttendanceCalendar({
               key={shift.id}
               onClick={() => {
                 setSelected(shift.date);
-                setDetail(shift);
+                setDetailId(shift.id);
               }}
               className={`worker-attendance-row ${shift.date === selected ? "selected" : ""}`}
             >
               <span className="worker-day-number">{shift.date.slice(-2)}</span>
-              <span className="worker-attendance-cells">
-                {[
-                  ["Check In", formatTime(start?.capturedAt, data.company.timezone)],
-                  ["Check Out", formatTime(end?.capturedAt, data.company.timezone)],
-                  ["Total Hours", formatHours(shift.totals.workedMinutes)],
-                ].map(([label, value]) => (
-                  <span key={label}>
-                    <small>{label}</small>
-                    <b>{value}</b>
-                  </span>
-                ))}
+              <span>
+                <span className="worker-muted-copy">
+                  Scheduled {shift.start}–{shift.end} ·{" "}
+                  {data.sites.find((site) => site.id === shift.siteId)?.name ?? "No worksite"}
+                </span>
+                <span className="worker-attendance-cells">
+                  {[
+                    ["Check In", formatTime(start?.capturedAt, data.company.timezone)],
+                    ["Check Out", formatTime(end?.capturedAt, data.company.timezone)],
+                    ["Total Hours", formatHours(shift.totals.workedMinutes)],
+                  ].map(([label, value]) => (
+                    <span key={label}>
+                      <small>{label}</small>
+                      <b>{value}</b>
+                    </span>
+                  ))}
+                </span>
               </span>
             </button>
           );
@@ -219,7 +230,7 @@ export function AttendanceCalendar({
             month: "long",
             timeZone: "UTC",
           })}
-          onClose={() => setDetail(null)}
+          onClose={() => setDetailId(null)}
         >
           <div className="worker-detail-meta">
             <p>
@@ -269,7 +280,7 @@ export function AttendanceCalendar({
             className="worker-action secondary mt-5"
             onClick={() => {
               onCorrection(detail);
-              setDetail(null);
+              setDetailId(null);
             }}
           >
             Request a correction

@@ -1318,7 +1318,7 @@
   }
 }
 /* Operational manager screens */
-.demo-banner {
+.overview-banner {
   display: flex;
   justify-content: space-between;
   gap: 16px;
@@ -1331,17 +1331,17 @@
   color: #53418d;
   font-size: 12px;
 }
-.demo-banner button {
+.overview-banner button {
   font-weight: 700;
 }
-.demo-metrics {
+.overview-metrics {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 14px;
   margin-bottom: 22px;
 }
-.demo-metrics > button,
-.demo-metrics > article {
+.overview-metrics > button,
+.overview-metrics > article {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -1351,18 +1351,18 @@
   border-radius: 16px;
   text-align: left;
 }
-.demo-metrics span {
+.overview-metrics span {
   color: #817a92;
   font-size: 13px;
 }
-.demo-metrics b {
+.overview-metrics b {
   font-size: 32px;
   color: #6941d9;
 }
-.demo-metrics small {
+.overview-metrics small {
   color: #817a92;
 }
-.demo-two {
+.overview-two {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px;
@@ -1371,13 +1371,13 @@
   display: grid;
   gap: 20px;
 }
-.demo-history {
+.overview-history {
   display: flex;
   gap: 20px;
   padding: 16px 0;
   border-bottom: 1px solid #eeeaf4;
 }
-.demo-history > div {
+.overview-history > div {
   flex: 1;
   font-size: 13px;
 }
@@ -1388,7 +1388,7 @@ progress {
   margin: 12px 0;
   accent-color: #7652df;
 }
-.demo-list-row {
+.overview-list-row {
   display: flex;
   flex-direction: column;
   gap: 7px;
@@ -1397,39 +1397,39 @@ progress {
   width: 100%;
   text-align: left;
 }
-.demo-list-row span,
-.demo-list-row small {
+.overview-list-row span,
+.overview-list-row small {
   font-size: 12px;
   color: #817a92;
 }
-.demo-list-row.selected {
+.overview-list-row.selected {
   color: #6840d8;
 }
-.demo-project-grid {
+.overview-project-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   gap: 18px;
 }
-.demo-project-grid article {
+.overview-project-grid article {
   padding: 18px;
   border: 1px solid #e9e3f2;
   border-radius: 14px;
 }
-.demo-project-grid h2,
-.demo-project-grid h3 {
+.overview-project-grid h2,
+.overview-project-grid h3 {
   margin: 14px 0 8px;
 }
-.demo-project-grid p {
+.overview-project-grid p {
   font-size: 13px;
   line-height: 1.7;
   margin-bottom: 12px;
 }
-.demo-form {
+.overview-form {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
-.demo-form label,
+.overview-form label,
 .manager-status-control {
   display: flex;
   flex-direction: column;
@@ -1437,11 +1437,11 @@ progress {
   font-size: 13px;
   font-weight: 600;
 }
-.demo-form input,
-.demo-form textarea,
-.demo-form select,
+.overview-form input,
+.overview-form textarea,
+.overview-form select,
 .manager-status-control select,
-.demo-project-grid select,
+.overview-project-grid select,
 .project-panel > input {
   padding: 11px 13px;
   border: 1px solid #ded7ea;
@@ -1450,43 +1450,43 @@ progress {
   width: 100%;
   color: #342749;
 }
-.demo-form textarea {
+.overview-form textarea {
   min-height: 120px;
   resize: vertical;
 }
-.demo-form .demo-checkbox {
+.overview-form .overview-checkbox {
   flex-direction: row;
   align-items: center;
   font-weight: 400;
 }
-.demo-checkbox input {
+.overview-checkbox input {
   width: auto;
 }
-.demo-form fieldset {
+.overview-form fieldset {
   display: grid;
   gap: 10px;
 }
-.demo-note-grid {
+.overview-note-grid {
   display: grid;
   gap: 16px;
   align-content: start;
 }
-.demo-note {
+.overview-note {
   padding: 24px;
   background: #fff4d7;
   border-radius: 12px;
   box-shadow: 0 4px 14px #32204409;
 }
-.demo-note p {
+.overview-note p {
   white-space: pre-wrap;
   line-height: 1.8;
   margin: 16px 0;
 }
-.demo-note button {
+.overview-note button {
   font-size: 12px;
   color: #925947;
 }
-.demo-table-wrap {
+.overview-table-wrap {
   overflow-x: auto;
 }
 table {
@@ -1505,12 +1505,12 @@ th {
   text-transform: uppercase;
   color: #817a92;
 }
-.demo-chat {
+.overview-chat {
   display: grid;
   grid-template-columns: 240px 1fr;
   gap: 20px;
 }
-.demo-chat-history {
+.overview-chat-history {
   min-height: 300px;
   max-height: 450px;
   overflow: auto;
@@ -1519,7 +1519,7 @@ th {
   flex-direction: column;
   gap: 14px;
 }
-.demo-chat-history article {
+.overview-chat-history article {
   align-self: flex-start;
   max-width: 85%;
   padding: 15px;
@@ -1527,15 +1527,15 @@ th {
   border-radius: 14px;
   font-size: 13px;
 }
-.demo-chat-history article.outgoing {
+.overview-chat-history article.outgoing {
   align-self: flex-end;
   background: #7049dd;
   color: white;
 }
-.demo-chat-history p {
+.overview-chat-history p {
   margin: 8px 0;
 }
-.demo-chat-history small {
+.overview-chat-history small {
   opacity: 0.7;
 }
 .manager-week-grid.month-view > section {
@@ -1569,19 +1569,19 @@ th {
   cursor: grabbing;
 }
 @media (max-width: 900px) {
-  .demo-two,
-  .demo-chat {
+  .overview-two,
+  .overview-chat {
     grid-template-columns: 1fr;
   }
-  .demo-chat aside {
+  .overview-chat aside {
     display: flex;
     gap: 12px;
     overflow: auto;
   }
-  .demo-chat aside h2 {
+  .overview-chat aside h2 {
     display: none;
   }
-  .demo-chat aside button {
+  .overview-chat aside button {
     min-width: 160px;
   }
   .manager-week-grid.month-view {
@@ -1590,7 +1590,7 @@ th {
   .manager-calendar {
     overflow-x: auto;
   }
-  .demo-banner {
+  .overview-banner {
     flex-wrap: wrap;
   }
 }
@@ -1619,12 +1619,12 @@ th {
 .manager-detail-steps input[type="checkbox"] {
   accent-color: var(--sl-accent);
 }
-.demo-report-dates {
+.overview-report-dates {
   display: flex;
   align-items: center;
   gap: 10px;
 }
-.demo-report-dates button {
+.overview-report-dates button {
   padding: 8px;
   border: 1px solid var(--sl-line);
   border-radius: 8px;
@@ -1647,6 +1647,6 @@ progress::-moz-progress-bar {
   margin-top: 24px;
   margin-bottom: 8px;
 }
-.demo-project-grid small {
+.overview-project-grid small {
   color: var(--sl-secondary);
 }

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { createLocalDatabase, runRpc } from "./local-api.mjs";
+import { createLocalDatabase, runRpc } from "./test-database.mjs";
 
 async function fixture() {
   const db = await createLocalDatabase();

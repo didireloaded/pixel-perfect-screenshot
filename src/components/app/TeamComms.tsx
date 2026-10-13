@@ -1,3 +1,4 @@
+import { ThemedSelect } from "../../../shared/ThemedSelect";
 import { useState, type FormEvent } from "react";
 import { CheckCircle2, Mail, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -53,11 +54,13 @@ export function ManagerMessages() {
               <button
                 key={root.id}
                 type="button"
-                onClick={() => {
+                onClick={async () => {
                   setSelected(root.id);
-                  messages
-                    .filter((m) => m.recipientId === d.me && !m.readAt)
-                    .forEach((m) => void d.command("read_message", { id: m.id }));
+                  for (const message of messages.filter(
+                    (m) => m.recipientId === d.me && !m.readAt,
+                  )) {
+                    if (!(await d.command("read_message", { id: message.id }))) break;
+                  }
                 }}
                 className={`w-full rounded-2xl p-3 text-left ${active?.root.id === root.id ? "bg-tint-blue" : "bg-muted"}`}
               >
@@ -124,10 +127,10 @@ export function ManagerMessages() {
         <h2 className="font-bold">New message</h2>
         <label className="block text-sm">
           Worker
-          <select
+          <ThemedSelect
             required
             value={recipientId}
-            onChange={(e) => setRecipientId(e.target.value)}
+            onValueChange={(value) => setRecipientId(value)}
             className="mt-1 h-11 w-full rounded-xl bg-muted px-2"
           >
             <option value="">Choose worker</option>
@@ -138,7 +141,7 @@ export function ManagerMessages() {
                   {e.name}
                 </option>
               ))}
-          </select>
+          </ThemedSelect>
         </label>
         <Input name="title" required maxLength={120} placeholder="Subject" />
         <Textarea name="body" required maxLength={2000} placeholder="Message" />
@@ -180,9 +183,9 @@ export function ManagerJobTools() {
       </div>
       <label className="mt-5 block text-sm font-medium">
         Job
-        <select
+        <ThemedSelect
           value={jobId}
-          onChange={(e) => setJobId(e.target.value)}
+          onValueChange={(value) => setJobId(value)}
           className="mt-2 h-12 w-full rounded-2xl bg-muted px-3"
         >
           <option value="">Choose a job</option>
@@ -191,7 +194,7 @@ export function ManagerJobTools() {
               {item.title} · {item.date} · {d.employees.find((e) => e.id === item.assignee)?.name}
             </option>
           ))}
-        </select>
+        </ThemedSelect>
       </label>
       {job && (
         <div className="mt-5 grid gap-5 lg:grid-cols-2">
@@ -252,9 +255,9 @@ export function ManagerJobTools() {
               ))}
             </div>
             <div className="mt-4 flex gap-2">
-              <select
+              <ThemedSelect
                 value={memberId}
-                onChange={(e) => setMemberId(e.target.value)}
+                onValueChange={(value) => setMemberId(value)}
                 className="h-11 min-w-0 flex-1 rounded-xl bg-white px-2 text-sm"
               >
                 <option value="">Choose teammate</option>
@@ -267,7 +270,7 @@ export function ManagerJobTools() {
                       {e.name}
                     </option>
                   ))}
-              </select>
+              </ThemedSelect>
               <Button disabled={!memberId || d.busy || !d.online} onClick={() => void addMember()}>
                 Add
               </Button>

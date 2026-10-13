@@ -1,7 +1,7 @@
-import { useState, type ReactNode } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ThemedSelect } from "../../../shared/ThemedSelect";
+import { useState } from "react";
+import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import type { AttendanceSnapshot } from "../../../shared/attendance";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 const day = (value: string) => new Date(`${value}T12:00:00Z`);
 const add = (value: string, count: number) => {
   const next = day(value);
@@ -10,18 +10,11 @@ const add = (value: string, count: number) => {
 };
 export function ManagerCalendar({
   data,
-  children,
-  onCreate,
-  actionLabel = "Assign shift",
 }: {
   data: Pick<AttendanceSnapshot, "today" | "shifts" | "employees" | "sites" | "jobs" | "notices">;
-  children?: ReactNode;
-  onCreate?: () => void;
-  actionLabel?: string;
 }) {
   const [selected, setSelected] = useState(data.today);
   const [mode, setMode] = useState<"month" | "week">("month");
-  const [create, setCreate] = useState(false);
   const anchor = mode === "month" ? `${selected.slice(0, 7)}-01` : selected;
   const first = add(anchor, -((day(anchor).getUTCDay() + 6) % 7));
   const dates = Array.from({ length: mode === "month" ? 42 : 7 }, (_, index) => add(first, index));
@@ -47,17 +40,17 @@ export function ManagerCalendar({
               timeZone: "UTC",
             })}
           </h2>
-          <p>Shifts, assignments and company events</p>
+          <p>Worker attendance, jobs and company events</p>
         </div>
         <div>
-          <select
+          <ThemedSelect
             aria-label="Calendar view"
             value={mode}
-            onChange={(event) => setMode(event.target.value as "month" | "week")}
+            onValueChange={(value) => setMode(value as "month" | "week")}
           >
             <option value="month">Month</option>
             <option value="week">Week</option>
-          </select>
+          </ThemedSelect>
           <button
             className="project-icon-button"
             aria-label="Previous period"
@@ -70,13 +63,6 @@ export function ManagerCalendar({
           </button>
           <button className="project-icon-button" aria-label="Next period" onClick={() => move(1)}>
             <ChevronRight size={17} />
-          </button>
-          <button
-            className="manager-add-button"
-            onClick={() => (onCreate ? onCreate() : setCreate(true))}
-          >
-            <Plus size={15} />
-            {actionLabel}
           </button>
         </div>
       </div>
@@ -98,7 +84,13 @@ export function ManagerCalendar({
               {data.shifts
                 .filter((shift) => shift.date === date)
                 .map((shift) => (
-                  <button key={shift.id} onClick={() => setSelected(date)}>
+                  <button
+                    key={shift.id}
+                    aria-label={`View ${names(shift.employeeId)} attendance on ${date}`}
+                    onClick={() => {
+                      setSelected(date);
+                    }}
+                  >
                     <b>{names(shift.employeeId)}</b>
                     <small>
                       {shift.start}–{shift.end}
@@ -139,7 +131,7 @@ export function ManagerCalendar({
                 timeZone: "UTC",
               })}
             </h3>
-            <p>{shifts.length} scheduled shifts</p>
+            <p>{shifts.length} attendance records</p>
           </div>
           <CalendarDays size={21} />
         </div>
@@ -158,7 +150,11 @@ export function ManagerCalendar({
               </time>
             </article>
           ))}
-        {!shifts.length && <div className="project-empty">No shifts scheduled for this day.</div>}
+        {!shifts.length && (
+          <div className="project-empty">
+            No attendance records for this day. Workers check in to start their workday.
+          </div>
+        )}
         {shifts.map((shift) => (
           <article key={shift.id}>
             <span className="manager-calendar-initial">
@@ -188,13 +184,6 @@ export function ManagerCalendar({
           </article>
         ))}
       </div>
-      <Dialog open={create} onOpenChange={setCreate}>
-        <DialogContent className="manager-shift-dialog">
-          <DialogTitle>Schedule a shift</DialogTitle>
-          <DialogDescription>Assign an employee, worksite and working hours.</DialogDescription>
-          {children}
-        </DialogContent>
-      </Dialog>
     </section>
   );
 }

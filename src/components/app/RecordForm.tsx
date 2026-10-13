@@ -1,3 +1,4 @@
+import { ThemedSelect } from "../../../shared/ThemedSelect";
 import type { FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,7 +51,7 @@ export function RecordForm({
           <label key={f.name} className="block text-sm font-medium">
             {f.label}
             {f.options ? (
-              <select
+              <ThemedSelect
                 name={f.name}
                 required={!f.optional}
                 defaultValue={f.value}
@@ -61,7 +62,7 @@ export function RecordForm({
                     {o.label}
                   </option>
                 ))}
-              </select>
+              </ThemedSelect>
             ) : (
               <Input
                 name={f.name}

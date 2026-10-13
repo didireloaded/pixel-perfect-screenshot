@@ -13,7 +13,6 @@ import {
 import { useState, type ReactNode } from "react";
 import { Drawer, DrawerContent, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
-import { backendMode } from "@/lib/backend";
 import { useAttendance } from "@/lib/app-store";
 
 const NAV = [
@@ -25,11 +24,10 @@ const NAV = [
 ] as const;
 
 export function ConnectionBanner() {
+  const { online } = useAttendance();
   return (
     <p className="rounded-full bg-tint-cream px-3 py-1 text-center text-[11px] font-medium text-foreground">
-      {backendMode === "local"
-        ? "Local server · records saved on this computer"
-        : "Connected · attendance saved to your company"}
+      {online ? "Company attendance records" : "Offline · reconnect to save changes"}
     </p>
   );
 }

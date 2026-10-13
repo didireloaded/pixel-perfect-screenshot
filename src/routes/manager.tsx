@@ -1,31 +1,33 @@
+import { ManagerMap } from "@/components/app/ManagerMap";
+import { EmployeeDirectory } from "@/components/app/EmployeeDirectory";
+import { ManagerJobBrief, ManagerJobBriefs } from "@/components/app/ManagerJobBrief";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { Users, CalendarClock, Inbox, Clock3 } from "lucide-react";
 import { StatusPill } from "@/components/app/EmployeeShell";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { RecordForm, type Field } from "@/components/app/RecordForm";
+import { RecordForm } from "@/components/app/RecordForm";
 import { useAttendance } from "@/lib/app-store";
 import { STATE_LABEL } from "@/lib/attendance";
 import { CompanySettings, SetupChecklist } from "@/components/app/CompanySettings";
 import { CorrectionReview } from "@/components/app/CorrectionReview";
 import { CompanyNotices, SiteAlerts } from "@/components/app/WorkdayOperations";
+import { WorkerAccessPanel } from "@/components/app/WorkerAccessPanel";
 import { KioskDesk } from "@/components/app/KioskDesk";
 import { ManagerJobTools, ManagerMessages } from "@/components/app/TeamComms";
 import { ManagerJobBoard } from "@/components/app/ManagerJobBoard";
-import {
-  ManagerNotes,
-  ManagerReports,
-  ManagerAttendance,
-  ManagerSiteMap,
-} from "@/components/app/ManagerPanels";
+import { ManagerNotes, ManagerReports, ManagerAttendance } from "@/components/app/ManagerPanels";
 import { ManagerOverview } from "@/components/app/ManagerOverview";
 import { ManagerCalendar } from "@/components/app/ManagerCalendar";
 import { ManagerInsights } from "@/components/app/ManagerInsights";
 import { ManagerFrame } from "@/components/app/ManagerFrame";
 import { managerGroups, type ManagerSection } from "@/components/app/manager-sections";
 
-const TABS = managerGroups.flatMap((group) => group.items.map((item) => item.name));
+const TABS: ManagerSection[] = [
+  ...managerGroups.flatMap((group) => group.items.map((item) => item.name)),
+  "Settings",
+];
 type ManagerTab = ManagerSection;
 export const Route = createFileRoute("/manager")({
   validateSearch: (search: Record<string, unknown>): { tab?: ManagerTab } => {
@@ -40,10 +42,6 @@ function Manager() {
   const tab = Route.useSearch().tab || "Tasks";
   const setTab = (next: ManagerTab) => void navigate({ to: "/manager", search: { tab: next } });
   const [showJobForm, setShowJobForm] = useState(false);
-  const [activation, setActivation] = useState<{
-    activationCode: string;
-    employeeId: string;
-  } | null>(null);
   if (d.role !== "manager")
     return (
       <div className="mx-auto mt-12 max-w-[440px] card-surface p-6">
@@ -61,17 +59,7 @@ function Manager() {
   const submitted = d.timesheets.filter((t) => t.status === "submitted");
   const missing = d.shifts.filter((s) => s.date < d.today && s.totals.missingClockOut);
   const names = (id: string) => d.employees.find((e) => e.id === id)?.name || "Employee";
-  const employeeOptions = staff.map((e) => ({ value: e.id, label: `${e.name} · ${e.no}` }));
-  const siteOptions = d.sites.map((s) => ({ value: s.id, label: s.name }));
-  const shiftOptions = d.shifts
-    .filter((s) => s.employeeId !== d.me)
-    .map((s) => ({ value: s.id, label: `${names(s.employeeId)} · ${s.date}` }));
-  const employeeFields: Field[] = [
-    { name: "name", label: "Full name" },
-    { name: "no", label: "Employee number" },
-    { name: "team", label: "Team", optional: true },
-    { name: "siteId", label: "Work site", options: siteOptions },
-  ];
+
   return (
     <ManagerFrame
       active={tab}
@@ -99,9 +87,14 @@ function Manager() {
       {tab === "Notes" && <ManagerNotes />}
       {tab === "Reports" && <ManagerReports />}
       {tab === "Attendance" && <ManagerAttendance />}
-      {tab === "Map" && <ManagerSiteMap />}
-      {tab === "Project management" && <ManagerJobTools />}
-      {tab === "Policies" && <CompanySettings />}
+      {tab === "Map" && <ManagerMap />}
+      {tab === "Project management" && (
+        <div className="space-y-5">
+          <ManagerJobBriefs onAdd={() => setShowJobForm(true)} />
+          <ManagerJobTools />
+        </div>
+      )}
+      {tab === "Settings" && <CompanySettings />}
       {tab === "Corrections" && <CorrectionReview />}
       {tab === "Announcements" && <CompanyNotices />}
       {tab === "Messages" && <ManagerMessages />}
@@ -204,38 +197,14 @@ function Manager() {
       {tab === "Team" && (
         <div className="grid gap-5 lg:grid-cols-2">
           <div className="space-y-5">
-            <RecordForm
-              title="Add employee"
-              action="create_employee"
-              label="Create activation code"
-              fields={employeeFields}
-              onSaved={(result) => {
-                if (result.activationCode && result.employeeId)
-                  setActivation({
-                    activationCode: result.activationCode,
-                    employeeId: result.employeeId,
-                  });
-              }}
-            />
-            {activation && (
-              <section role="status" className="card-surface bg-tint-cream p-5">
-                <h2 className="font-bold">One-time activation code</h2>
-                <p className="mt-2 text-sm">
-                  {names(activation.employeeId)} · employee no.{" "}
-                  {d.employees.find((e) => e.id === activation.employeeId)?.no}
-                </p>
-                <code className="mt-3 block break-all rounded-xl bg-card p-3 text-sm select-all">
-                  {activation.activationCode}
-                </code>
-                <p className="mt-3 text-xs">
-                  Share this code privately with the employee. It expires in 48 hours and can be
-                  used once.
-                </p>
-                <Button variant="ghost" className="mt-3" onClick={() => setActivation(null)}>
-                  Hide code
-                </Button>
-              </section>
-            )}
+            <section className="card-surface p-5">
+              <h2 className="text-lg font-bold">Employee registration</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Ask workers to open the worker app and register with their name and phone number.
+                The system gives each worker an employee number and private login code. New
+                registrations appear here for approval.
+              </p>
+            </section>
             <RecordForm
               title="Add site"
               action="create_site"
@@ -245,77 +214,10 @@ function Manager() {
               ]}
             />
           </div>
-          <section className="card-surface p-5">
-            <h2 className="text-lg font-bold">Your team</h2>
-            <div className="mt-4 space-y-3">
-              {!staff.length && <p className="text-sm text-muted-foreground">No employees yet.</p>}
-              {staff.map((e) => (
-                <article key={e.id} className="rounded-2xl bg-muted p-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-bold">{e.name}</h3>
-                    <StatusPill tone={e.activated ? "ok" : "warn"}>
-                      {e.activated ? "Activated" : "Invited"}
-                    </StatusPill>
-                  </div>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {e.no} · {e.team || "No team"} · {d.sites.find((s) => s.id === e.siteId)?.name}
-                  </p>
-                  {!e.activated && (
-                    <Button
-                      variant="chip"
-                      className="mt-3"
-                      disabled={d.busy}
-                      onClick={async () => {
-                        const r = await d.command("issue_activation", { employeeId: e.id });
-                        if (r?.activationCode)
-                          setActivation({ activationCode: r.activationCode, employeeId: e.id });
-                      }}
-                    >
-                      Replace activation code
-                    </Button>
-                  )}
-                </article>
-              ))}
-            </div>
-          </section>
+          <WorkerAccessPanel />
         </div>
       )}
-      {tab === "Calendar" && (
-        <ManagerCalendar data={d}>
-          {staff.length ? (
-            <RecordForm
-              title="Assign shift"
-              action="assign_shift"
-              fields={[
-                { name: "employeeId", label: "Employee", options: employeeOptions },
-                { name: "siteId", label: "Site", options: siteOptions },
-                { name: "date", label: "Date", type: "date", value: d.today },
-                { name: "start", label: "Shift starts", type: "time", value: "08:00" },
-                { name: "end", label: "Shift ends", type: "time", value: "17:00" },
-                { name: "lunch", label: "Lunch starts", type: "time", value: "12:00" },
-                {
-                  name: "lunchMinutes",
-                  label: "Unpaid lunch (minutes)",
-                  type: "number",
-                  value: 60,
-                  min: 0,
-                  max: 120,
-                },
-                {
-                  name: "regularMinutes",
-                  label: "Regular work (minutes)",
-                  type: "number",
-                  value: 480,
-                  min: 1,
-                  max: 1440,
-                },
-              ]}
-            />
-          ) : (
-            <p className="card-surface p-5 text-sm">Add an employee before assigning shifts.</p>
-          )}
-        </ManagerCalendar>
-      )}
+      {tab === "Calendar" && <ManagerCalendar data={d} />}
       {tab === "Tasks" && (
         <div className="space-y-5">
           <ManagerJobBoard
@@ -343,29 +245,6 @@ function Manager() {
               !!(await d.command("add_job_comment", { jobId, body }))
             }
           />
-          <Dialog open={showJobForm} onOpenChange={setShowJobForm}>
-            <DialogContent className="max-h-[90dvh] overflow-y-auto">
-              <DialogTitle>Create task</DialogTitle>
-              <DialogDescription>Schedule a job for an assigned worker shift.</DialogDescription>
-              {shiftOptions.length > 0 ? (
-                <RecordForm
-                  title="Assign job"
-                  action="create_job"
-                  onSaved={() => setShowJobForm(false)}
-                  fields={[
-                    { name: "shiftId", label: "Assigned shift", options: shiftOptions },
-                    { name: "title", label: "Job title" },
-                    { name: "destination", label: "Destination" },
-                    { name: "instructions", label: "Instructions", optional: true },
-                    { name: "start", label: "Starts", type: "time", value: "14:00" },
-                    { name: "end", label: "Ends", type: "time", value: "15:00" },
-                  ]}
-                />
-              ) : (
-                <p className="card-surface p-5 text-sm">Assign a shift before creating a job.</p>
-              )}
-            </DialogContent>
-          </Dialog>
           <ManagerJobTools />
         </div>
       )}
@@ -424,27 +303,16 @@ function Manager() {
           ))}
         </div>
       )}
-      {tab === "Audit" && (
-        <section className="card-surface p-5">
-          <h2 className="text-lg font-bold">Audit history</h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Last 100 actions. Attendance events are retained separately.
-          </p>
-          <div className="mt-4 divide-y divide-border">
-            {d.audit.map((a) => (
-              <article key={a.id} className="py-4">
-                <div className="flex flex-wrap justify-between gap-2">
-                  <h3 className="text-sm font-semibold">
-                    {a.actor} · {a.action.replaceAll("_", " ")}
-                  </h3>
-                  <p className="text-xs text-muted-foreground">{new Date(a.at).toLocaleString()}</p>
-                </div>
-                <p className="mt-2 break-all text-xs text-muted-foreground">{a.detail}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-      )}
+      {tab === "Employees" && <EmployeeDirectory />}
+      <Dialog open={showJobForm} onOpenChange={setShowJobForm}>
+        <DialogContent className="max-h-[90dvh] overflow-y-auto">
+          <DialogTitle>Create job</DialogTitle>
+          <DialogDescription>
+            Assign a location, work instructions and lunch plan to a worker’s shift.
+          </DialogDescription>
+          <ManagerJobBrief onSaved={() => setShowJobForm(false)} />
+        </DialogContent>
+      </Dialog>
     </ManagerFrame>
   );
 }

@@ -1,3 +1,4 @@
+import { ThemedSelect } from "../../../shared/ThemedSelect";
 import { useState, type FormEvent } from "react";
 import {
   Bell,
@@ -13,7 +14,7 @@ import {
   Sun,
   User,
 } from "lucide-react";
-import type { AttendanceSnapshot, RequestKind, Shift } from "../../../shared/attendance";
+import type { AttendanceSnapshot, EventType, RequestKind, Shift } from "../../../shared/attendance";
 import { useApp } from "../state";
 import { EmptyState } from "./WorkerUI";
 export type WorkerRun = (
@@ -146,12 +147,33 @@ export function WorkerRequests({
     correction ? `Attendance correction · ${correction.date}` : "",
   );
   const [detail, setDetail] = useState("");
+  const correctionMode = kind === "correction" || kind === "missing_clocking";
+  const shifts = data.shifts.filter((shift) => shift.employeeId === data.me);
+  const [shiftId, setShiftId] = useState(correction?.id ?? shifts[0]?.id ?? "");
+  const [eventId, setEventId] = useState("");
+  const [eventType, setEventType] = useState<EventType>("clock_in");
+  const [replacementAt, setReplacementAt] = useState("");
+  const [validationError, setValidationError] = useState("");
+  const corrections = data.corrections.filter((item) => item.employee_id === data.me);
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    setValidationError("");
+    if (correctionMode && (!shiftId || !Number.isFinite(Date.parse(replacementAt)))) {
+      setValidationError("Choose the assigned shift and the correct time.");
+      return;
+    }
     if (
       await run(
-        "create_request",
-        { kind, summary: summary.trim(), detail: detail.trim() },
+        correctionMode ? "request_correction" : "create_request",
+        correctionMode
+          ? {
+              shiftId,
+              eventId,
+              eventType,
+              replacementAt: new Date(replacementAt).toISOString(),
+              reason: [summary.trim(), detail.trim()].filter(Boolean).join(" — "),
+            }
+          : { kind, summary: summary.trim(), detail: detail.trim() },
         "Request sent to your manager",
       )
     ) {
@@ -170,13 +192,84 @@ export function WorkerRequests({
         <form className="worker-request-form" onSubmit={(event) => void submit(event)}>
           <label>
             Request type
-            <select value={kind} onChange={(event) => setKind(event.target.value as RequestKind)}>
+            <ThemedSelect value={kind} onValueChange={(value) => setKind(value as RequestKind)}>
               <option value="leave">Time off</option>
               <option value="correction">Attendance correction</option>
               <option value="missing_clocking">Missing clock-in or out</option>
               <option value="emergency">Emergency</option>
-            </select>
+            </ThemedSelect>
           </label>
+          {correctionMode && (
+            <>
+              <label>
+                Assigned shift
+                <ThemedSelect
+                  required
+                  value={shiftId}
+                  onValueChange={(value) => {
+                    setShiftId(value);
+                    setEventId("");
+                  }}
+                >
+                  <option value="">Choose a shift</option>
+                  {shifts.map((shift) => (
+                    <option key={shift.id} value={shift.id}>
+                      {shift.date} · {shift.start}–{shift.end}
+                    </option>
+                  ))}
+                </ThemedSelect>
+              </label>
+              <label>
+                Record to correct
+                <ThemedSelect value={eventId} onValueChange={(value) => setEventId(value)}>
+                  <option value="">Add a missing record</option>
+                  {data.events
+                    .filter((item) => item.shiftId === shiftId)
+                    .map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.type.replace(/_/g, " ")} ·{" "}
+                        {new Date(item.capturedAt).toLocaleTimeString()}
+                      </option>
+                    ))}
+                </ThemedSelect>
+              </label>
+              {!eventId && (
+                <label>
+                  Missing action
+                  <ThemedSelect
+                    value={eventType}
+                    onValueChange={(value) => setEventType(value as EventType)}
+                  >
+                    {(
+                      [
+                        "clock_in",
+                        "start_lunch",
+                        "end_lunch",
+                        "start_job",
+                        "end_job",
+                        "start_personal",
+                        "end_personal",
+                        "clock_out",
+                      ] as EventType[]
+                    ).map((type) => (
+                      <option key={type} value={type}>
+                        {type.replace(/_/g, " ")}
+                      </option>
+                    ))}
+                  </ThemedSelect>
+                </label>
+              )}
+              <label>
+                Correct date and time (your device timezone)
+                <input
+                  type="datetime-local"
+                  required
+                  value={replacementAt}
+                  onChange={(event) => setReplacementAt(event.target.value)}
+                />
+              </label>
+            </>
+          )}
           <label>
             Summary
             <input
@@ -196,14 +289,18 @@ export function WorkerRequests({
               placeholder="What should your manager know?"
             />
           </label>
-          <button className="worker-action" disabled={busy || !summary.trim()}>
+          {validationError && <p role="alert">{validationError}</p>}
+          <button
+            className="worker-action"
+            disabled={busy || !summary.trim() || (correctionMode && !shiftId)}
+          >
             Send request
           </button>
         </form>
       </section>
       <div className="worker-section-heading">
         <h2>Your requests</h2>
-        <span>{requests.length}</span>
+        <span>{requests.length + corrections.length}</span>
       </div>
       {requests.map((request) => (
         <section className="worker-card" key={request.id}>
@@ -222,7 +319,24 @@ export function WorkerRequests({
           )}
         </section>
       ))}
-      {!requests.length && (
+      {corrections.map((item) => (
+        <section className="worker-card" key={item.id}>
+          <div className="flex items-start justify-between gap-3">
+            <h3 className="text-sm font-semibold">
+              {item.event_type.replace(/_/g, " ")} correction
+            </h3>
+            <span className={`worker-request-status ${item.status}`}>
+              {item.status.replace(/_/g, " ")}
+            </span>
+          </div>
+          <p className="worker-muted-copy">{item.reason}</p>
+          <small>{new Date(item.replacement_value.capturedAt).toLocaleString()}</small>
+          {item.decision_reason && (
+            <p className="worker-muted-copy">Manager: {item.decision_reason}</p>
+          )}
+        </section>
+      ))}
+      {!requests.length && !corrections.length && (
         <EmptyState
           icon={<FileText size={26} />}
           title="No requests yet"
