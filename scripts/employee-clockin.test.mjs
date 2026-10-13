@@ -70,11 +70,44 @@ test("worker clock-in creates one attendance day, retries safely and keeps priva
     const managerView = await call(manager, null);
     assert.equal(managerView.shifts[0].id, started.snapshot.shifts[0].id);
     assert.equal(managerView.events.length, 1);
-    const lunch = await call(worker, "transition", { id: randomUUID(), type: "start_lunch" });
+    const captured = (await db.query("select clock_timestamp() + interval '1 second' as capture"))
+      .rows[0].capture;
+    const offlineLunch = {
+      id: randomUUID(),
+      type: "start_lunch",
+      shiftId: started.snapshot.shifts[0].id,
+      capturedAt: new Date(captured).toISOString(),
+      offline: true,
+      location: { latitude: -22.6, longitude: 17.08, accuracyM: 10 },
+    };
+    const lunch = await call(worker, "submit_attendance", offlineLunch);
     assert.equal(lunch.snapshot.states[0].state, "on_lunch");
-    const back = await call(worker, "transition", { id: randomUUID(), type: "end_lunch" });
+    const lunchReplay = await call(worker, "submit_attendance", offlineLunch);
+    assert.equal(lunchReplay.duplicate, true);
+    assert.equal(lunchReplay.snapshot.events.length, lunch.snapshot.events.length);
+    assert.equal(
+      (
+        await db.query("select payload->'location' as location from sl_submissions where id=$1", [
+          offlineLunch.id,
+        ])
+      ).rows[0].location,
+      null,
+    );
+    const back = await call(worker, "submit_attendance", {
+      id: randomUUID(),
+      type: "end_lunch",
+      shiftId: started.snapshot.shifts[0].id,
+      capturedAt: new Date(new Date(captured).getTime() + 1000).toISOString(),
+      offline: true,
+    });
     assert.equal(back.snapshot.states[0].state, "working");
-    const out = await call(worker, "transition", { id: randomUUID(), type: "clock_out" });
+    const out = await call(worker, "submit_attendance", {
+      id: randomUUID(),
+      type: "clock_out",
+      shiftId: started.snapshot.shifts[0].id,
+      capturedAt: new Date(new Date(captured).getTime() + 2000).toISOString(),
+      offline: true,
+    });
     assert.equal(out.snapshot.states[0].state, "clocked_out");
   } finally {
     await db.close();

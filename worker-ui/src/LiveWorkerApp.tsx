@@ -1,5 +1,7 @@
 import { activeJobForShift } from "../../shared/active-job";
 import { watchWorkPosition } from "../../shared/watch-work-position";
+import { attendanceOutbox, type QueuedAttendance } from "../../shared/web-attendance-outbox";
+import { deriveState } from "../../src/lib/attendance";
 import { NoticeCard } from "./components/NoticeDetails";
 import { ThemedSelect } from "../../shared/ThemedSelect";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -100,6 +102,96 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
   const [departureNote, setDepartureNote] = useState("");
   const writeLock = useRef(false);
   const revision = useRef(0);
+  const [pendingAttendance, setPendingAttendance] = useState<QueuedAttendance[]>([]);
+  const outbox = useMemo(
+    () => (data?.me ? attendanceOutbox(localStorage, data.company.id, data.me) : null),
+    [data?.company.id, data?.me],
+  );
+  const reviewPending =
+    data?.submissions?.some(
+      (item) =>
+        item.status === "needs_review" &&
+        (pendingAttendance.some((event) => event.shiftId === item.shift_id) ||
+          data.shifts.some((shift) => shift.id === item.shift_id && shift.date === data.today)),
+    ) ?? false;
+  const syncAttendance = useCallback(async () => {
+    if (!outbox || !navigator.onLine || writeLock.current || reviewPending) return;
+    try {
+      if (outbox.list().length === 0) return;
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not read saved attendance");
+      return;
+    }
+    writeLock.current = true;
+    ++revision.current;
+    setBusy(true);
+    try {
+      const synchronize = () =>
+        outbox.flush(async (event) => {
+          const result = await backend.command<Result>("submit_attendance", { ...event });
+          if (result.status === "synced" || result.status === "needs_review")
+            setData(result.snapshot);
+          return result;
+        });
+      const results = navigator.locks
+        ? await navigator.locks.request("shiftline-attendance-sync", synchronize)
+        : await synchronize();
+      const latest = results.at(-1);
+      if (latest) {
+        setData(latest.snapshot);
+        setError("");
+        setNotice(
+          latest.status === "needs_review"
+            ? `Attendance needs manager review: ${latest.reason ?? "conflict"}`
+            : "Saved attendance synchronized",
+        );
+      }
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Attendance is saved on this device. Retry synchronization.",
+      );
+    } finally {
+      try {
+        setPendingAttendance(outbox.list());
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : "Could not read saved attendance");
+      }
+      writeLock.current = false;
+      setBusy(false);
+    }
+  }, [outbox, reviewPending]);
+  useEffect(() => {
+    if (!outbox) return;
+    try {
+      setPendingAttendance(outbox.list());
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not read saved attendance");
+    }
+    const sync = () => {
+      if (document.visibilityState === "visible") void syncAttendance();
+    };
+    const changed = () => {
+      try {
+        setPendingAttendance(outbox.list());
+        sync();
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : "Could not read saved attendance");
+      }
+    };
+    sync();
+    const timer = window.setInterval(sync, 15000);
+    window.addEventListener("online", sync);
+    window.addEventListener("storage", changed);
+    document.addEventListener("visibilitychange", sync);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("online", sync);
+      window.removeEventListener("storage", changed);
+      document.removeEventListener("visibilitychange", sync);
+    };
+  }, [outbox, syncAttendance]);
   useEffect(() => {
     const onVisibility = () => setVisible(document.visibilityState === "visible");
     document.addEventListener("visibilitychange", onVisibility);
@@ -130,10 +222,10 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
   }, [data?.company.id, refresh]);
   const run = useCallback(
     async (action: string, payload: Record<string, unknown>, success: string) => {
-      if (writeLock.current || !navigator.onLine) {
+      if (writeLock.current || !navigator.onLine || pendingAttendance.length > 0) {
         setError(
           navigator.onLine
-            ? "Wait for the current action to finish"
+            ? "Synchronize saved attendance before continuing"
             : "Reconnect to save this action",
         );
         return false;
@@ -160,19 +252,55 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
         setBusy(false);
       }
     },
-    [],
+    [pendingAttendance.length],
   );
 
   const act = async (type: EventType, extra: Record<string, unknown> = {}) => {
     let location: Record<string, number> | undefined;
     const shift = data?.shifts.find((s) => s.employeeId === data.me && s.date === data.today);
-    if (type === "clock_in" && !extra.expectedEnd) {
+    if (type === "clock_in" && !extra["expectedEnd"]) {
       setClockInOpen(true);
       return false;
     }
     if (!shift && type !== "clock_in") {
       setError("Check in to start your workday first");
       return false;
+    }
+    if (type !== "clock_in" && shift && outbox) {
+      if (writeLock.current || reviewPending) {
+        setError(
+          reviewPending
+            ? "Ask your manager to review the attendance conflict before continuing"
+            : "Wait for the current action to finish",
+        );
+        return false;
+      }
+      try {
+        const saved: QueuedAttendance = {
+          id: crypto.randomUUID(),
+          shiftId: shift.id,
+          type,
+          capturedAt: new Date().toISOString(),
+          offline: !navigator.onLine,
+          ...(typeof extra["jobId"] === "string" ? { jobId: extra["jobId"] } : {}),
+          ...(typeof extra["note"] === "string" ? { note: extra["note"] } : {}),
+          ...(typeof extra["reason"] === "string" ? { reason: extra["reason"] } : {}),
+          ...(typeof extra["expectedReturn"] === "string"
+            ? { expectedReturn: extra["expectedReturn"] }
+            : {}),
+        };
+        outbox.save(saved);
+        setPendingAttendance(outbox.list());
+        setNotice("Saved on this device · awaiting server confirmation");
+        setError("");
+        await syncAttendance();
+        return true;
+      } catch (cause) {
+        setError(
+          cause instanceof Error ? cause.message : "Could not save attendance on this device",
+        );
+        return false;
+      }
     }
     if (clockInLock.current) return false;
     clockInLock.current = true;
@@ -218,7 +346,22 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
   };
   const me = data?.employees.find((e) => e.id === data.me);
   const shift = data?.shifts.find((s) => s.employeeId === data.me && s.date === data.today);
-  const state = data?.states.find((s) => s.shiftId === shift?.id)?.state ?? "not_clocked_in";
+  const state =
+    pendingAttendance.some((item) => item.shiftId === shift?.id) && data
+      ? deriveState([
+          ...data.events.filter((event) => event.shiftId === shift?.id),
+          ...pendingAttendance
+            .filter((item) => item.shiftId === shift?.id)
+            .map((item) => ({
+              id: item.id,
+              employeeId: data.me,
+              shiftId: item.shiftId,
+              type: item.type,
+              capturedAt: Date.parse(item.capturedAt),
+              sync: "waiting_to_sync" as const,
+            })),
+        ])
+      : (data?.states.find((s) => s.shiftId === shift?.id)?.state ?? "not_clocked_in");
   const myJobs = data?.jobs.filter((j) => j.assignee === data.me) ?? [];
   const activeJob = data ? activeJobForShift(data.events, myJobs, shift?.id) : undefined;
   const unread = data?.messages.filter((m) => m.recipientId === data.me && !m.readAt).length ?? 0;
@@ -244,6 +387,7 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
       !locationEnabled ||
       !visible ||
       !online ||
+      pendingAttendance.length > 0 ||
       !["working", "on_job"].includes(state) ||
       targetLatitude == null ||
       targetLongitude == null ||
@@ -271,6 +415,7 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
     locationEnabled,
     visible,
     online,
+    pendingAttendance.length,
     state,
     targetLatitude,
     targetLongitude,
@@ -385,7 +530,18 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
         {!online && (
           <div role="status" className="worker-offline">
             <WifiOff size={15} />
-            You’re offline. Reconnect to save attendance.
+            You’re offline. Lunch and clock-out for an open workday can be saved on this device.
+          </div>
+        )}
+        {pendingAttendance.length > 0 && (
+          <div role="status" className="worker-offline">
+            {pendingAttendance.length} attendance event(s) saved on this device. Not yet confirmed.
+            <button
+              disabled={busy || !online || reviewPending}
+              onClick={() => void syncAttendance()}
+            >
+              Retry sync
+            </button>
           </div>
         )}
         {error && (
@@ -403,7 +559,7 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
             onAcknowledge={(id) => run("ack_notice", { id }, "Acknowledged")}
             data={data}
             state={state}
-            busy={busy || locating || !online}
+            busy={busy || locating || reviewPending}
             onAction={(type) => void act(type)}
             onDeparture={() => setDepartureOpen(true)}
             onEmergency={() => {
@@ -579,7 +735,7 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
               />
             </label>
             <Action
-              disabled={busy || !online}
+              disabled={busy || reviewPending}
               onClick={() => {
                 void act("start_personal", {
                   reason: departureKind,
@@ -600,7 +756,9 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
       {confirmOut && (
         <WorkerSheet title="Sign out of Shiftline?" onClose={() => setConfirmOut(false)}>
           <p className="worker-muted-copy">
-            Your recorded attendance stays safe. Sign in again to return to your workday.
+            {pendingAttendance.length > 0
+              ? "You have attendance saved only on this device. Sign in with the same account to synchronize it. Do not clear browser storage."
+              : "Your recorded attendance stays safe. Sign in again to return to your workday."}
           </p>
           <div className="mt-5 space-y-3">
             <Action

@@ -1,0 +1,41 @@
+name: Verify Shiftline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            worker-ui/package-lock.json
+      - run: npm ci
+      - run: npm ci --prefix worker-ui
+      - run: npx tsc --noEmit
+      - run: npx tsc --noEmit -p worker-ui/tsconfig.json
+      - run: npm run lint
+      - run: npm test -- --maxWorkers=2
+      - run: npm run test:database
+      - run: npx vitest run src/calc/overtime.test.ts
+        working-directory: worker-ui
+      - name: Verify both production builds
+        # These artifacts are not deployed. Build-only settings deliberately
+        # cannot access the live database or any employee records.
+        env:
+          VITE_SUPABASE_URL: https://build-check.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_build_check_only
+        run: |
+          npm run build
+          npm run build --prefix worker-ui
