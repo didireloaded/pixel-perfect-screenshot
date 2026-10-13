@@ -44,3 +44,8 @@ The database tests run the actual migrations and RPCs against an isolated embedd
 ## Shared backend
 
 The hosted project now has all seventeen migrations, including chat, manager workspace, task-board changes and database integrity protections. See [docs/backend.md](docs/backend.md) for the schema, access rules, verification and backup procedure. Both web clients use generated Supabase types in `shared/database.types.ts`.
+# Hosted apps
+
+See [ChatGPT Sites hosting](hosting/sites/README.md) for deployment source,
+artifact assembly and the live worker and manager URLs.
+
