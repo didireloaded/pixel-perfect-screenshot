@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, WifiOff, Check } from "lucide-react";
 import { cn } from "./utils/cn";
 import { useApp } from "./state";
@@ -36,65 +36,13 @@ export function Logo({ size = 56, radius }: { size?: number; radius?: number }) 
   );
 }
 
-// ─── iOS status bar ────────────────────────────────────────────────────────
-export function StatusBar({ light }: { light?: boolean }) {
-  const [now, setNow] = useState(new Date());
-  useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 60000);
-    return () => clearInterval(timer);
-  }, []);
-  return (
-    <div
-      className={cn(
-        "pointer-events-none relative z-40 flex h-[54px] shrink-0 items-end justify-between px-8 pb-2 text-[15px] font-semibold",
-        light ? "text-white" : "text-ink dark:text-white",
-      )}
-    >
-      <span className="tabular-nums tracking-tight">
-        {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}
-      </span>
-      {/* Dynamic Island */}
-      <div className="absolute left-1/2 top-[11px] h-[34px] w-[118px] -translate-x-1/2 rounded-full bg-black" />
-      <span className="flex items-center gap-1.5">
-        <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor">
-          <rect x="0" y="7" width="3" height="4" rx="0.8" />
-          <rect x="4.5" y="5" width="3" height="6" rx="0.8" />
-          <rect x="9" y="2.5" width="3" height="8.5" rx="0.8" />
-          <rect x="13.5" y="0" width="3" height="11" rx="0.8" />
-        </svg>
-        <svg width="16" height="11" viewBox="0 0 16 12" fill="currentColor">
-          <path d="M8 9.6a2 2 0 0 1 1.9 1.3.45.45 0 0 1-.13.5l-1.46 1.4a.45.45 0 0 1-.62 0l-1.46-1.4a.45.45 0 0 1-.12-.5A2 2 0 0 1 8 9.6ZM8 5.4c1.7 0 3.25.65 4.4 1.72a.5.5 0 0 1 .01.72l-.86.84a.5.5 0 0 1-.68.02A4.33 4.33 0 0 0 8 7.6c-1.1 0-2.1.4-2.87 1.1a.5.5 0 0 1-.68-.02l-.86-.84a.5.5 0 0 1 .01-.72A6.5 6.5 0 0 1 8 5.4ZM8 1.2c2.84 0 5.42 1.1 7.35 2.9a.5.5 0 0 1 .01.72l-.85.84a.5.5 0 0 1-.69.01A8.68 8.68 0 0 0 8 3.4c-2.25 0-4.3.85-5.82 2.26a.5.5 0 0 1-.69 0l-.85-.84a.5.5 0 0 1 .01-.72A10.84 10.84 0 0 1 8 1.2Z" />
-        </svg>
-        <svg width="25" height="12" viewBox="0 0 25 12" fill="none">
-          <rect
-            x="0.5"
-            y="0.5"
-            width="21"
-            height="11"
-            rx="3.2"
-            stroke="currentColor"
-            strokeOpacity="0.4"
-          />
-          <rect x="2" y="2" width="17" height="8" rx="1.8" fill="currentColor" />
-          <path d="M23.5 4v4a2.2 2.2 0 0 0 0-4Z" fill="currentColor" fillOpacity="0.4" />
-        </svg>
-      </span>
-    </div>
-  );
+// Safe-area spacing uses the phone's real browser and hardware chrome.
+export function StatusBar(_props: { light?: boolean }) {
+  return <div className="worker-safe-top" aria-hidden="true" />;
 }
 
-// ─── Home indicator ────────────────────────────────────────────────────────
-export function HomeIndicator({ light }: { light?: boolean }) {
-  return (
-    <div className="pointer-events-none flex h-[26px] shrink-0 items-center justify-center">
-      <div
-        className={cn(
-          "h-[5px] w-[134px] rounded-full",
-          light ? "bg-white/90" : "bg-ink/80 dark:bg-white/80",
-        )}
-      />
-    </div>
-  );
+export function HomeIndicator(_props: { light?: boolean }) {
+  return <div className="worker-safe-bottom" aria-hidden="true" />;
 }
 
 // ─── Icon button (circular) ───────────────────────────────────────────────

@@ -41,7 +41,7 @@ export function createBackend(app: "manager" | "worker") {
           email: email.trim(),
           password,
           options: {
-            emailRedirectTo: window.location.origin,
+            emailRedirectTo: window.location.origin + (app === "manager" ? "/manager" : "/"),
           },
         })
       : await auth.signInWithPassword({ email, password });
@@ -83,13 +83,13 @@ export function createBackend(app: "manager" | "worker") {
     const { error } = await requireClient().auth.resend({
       type: "signup",
       email,
-      options: { emailRedirectTo: window.location.origin },
+      options: { emailRedirectTo: window.location.origin + (app === "manager" ? "/manager" : "/") },
     });
     check(error);
   }
   async function resetPassword(email: string) {
     const { error } = await requireClient().auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin,
+      redirectTo: window.location.origin + (app === "manager" ? "/manager" : "/"),
     });
     check(error);
   }

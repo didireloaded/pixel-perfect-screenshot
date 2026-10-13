@@ -1,4 +1,35 @@
 /* Purple workspace, faithful to the supplied project-board reference. */
+.project-shell button {
+  touch-action: manipulation;
+}
+@media (max-width: 760px) {
+  .project-shell input,
+  .project-shell textarea,
+  .project-shell select {
+    font-size: 16px;
+  }
+  .project-shell button {
+    min-height: 44px;
+  }
+  .project-shell .project-main {
+    padding-left: max(10px, env(safe-area-inset-left, 0px));
+    padding-right: max(10px, env(safe-area-inset-right, 0px));
+    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  }
+  .project-shell .project-topbar {
+    height: auto;
+    min-height: 64px;
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .project-shell .manager-calendar-toolbar {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .project-shell .manager-calendar {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+}
 .project-shell {
   min-height: 100dvh;
   padding: 24px;
@@ -154,8 +185,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   flex: none;
   border-radius: 12px;
   color: #726c80;
@@ -1036,8 +1067,10 @@
     gap: 5px;
   }
   .project-account-name,
-  .project-preview-tag,
-  .project-top-actions > .project-icon-button {
+  .project-preview-tag {
+    display: none;
+  }
+  .project-top-actions > .project-icon-button:not([aria-label="Open notifications"]) {
     display: none;
   }
   .project-account {

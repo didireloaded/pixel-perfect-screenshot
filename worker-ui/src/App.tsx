@@ -2,7 +2,8 @@ import { AppProvider, useApp } from "./state";
 import { Splash, Welcome, SignIn, CreateAccount, AccessWaiting } from "./screens/Auth";
 import { ToastHost } from "./ui";
 import { cn } from "./utils/cn";
-import LiveWorkerApp from "./LiveWorkerApp";
+import { lazy, Suspense } from "react";
+const LiveWorkerApp = lazy(() => import("./LiveWorkerApp"));
 import { configured } from "./backend";
 function Shell() {
   const { phase, isDark, reduceMotion, setPhase, authError } = useApp();
@@ -29,7 +30,17 @@ function Shell() {
           {phase === "signin" && <SignIn />}
           {phase === "signup" && <CreateAccount />}
           {phase === "waiting" && <AccessWaiting />}
-          {phase === "app" && <LiveWorkerApp onSignOut={() => setPhase("welcome")} />}
+          {phase === "app" && (
+            <Suspense
+              fallback={
+                <p role="status" className="p-6">
+                  Loading your workday…
+                </p>
+              }
+            >
+              <LiveWorkerApp onSignOut={() => setPhase("welcome")} />
+            </Suspense>
+          )}
           <ToastHost />
         </div>
       </div>

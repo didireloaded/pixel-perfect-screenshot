@@ -37,6 +37,45 @@ export function ManagerFrame({
   const [expanded, setExpanded] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const account = useRef<HTMLDivElement>(null);
+  const navigation = useRef<HTMLElement>(null);
+  const main = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (!expanded || !window.matchMedia("(max-width: 760px)").matches) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    const mainElement = main.current;
+    document.body.style.overflow = "hidden";
+    if (mainElement) mainElement.inert = true;
+    navigation.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    const key = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setExpanded(false);
+      if (event.key !== "Tab") return;
+      const buttons = navigation.current?.querySelectorAll<HTMLButtonElement>("button");
+      if (!buttons?.length) return;
+      const first = buttons[0];
+      const last = buttons[buttons.length - 1];
+      if (!first || !last) return;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    const resized = () => {
+      if (!window.matchMedia("(max-width: 760px)").matches) setExpanded(false);
+    };
+    document.addEventListener("keydown", key);
+    window.addEventListener("resize", resized);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      if (mainElement) mainElement.inert = false;
+      document.removeEventListener("keydown", key);
+      window.removeEventListener("resize", resized);
+      previous?.focus();
+    };
+  }, [expanded]);
   useEffect(() => {
     if (!accountOpen) return;
     const close = (event: PointerEvent) => {
@@ -70,7 +109,7 @@ export function ManagerFrame({
         />
       )}
       <div className="project-workspace">
-        <aside className="project-sidebar" aria-label="Manager navigation">
+        <aside ref={navigation} className="project-sidebar" aria-label="Manager navigation">
           <button
             className="project-brand"
             aria-label={`${company} · toggle navigation`}
@@ -115,7 +154,7 @@ export function ManagerFrame({
             <span>{"Sign out"}</span>
           </button>
         </aside>
-        <main className="project-main">
+        <main ref={main} className="project-main">
           <header className="project-topbar">
             <button
               className="project-icon-button"
