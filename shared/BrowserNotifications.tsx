@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createBackend } from "./backend";
 type Update = {
   id: string;
@@ -15,10 +15,12 @@ export function BrowserNotifications({
   app,
   onOpen,
   feed = false,
+  prompt = false,
 }: {
   app: "worker" | "manager";
   onOpen?: (destination: string) => void;
   feed?: boolean;
+  prompt?: boolean;
 }) {
   const api = useMemo(() => createBackend(app), [app]);
   const [install, setInstall] = useState<InstallEvent | null>(null);
@@ -28,6 +30,15 @@ export function BrowserNotifications({
   const [busy, setBusy] = useState(false);
   const [enabled, setEnabled] = useState(false);
   const [updates, setUpdates] = useState<Update[]>([]);
+  const [promptOpen, setPromptOpen] = useState(false);
+  const dialog = useRef<HTMLDialogElement>(null);
+  const heading = useId();
+  const promptKey = `shiftline-notification-setup-seen:${app}`;
+  useEffect(() => {
+    const element = dialog.current;
+    if (prompt && promptOpen) element?.showModal();
+    return () => element?.close();
+  }, [prompt, promptOpen]);
   useEffect(() => {
     setInstalled(
       window.matchMedia("(display-mode: standalone)").matches ||
@@ -44,6 +55,25 @@ export function BrowserNotifications({
     window.addEventListener("beforeinstallprompt", prompt);
     window.addEventListener("appinstalled", done);
     let live = true;
+    const considerPrompt = (subscription: PushSubscription | null) => {
+      if (!live || !prompt) return;
+      if (subscription || ("Notification" in window && Notification.permission === "denied")) {
+        try {
+          localStorage.setItem(promptKey, "complete");
+        } catch {
+          /* Settings remain available. */
+        }
+        return;
+      }
+      try {
+        if (localStorage.getItem(promptKey)) return;
+        // Remember presentation, not permission: installation and push remain opt-in.
+        localStorage.setItem(promptKey, "shown");
+        setPromptOpen(true);
+      } catch {
+        // Without persistent storage, keep setup in Notifications instead of nagging.
+      }
+    };
     const update = async () => {
       if (document.visibilityState !== "visible") return;
       try {
@@ -62,15 +92,17 @@ export function BrowserNotifications({
         .then((r) => r.pushManager.getSubscription())
         .then((s) => {
           if (live) setEnabled(Boolean(s));
+          considerPrompt(s);
         })
         .catch(() => {});
+    else void Promise.resolve().then(() => considerPrompt(null));
     return () => {
       live = false;
       clearInterval(timer);
       window.removeEventListener("beforeinstallprompt", prompt);
       window.removeEventListener("appinstalled", done);
     };
-  }, [api, app, feed]);
+  }, [api, app, feed, prompt, promptKey]);
   const enable = async () => {
     setBusy(true);
     setMessage("");
@@ -122,6 +154,12 @@ export function BrowserNotifications({
         app,
       });
       setEnabled(true);
+      try {
+        localStorage.setItem(promptKey, "complete");
+      } catch {
+        /* Permission is already saved by the browser. */
+      }
+      setPromptOpen(false);
       setMessage("Notifications enabled on this device.");
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : "Could not enable notifications.");
@@ -146,9 +184,11 @@ export function BrowserNotifications({
       setBusy(false);
     }
   };
-  return (
+  const content = (
     <section className="rounded-2xl border p-4 my-4" aria-label="App notifications">
-      <h2 className="font-semibold">Stay up to date</h2>
+      <h2 id={heading} className="font-semibold">
+        {prompt ? "Work updates on your phone" : "Notification settings"}
+      </h2>
       <p className="text-sm my-2">
         Messages, jobs, company updates and request decisions. Phone alerts show no private work
         details.
@@ -235,5 +275,24 @@ export function BrowserNotifications({
         </div>
       )}
     </section>
+  );
+  if (!prompt) return content;
+  if (!promptOpen) return null;
+  return (
+    <dialog
+      ref={dialog}
+      aria-labelledby={heading}
+      className="fixed inset-0 m-auto w-[calc(100%_-_32px)] max-w-md max-h-[85dvh] overflow-y-auto rounded-2xl border-0 bg-white p-4 shadow-xl backdrop:bg-black/50 dark:bg-[#211c2c] dark:text-white"
+      onCancel={(event) => {
+        event.preventDefault();
+        setPromptOpen(false);
+      }}
+    >
+      {content}
+      <p className="text-sm px-4">You can change these options later in Notifications.</p>
+      <button className="mt-3 rounded-xl border px-4 py-3" onClick={() => setPromptOpen(false)}>
+        Not now
+      </button>
+    </dialog>
   );
 }

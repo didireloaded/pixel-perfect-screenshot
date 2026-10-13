@@ -554,7 +554,7 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
         )}
       </header>
       <div key={secondary ?? tab} className="worker-scroll no-scrollbar">
-        {!secondary && tab === "today" && <BrowserNotifications app="worker" />}
+        {!secondary && tab === "today" && <BrowserNotifications app="worker" prompt />}
         {secondary === "notifications" && (
           <BrowserNotifications
             app="worker"
