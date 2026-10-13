@@ -26,6 +26,7 @@ interface AppContext {
   toast: (text: string, kind?: Toast["kind"]) => void;
   online: boolean;
   authError: string;
+  retrySession: () => void;
 }
 const Context = createContext<AppContext | null>(null);
 export function useApp() {
@@ -50,6 +51,7 @@ function savePreference(key: string, value: string) {
 export function AppProvider({ children }: { children: ReactNode }) {
   const [phase, setPhase] = useState<Phase>("splash");
   const [authError, setAuthError] = useState("");
+  const [restoreAttempt, setRestoreAttempt] = useState(0);
   useEffect(() => {
     let active = true;
     let revision = 0;
@@ -59,7 +61,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const token = ++revision;
       try {
         if (!(await backend.hasSession())) {
-          if (active && token === revision) setPhase("welcome");
+          if (active && token === revision) {
+            setAuthError("");
+            setPhase("welcome");
+          }
           return;
         }
         const data = await backend.snapshot<{ onboarding?: boolean }>();
@@ -70,7 +75,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         if (active && token === revision) {
           setAuthError(error instanceof Error ? error.message : "Could not restore your account");
-          setPhase("signin");
+          setPhase((current) => (current === "app" || current === "waiting" ? current : "splash"));
         }
       }
     };
@@ -81,8 +86,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setPhase("signin");
         return;
       }
-      if (!userId) {
+      if (!userId && event === "SIGNED_OUT") {
         currentUser = null;
+        setAuthError("");
         setPhase("welcome");
         return;
       }
@@ -95,13 +101,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }, 0);
     });
     void restore();
+    const reconnect = () => {
+      if (active) void restore();
+    };
+    window.addEventListener("online", reconnect);
+    window.addEventListener("focus", reconnect);
     return () => {
       active = false;
       ++revision;
       clearTimeout(deferred);
       unsubscribe();
+      window.removeEventListener("online", reconnect);
+      window.removeEventListener("focus", reconnect);
     };
-  }, []);
+  }, [restoreAttempt]);
   const [appearance, setAppearanceState] = useState<Appearance>(() => {
     const value = preference("shiftline-appearance");
     return value === "dark" || value === "system" ? value : "light";
@@ -152,6 +165,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       value={{
         phase,
         setPhase,
+        retrySession: () => setRestoreAttempt((attempt) => attempt + 1),
         appearance,
         setAppearance,
         isDark: appearance === "dark" || (appearance === "system" && systemDark),

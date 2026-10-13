@@ -51,6 +51,40 @@ beforeEach(() => {
 });
 afterEach(() => vi.restoreAllMocks());
 describe("real account restoration", () => {
+  it("retries a temporary startup failure without asking for login or company setup", async () => {
+    api.snapshot
+      .mockRejectedValueOnce(new Error("Network unavailable"))
+      .mockResolvedValue(records("Restored manager"));
+    render(
+      <AttendanceProvider>
+        <RecordView />
+      </AttendanceProvider>,
+    );
+    await screen.findByRole("heading", { name: "Reconnect to your account" });
+    expect(screen.queryByRole("heading", { name: "Welcome back" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Retry connection" }));
+    await screen.findByText("Restored manager");
+  });
+  it("restores persisted records after remount and honors explicit sign-out", async () => {
+    api.snapshot.mockResolvedValue(records("Returning manager"));
+    const first = render(
+      <AttendanceProvider>
+        <RecordView />
+      </AttendanceProvider>,
+    );
+    await screen.findByText("Returning manager");
+    first.unmount();
+    render(
+      <AttendanceProvider>
+        <RecordView />
+      </AttendanceProvider>,
+    );
+    await screen.findByText("Returning manager");
+    api.authenticated.mockResolvedValue(false);
+    await act(async () => auth("SIGNED_OUT", null));
+    await screen.findByRole("heading", { name: "Welcome back" });
+    expect(screen.queryByText("Returning manager")).not.toBeInTheDocument();
+  });
   it("asks for an access code for an account without company membership", async () => {
     api.snapshot.mockResolvedValue({ onboarding: true });
     render(

@@ -7,14 +7,7 @@ import * as backend from "../backend";
 
 // ─── Splash ────────────────────────────────────────────────────────────────
 export function Splash() {
-  const { setPhase } = useApp();
-  useEffect(() => {
-    const t = setTimeout(
-      () => setPhase((current) => (current === "splash" ? "welcome" : current)),
-      1500,
-    );
-    return () => clearTimeout(t);
-  }, [setPhase]);
+  const { authError, retrySession } = useApp();
   return (
     <div className="flex h-full flex-col bg-page dark:bg-dpage">
       <StatusBar />
@@ -24,6 +17,16 @@ export function Splash() {
           <p className="mt-5 text-[22px] font-bold tracking-tight text-ink dark:text-white">
             Shiftline
           </p>
+          <p role="status" className="mt-4 px-6 text-center text-sm">
+            {authError
+              ? "Could not reconnect to your account. Your saved session has not been signed out."
+              : "Restoring your account…"}
+          </p>
+          {authError && (
+            <Button className="mt-4" onClick={retrySession}>
+              Retry connection
+            </Button>
+          )}
         </div>
       </div>
       <HomeIndicator />

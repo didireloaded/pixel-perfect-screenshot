@@ -166,3 +166,20 @@ Supabase still reports the non-relocatable pg_net extension's default public
 namespace ([extension advisory](https://supabase.com/docs/guides/database/database-linter?lint=0014_extension_in_public)),
 the existing leaked-password-protection warning, and deliberate default-deny
 RLS informational notices. No new missing-FK-index warning was reported.
+
+## Returning sessions (14 October 2026)
+
+Supabase continues to persist separate manager and worker sessions and refresh
+tokens. The worker splash screen now waits for restoration rather than opening
+Welcome after a fixed 1.5-second timer. Network or snapshot failures show a retry
+state; they do not request credentials or clear an already loaded workday.
+Both apps retry restoration on reconnection and focus. Initial auth callbacks
+without a user defer to session restoration; confirmed sign-out still clears
+account records. Stale results from a previous account remain discarded.
+
+78 frontend/shared tests pass, including slow startup, retry after failure,
+remount restoration and explicit sign-out. Both apps type-check and build.
+Sessions belong to an origin and browser: localhost, 127.0.0.1 and the hosted
+address each require their own initial login. Private browsing, cleared site
+storage, revoked sessions and expired/invalid refresh tokens still require login.
+No password or access-code storage was added, and no auth checks were bypassed.

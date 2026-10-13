@@ -174,6 +174,11 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let deferred: ReturnType<typeof setTimeout> | undefined;
     const unsubscribe = api.onAuthChange((event, userId) => {
+      if (!userId && event !== "SIGNED_OUT") {
+        clearTimeout(deferred);
+        deferred = setTimeout(() => void refresh(), 0);
+        return;
+      }
       if (userId !== identity.current) {
         identity.current = userId;
         ++authRevision.current;
@@ -189,6 +194,7 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
         setData(null);
         setSigned(false);
         setLoading(false);
+        setError("");
         setRecovering(false);
         return;
       }
@@ -202,11 +208,13 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
     network();
     window.addEventListener("online", network);
     window.addEventListener("offline", network);
+    window.addEventListener("focus", network);
     return () => {
       clearTimeout(deferred);
       unsubscribe();
       window.removeEventListener("online", network);
       window.removeEventListener("offline", network);
+      window.removeEventListener("focus", network);
     };
   }, [refresh]);
   useEffect(() => {
@@ -373,6 +381,23 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
     return (
       <div className="grid min-h-screen place-items-center" role="status">
         Connecting…
+      </div>
+    );
+  if (!data && error)
+    return (
+      <div className="mx-auto max-w-md p-6" role="status">
+        <h1 className="text-xl font-semibold">Reconnect to your account</h1>
+        <p className="my-4">
+          Could not load your saved session or work records. Retry when connected.
+        </p>
+        <button className="rounded-xl border px-4 py-3" onClick={() => void refresh()}>
+          Retry connection
+        </button>
+        {signed && (
+          <button className="ml-3 rounded-xl border px-4 py-3" onClick={() => void logout()}>
+            Sign out
+          </button>
+        )}
       </div>
     );
   if (!signed || !data || data.onboarding)
