@@ -38,8 +38,8 @@ export function ManagerOverview({
       icon: UserCheck,
     },
     {
-      label: "Awaiting check-in",
-      value: summary.awaiting.length,
+      label: "No check-in recorded",
+      value: summary.noCheckIn.length,
       section: "Attendance",
       icon: Clock3,
     },
@@ -65,8 +65,9 @@ export function ManagerOverview({
         ))}
       </div>
       <p className="text-xs text-muted-foreground">
-        Attendance comes from recorded clock-ins. Awaiting check-in is not confirmed absence.
-        Undated legacy requests are excluded from today's leave count.
+        No check-in recorded excludes approved full-day leave. It does not mean absent or late;
+        workers may not be expected to work today. Leave totals include approved requests with
+        dates.
       </p>
       <div className="overview-two">
         <section className="project-panel">

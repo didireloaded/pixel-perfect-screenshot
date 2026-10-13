@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, cleanup } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { ManagerCalendar } from "../components/app/ManagerCalendar";
+import { ManagerOverview } from "../components/app/ManagerOverview";
 import { WorkerJobCalendar } from "../../worker-ui/src/components/WorkerJobCalendar";
 import { hrSummary } from "../../shared/hr-summary";
 import { geofencePolygon } from "../../shared/geofence-polygon";
@@ -98,7 +99,25 @@ it("HR counts approved employees and recorded attendance without inventing absen
   expect(summary.employees).toHaveLength(2);
   expect(summary.present.size).toBe(1);
   expect(summary.onLeave.size).toBe(1);
-  expect(summary.awaiting).toHaveLength(0);
+  expect(summary.noCheckIn).toHaveLength(0);
+});
+it("does not imply an unscheduled employee is expected, late or absent", () => {
+  const unscheduled = {
+    ...data,
+    shifts: [],
+    events: [],
+    notices: [],
+    requests: [],
+  } as AttendanceSnapshot;
+  const summary = hrSummary(unscheduled);
+  expect(summary.noCheckIn.map((employee) => employee.id)).toEqual(["worker", "awaiting"]);
+  const onSelect = vi.fn();
+  render(<ManagerOverview data={unscheduled} onSelect={onSelect} />);
+  const count = screen.getByRole("button", { name: "No check-in recorded 2 View details" });
+  expect(screen.queryByText("Awaiting check-in")).not.toBeInTheDocument();
+  expect(screen.getByText(/workers may not be expected to work today/)).toBeInTheDocument();
+  fireEvent.click(count);
+  expect(onSelect).toHaveBeenCalledWith("Attendance");
 });
 it("geofence rings close and represent metre distances around the workplace", () => {
   const ring = geofencePolygon(0, 0, 150);

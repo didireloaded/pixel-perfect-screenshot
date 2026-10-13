@@ -37,14 +37,14 @@ export function hrSummary(
       )
       .map((request) => request.employeeId),
   );
-  const awaiting = employees.filter(
+  const noCheckIn = employees.filter(
     (employee) => !present.has(employee.id) && !onLeave.has(employee.id),
   );
   return {
     employees,
     present,
     onLeave,
-    awaiting,
+    noCheckIn,
     pendingLeave: data.requests.filter(
       (request) => request.kind === "leave" && request.status === "pending",
     ),
