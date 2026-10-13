@@ -13,4 +13,6 @@ export const {
   onAuthChange,
   watch,
   replaceWorkerCode,
+  uploadReport,
+  reportDocumentUrl,
 } = backend;

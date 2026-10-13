@@ -1,5 +1,6 @@
 import { createClient, type AuthChangeEvent } from "@supabase/supabase-js";
 import type { Database, Json } from "./database.types";
+import type { AttendanceSnapshot } from "./attendance";
 import { startLiveSync } from "./live-sync";
 import { readSupabaseConfig } from "./supabase-config";
 import {
@@ -117,6 +118,47 @@ export function createBackend(app: "manager" | "worker") {
     );
     return () => data.subscription.unsubscribe();
   }
+  async function uploadReport(incidentId: string, id: string, file: File) {
+    if (app !== "manager") throw new Error("Manager access required");
+    if (file.size < 1 || file.size > 5242880) throw new Error("Choose a document up to 5 MB");
+    let mimeType: string;
+    if (/\.pdf$/i.test(file.name)) {
+      if ((await file.slice(0, 5).text()) !== "%PDF-")
+        throw new Error("This file is not a PDF document");
+      mimeType = "application/pdf";
+    } else if (/\.txt$/i.test(file.name)) {
+      const text = new TextDecoder("utf-8", { fatal: true }).decode(await file.arrayBuffer());
+      if (text.includes("\0")) throw new Error("Choose a plain UTF-8 TXT document");
+      mimeType = "text/plain";
+    } else throw new Error("Only PDF and TXT documents are supported");
+    const reservation = await command<{ snapshot: AttendanceSnapshot }>("reserve_report_document", {
+      id,
+      incidentId,
+      filename: file.name,
+      mimeType,
+      sizeBytes: file.size,
+    });
+    const document = reservation.snapshot.reportDocuments?.find((item) => item.id === id);
+    if (!document) throw new Error("Document reservation was not confirmed");
+    if (document.status !== "ready") {
+      const bucket = requireClient().storage.from("shiftline-reports");
+      const upload = await bucket.upload(document.object_path, file, {
+        contentType: mimeType,
+        upsert: false,
+      });
+      if (upload.error && String(upload.error.statusCode) !== "409") check(upload.error);
+      await command("finish_report_document", { id });
+    }
+  }
+  async function reportDocumentUrl(path: string) {
+    if (app !== "manager") throw new Error("Manager access required");
+    const { data, error } = await requireClient()
+      .storage.from("shiftline-reports")
+      .createSignedUrl(path, 60);
+    check(error);
+    if (!data) throw new Error("Document is unavailable");
+    return data.signedUrl;
+  }
   const watch = (companyId: string, refresh: () => Promise<void>) =>
     startLiveSync(requireClient(), companyId, refresh);
   return {
@@ -134,5 +176,7 @@ export function createBackend(app: "manager" | "worker") {
     command,
     onAuthChange,
     watch,
+    uploadReport,
+    reportDocumentUrl,
   };
 }

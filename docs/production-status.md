@@ -70,3 +70,29 @@ Pending attendance is explicitly unconfirmed. The worker can start/end lunch and
 This is not complete offline startup: opening the app and restoring its authenticated snapshot still requires connectivity, and first clock-in remains online. Browser storage deletion/device loss can remove unsynchronized evidence. See [launch-runbook.md](launch-runbook.md) for acceptance, deployment and separate-project backup restoration procedures. Overnight work, granular roles/multi-company membership, hosting, monitoring, leaked-password protection and a tested backup restore remain open.
 
 Validation: 60 frontend/shared tests, 23 database tests and 40 overtime tests pass. Both TypeScript checks and production builds pass. The database suite verifies offline capture timestamps, exact replay and removal of lunch coordinates. A UI test verifies offline lunch persistence through remount and reconnection. GitHub Actions now defines the same checks for pushes and pull requests; build-only CI settings cannot access the hosted database. No production records were created for this pass.
+
+## Workplace reports and activities — stage one (2026-10-13)
+
+Workers can record job departure, arrival, inspection, return and other confirmed
+work activities. Job-related transitions reuse existing attendance and break
+privacy behavior. Managers have Workplace reports with operational incidents,
+company/site/department/employee targeting, private PDF/TXT evidence and review
+of potentially overlapping recorded workdays. Explanations never change hours or
+pay; attendance changes still use Corrections. Original reports and evidence are
+immutable. Medical uploads and external automated processing are not supported
+in this operational flow.
+
+The hosted migration and private Storage bucket are deployed. The hosted rollback
+smoke passes for activities, reports, overlap links, review, tenant isolation,
+upload authorization and unchanged attendance. No fixtures or actual files remain
+from this proof. Local validation includes 67 frontend/shared tests and 25 database
+tests; both applications type-check and build. Lint has zero errors and the same
+19 existing warnings. Security advisors retain the existing leaked-password
+protection warning and deliberate default-deny RLS informational notices, with no
+new security warning. Performance advisors report only informational unused indexes.
+
+The manager report page was visually checked with real company empty states. A
+real HTTP PDF/TXT upload and an actual employee activity day still need acceptance
+with legitimate records. New work activities currently require connectivity;
+background interpretation, push delivery and summaries remain later stages. See
+[workplace-reports.md](workplace-reports.md) for behavior, access and limits.

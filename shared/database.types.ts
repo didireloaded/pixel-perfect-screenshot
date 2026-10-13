@@ -149,6 +149,64 @@ export type Database = {
           },
         ];
       };
+      sl_attendance_exceptions: {
+        Row: {
+          company_id: string;
+          employee_id: string;
+          id: string;
+          incident_id: string;
+          review_reason: string | null;
+          reviewed_at: string | null;
+          reviewed_by: string | null;
+          shift_id: string;
+          status: string;
+        };
+        Insert: {
+          company_id: string;
+          employee_id: string;
+          id?: string;
+          incident_id: string;
+          review_reason?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          shift_id: string;
+          status?: string;
+        };
+        Update: {
+          company_id?: string;
+          employee_id?: string;
+          id?: string;
+          incident_id?: string;
+          review_reason?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          shift_id?: string;
+          status?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "sl_attendance_exceptions_incident_id_company_id_fkey";
+            columns: ["incident_id", "company_id"];
+            isOneToOne: false;
+            referencedRelation: "sl_incidents";
+            referencedColumns: ["id", "company_id"];
+          },
+          {
+            foreignKeyName: "sl_attendance_exceptions_reviewed_by_company_id_fkey";
+            columns: ["reviewed_by", "company_id"];
+            isOneToOne: false;
+            referencedRelation: "sl_employees";
+            referencedColumns: ["id", "company_id"];
+          },
+          {
+            foreignKeyName: "sl_attendance_exceptions_shift_id_employee_id_company_id_fkey";
+            columns: ["shift_id", "employee_id", "company_id"];
+            isOneToOne: false;
+            referencedRelation: "sl_shifts";
+            referencedColumns: ["id", "employee_id", "company_id"];
+          },
+        ];
+      };
       sl_audit: {
         Row: {
           action: string;
@@ -835,6 +893,93 @@ export type Database = {
             columns: ["period_id", "company_id"];
             isOneToOne: false;
             referencedRelation: "sl_periods";
+            referencedColumns: ["id", "company_id"];
+          },
+        ];
+      };
+      sl_incident_targets: {
+        Row: {
+          company_id: string;
+          employee_id: string;
+          incident_id: string;
+        };
+        Insert: {
+          company_id: string;
+          employee_id: string;
+          incident_id: string;
+        };
+        Update: {
+          company_id?: string;
+          employee_id?: string;
+          incident_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "sl_incident_targets_employee_id_company_id_fkey";
+            columns: ["employee_id", "company_id"];
+            isOneToOne: false;
+            referencedRelation: "sl_employees";
+            referencedColumns: ["id", "company_id"];
+          },
+          {
+            foreignKeyName: "sl_incident_targets_incident_id_company_id_fkey";
+            columns: ["incident_id", "company_id"];
+            isOneToOne: false;
+            referencedRelation: "sl_incidents";
+            referencedColumns: ["id", "company_id"];
+          },
+        ];
+      };
+      sl_incidents: {
+        Row: {
+          company_id: string;
+          created_at: string;
+          created_by: string;
+          description: string;
+          ends_at: string;
+          id: string;
+          kind: string;
+          source_payload: Json;
+          starts_at: string;
+          title: string;
+        };
+        Insert: {
+          company_id: string;
+          created_at?: string;
+          created_by: string;
+          description: string;
+          ends_at: string;
+          id: string;
+          kind: string;
+          source_payload: Json;
+          starts_at: string;
+          title: string;
+        };
+        Update: {
+          company_id?: string;
+          created_at?: string;
+          created_by?: string;
+          description?: string;
+          ends_at?: string;
+          id?: string;
+          kind?: string;
+          source_payload?: Json;
+          starts_at?: string;
+          title?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "sl_incidents_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "sl_companies";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sl_incidents_created_by_company_id_fkey";
+            columns: ["created_by", "company_id"];
+            isOneToOne: false;
+            referencedRelation: "sl_employees";
             referencedColumns: ["id", "company_id"];
           },
         ];
@@ -1680,6 +1825,60 @@ export type Database = {
           },
         ];
       };
+      sl_report_documents: {
+        Row: {
+          company_id: string;
+          created_at: string;
+          filename: string;
+          id: string;
+          incident_id: string;
+          mime_type: string;
+          object_path: string;
+          size_bytes: number;
+          status: string;
+          uploaded_by: string;
+        };
+        Insert: {
+          company_id: string;
+          created_at?: string;
+          filename: string;
+          id: string;
+          incident_id: string;
+          mime_type: string;
+          object_path: string;
+          size_bytes: number;
+          status?: string;
+          uploaded_by: string;
+        };
+        Update: {
+          company_id?: string;
+          created_at?: string;
+          filename?: string;
+          id?: string;
+          incident_id?: string;
+          mime_type?: string;
+          object_path?: string;
+          size_bytes?: number;
+          status?: string;
+          uploaded_by?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "sl_report_documents_incident_id_company_id_fkey";
+            columns: ["incident_id", "company_id"];
+            isOneToOne: false;
+            referencedRelation: "sl_incidents";
+            referencedColumns: ["id", "company_id"];
+          },
+          {
+            foreignKeyName: "sl_report_documents_uploaded_by_company_id_fkey";
+            columns: ["uploaded_by", "company_id"];
+            isOneToOne: false;
+            referencedRelation: "sl_employees";
+            referencedColumns: ["id", "company_id"];
+          },
+        ];
+      };
       sl_request_decision_reads: {
         Row: {
           employee_id: string;
@@ -2396,6 +2595,61 @@ export type Database = {
           },
           {
             foreignKeyName: "sl_timesheets_shift_owner_fk";
+            columns: ["shift_id", "employee_id", "company_id"];
+            isOneToOne: false;
+            referencedRelation: "sl_shifts";
+            referencedColumns: ["id", "employee_id", "company_id"];
+          },
+        ];
+      };
+      sl_work_activities: {
+        Row: {
+          company_id: string;
+          description: string;
+          employee_id: string;
+          id: string;
+          job_id: string | null;
+          kind: string;
+          recorded_at: string;
+          shift_id: string;
+        };
+        Insert: {
+          company_id: string;
+          description: string;
+          employee_id: string;
+          id: string;
+          job_id?: string | null;
+          kind: string;
+          recorded_at?: string;
+          shift_id: string;
+        };
+        Update: {
+          company_id?: string;
+          description?: string;
+          employee_id?: string;
+          id?: string;
+          job_id?: string | null;
+          kind?: string;
+          recorded_at?: string;
+          shift_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "sl_work_activities_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "sl_companies";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sl_work_activities_job_id_shift_id_company_id_fkey";
+            columns: ["job_id", "shift_id", "company_id"];
+            isOneToOne: false;
+            referencedRelation: "sl_jobs";
+            referencedColumns: ["id", "shift_id", "company_id"];
+          },
+          {
+            foreignKeyName: "sl_work_activities_shift_id_employee_id_company_id_fkey";
             columns: ["shift_id", "employee_id", "company_id"];
             isOneToOne: false;
             referencedRelation: "sl_shifts";

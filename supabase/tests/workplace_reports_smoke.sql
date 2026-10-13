@@ -1,0 +1,45 @@
+-- All fixtures are scoped to temporary companies and rolled back. No file upload.
+begin;
+set local statement_timeout='30s';
+set local lock_timeout='5s';
+do $$
+declare manager uuid:=gen_random_uuid(); worker uuid:=gen_random_uuid(); outsider uuid:=gen_random_uuid();
+ setup jsonb; invite jsonb; started jsonb; report jsonb; payload jsonb; response jsonb;
+ incident_id uuid:=gen_random_uuid(); document_id uuid:=gen_random_uuid(); link_id uuid;
+ rejected boolean:=false; events_before bigint; path text;
+begin
+ insert into auth.users(id) values(manager),(worker),(outsider);
+ perform set_config('request.jwt.claim.sub',manager::text,true);
+ setup:=public.sl_command('setup',jsonb_build_object('company','Report rollback smoke','name','Smoke manager','site','Smoke office','timezone','UTC'));
+ invite:=public.sl_command('create_employee',jsonb_build_object('name','Smoke worker','no','REPORT-SMOKE','siteId',setup->'snapshot'->'sites'->0->>'id'));
+ perform set_config('request.jwt.claim.sub',worker::text,true);
+ perform public.sl_command('activate',jsonb_build_object('employeeNo','REPORT-SMOKE','code',invite->>'activationCode'));
+ started:=public.sl_command('start_workday',jsonb_build_object('id',gen_random_uuid(),'expectedEnd','23:59'));
+ perform public.sl_command('record_work_activity',jsonb_build_object('id',gen_random_uuid(),'shiftId',started->'snapshot'->'shifts'->0->>'id','kind','other','description','Confirmed operational activity; rollback only'));
+ if jsonb_array_length(public.sl_snapshot()->'workActivities')<>1 then raise exception 'FAIL: activity missing'; end if;
+ select count(*) into events_before from public.sl_events where company_id=(setup->'snapshot'->'company'->>'id')::uuid;
+ perform set_config('request.jwt.claim.sub',manager::text,true);
+ payload:=jsonb_build_object('id',incident_id,'kind','power_outage','title','Rollback outage','description','No attendance adjustment authorized','startsLocal',(setup->'snapshot'->>'today')||'T00:00','endsLocal',(setup->'snapshot'->>'today')||'T23:59','scope','company','target','');
+ report:=public.sl_command('create_incident',payload);
+ if jsonb_array_length(report->'snapshot'->'incidentExceptions')<>1 then raise exception 'FAIL: overlap link'; end if;
+ link_id:=(report->'snapshot'->'incidentExceptions'->0->>'id')::uuid;
+ response:=public.sl_command('review_incident_exception',jsonb_build_object('id',link_id,'decision','explained','reason','Context only; hours unchanged'));
+ if response->'snapshot'->'incidentExceptions'->0->>'status'<>'explained' then raise exception 'FAIL: review'; end if;
+ if (select count(*) from public.sl_events where company_id=(setup->'snapshot'->'company'->>'id')::uuid)<>events_before then raise exception 'FAIL: report altered attendance'; end if;
+ response:=public.sl_command('reserve_report_document',jsonb_build_object('id',document_id,'incidentId',incident_id,'filename','report.txt','mimeType','text/plain','sizeBytes',10));
+ path:=response->'snapshot'->'reportDocuments'->0->>'object_path';
+ if not shiftline_private.report_object_allowed(path,true) then raise exception 'FAIL: uploader permission'; end if;
+ begin perform public.sl_command('finish_report_document',jsonb_build_object('id',document_id));
+ exception when others then if sqlerrm not like '%missing%' then raise; end if; rejected:=true; end;
+ if not rejected then raise exception 'FAIL: fabricated upload accepted'; end if;
+ perform set_config('request.jwt.claim.sub',worker::text,true);
+ response:=public.sl_snapshot();
+ if jsonb_array_length(response->'incidents')<>1 or jsonb_array_length(response->'reportDocuments')<>0 then raise exception 'FAIL: worker report/document scope'; end if;
+ if shiftline_private.report_object_allowed(path,false) then raise exception 'FAIL: worker file access'; end if;
+ perform set_config('request.jwt.claim.sub',outsider::text,true);
+ perform public.sl_command('setup',jsonb_build_object('company','Outside rollback smoke','name','Outside manager','site','Outside office','timezone','UTC'));
+ if jsonb_array_length(public.sl_snapshot()->'incidents')<>0 or shiftline_private.report_object_allowed(path,false) then raise exception 'FAIL: tenant isolation'; end if;
+ if has_table_privilege('authenticated','public.sl_incidents','SELECT') or has_table_privilege('authenticated','public.sl_report_documents','SELECT') then raise exception 'FAIL: direct API table access'; end if;
+end $$;
+rollback;
+select 'Workplace reports smoke passed; all fixtures rolled back; no files uploaded' as result;

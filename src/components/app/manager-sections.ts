@@ -29,6 +29,7 @@ export const managerGroups = [
       { name: "Calendar", icon: CalendarDays },
       { name: "Notes", icon: NotebookPen },
       { name: "Reports", icon: FileBarChart2 },
+      { name: "Workplace reports", icon: ShieldCheck },
       { name: "Views", icon: LayoutGrid },
     ],
   },

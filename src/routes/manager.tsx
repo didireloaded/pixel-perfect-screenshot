@@ -22,6 +22,7 @@ import { ManagerJobTools, ManagerMessages } from "@/components/app/TeamComms";
 import { ManagerJobBoard } from "@/components/app/ManagerJobBoard";
 import { ManagerNotes, ManagerReports, ManagerAttendance } from "@/components/app/ManagerPanels";
 import { ManagerOverview } from "@/components/app/ManagerOverview";
+import { WorkplaceReports } from "@/components/app/WorkplaceReports";
 import { ManagerCalendar } from "@/components/app/ManagerCalendar";
 import { ManagerInsights } from "@/components/app/ManagerInsights";
 import { ManagerFrame } from "@/components/app/ManagerFrame";
@@ -81,6 +82,7 @@ function Manager() {
       {tab === "Overview" && <ManagerOverview data={d} onSelect={setTab} />}
       {tab === "Notes" && <ManagerNotes />}
       {tab === "Reports" && <ManagerReports />}
+      {tab === "Workplace reports" && <WorkplaceReports />}
       {tab === "Attendance" && <ManagerAttendance />}
       {tab === "Map" && <ManagerMap />}
       {tab === "Project management" && (

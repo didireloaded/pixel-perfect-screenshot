@@ -22,6 +22,7 @@ import {
 import type { AttendanceSnapshot, EventType, Job, Shift } from "../../shared/attendance";
 import * as backend from "./backend";
 import { WorkerHome } from "./components/WorkerHome";
+import { WorkerActivities } from "./components/WorkerActivities";
 import { WorkerJobCalendar } from "./components/WorkerJobCalendar";
 import {
   WorkerCard as Card,
@@ -576,6 +577,15 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
           />
         )}
         {!secondary && tab === "calendar" && <WorkerJobCalendar data={data} />}
+        {!secondary && tab === "today" && (
+          <WorkerActivities
+            data={data}
+            state={state}
+            busy={busy || locating || pendingAttendance.length > 0}
+            online={online}
+            run={run}
+          />
+        )}
         {!secondary && tab === "jobs" && (
           <>
             <div className="worker-segmented">

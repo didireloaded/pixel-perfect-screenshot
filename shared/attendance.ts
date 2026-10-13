@@ -155,6 +155,10 @@ export interface CalendarJob {
   assignedNames: string[];
 }
 export interface AttendanceSnapshot {
+  workActivities?: WorkActivity[];
+  incidents?: WorkplaceIncident[];
+  incidentExceptions?: IncidentException[];
+  reportDocuments?: ReportDocument[];
   readNotificationIds?: string[];
   calendarJobs?: CalendarJob[];
   me: string;
@@ -190,6 +194,44 @@ export interface AttendanceSnapshot {
   sitePresence: SitePresence[];
   readRequestIds: string[];
   onboarding?: boolean;
+}
+
+export interface WorkActivity {
+  id: string;
+  employee_id: string;
+  shift_id: string;
+  job_id: string | null;
+  kind: "leaving_site" | "arrived_site" | "inspection" | "returning_office" | "other";
+  description: string;
+  recorded_at: string;
+}
+export interface WorkplaceIncident {
+  id: string;
+  kind: "power_outage" | "disruption" | "early_release" | "emergency" | "other";
+  title: string;
+  description: string;
+  starts_at: string;
+  ends_at: string;
+  created_by: string;
+  created_at: string;
+}
+export interface IncidentException {
+  id: string;
+  incident_id: string;
+  shift_id: string;
+  employee_id: string;
+  status: "pending" | "explained" | "dismissed";
+  review_reason: string | null;
+  reviewed_at: string | null;
+}
+export interface ReportDocument {
+  id: string;
+  incident_id: string;
+  filename: string;
+  mime_type: string;
+  size_bytes: number;
+  object_path: string;
+  status: "pending" | "ready";
 }
 
 export interface CompanyNotice {

@@ -21,6 +21,13 @@ export async function createLocalDatabase(directory) {
     grant usage on schema auth to authenticated; grant execute on function auth.uid() to authenticated;
     create schema if not exists local_private;
     create table if not exists local_private.migrations(name text primary key);
+    -- Minimal Storage schema for report policy tests. No fake application data.
+    create schema if not exists storage;
+    create table if not exists storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
+    create table if not exists storage.objects(id uuid primary key default gen_random_uuid(),bucket_id text references storage.buckets(id),name text,metadata jsonb,unique(bucket_id,name));
+    alter table storage.objects enable row level security;
+    grant usage on schema storage to authenticated;
+    grant select,insert on storage.objects to authenticated;
   `);
   const directoryPath = path.join(root, "supabase/migrations");
   for (const name of (await readdir(directoryPath)).filter((n) => n.endsWith(".sql")).sort()) {
