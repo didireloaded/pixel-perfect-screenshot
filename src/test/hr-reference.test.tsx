@@ -48,6 +48,11 @@ it("creates a date-based calendar job with optional assignment and no attendance
   expect(screen.queryByLabelText("Shift starts")).not.toBeInTheDocument();
   fireEvent.change(screen.getByLabelText("Job title"), { target: { value: "New inspection" } });
   fireEvent.change(screen.getByLabelText("Job details"), { target: { value: "Check generator" } });
+  fireEvent.change(screen.getByLabelText("Job address or destination"), {
+    target: { value: "Confirmed office" },
+  });
+  fireEvent.change(screen.getByLabelText("latitude"), { target: { value: "-22.6" } });
+  fireEvent.change(screen.getByLabelText("longitude"), { target: { value: "17.08" } });
   fireEvent.click(screen.getByRole("button", { name: "Add job" }));
   await waitFor(() =>
     expect(command).toHaveBeenCalledWith(

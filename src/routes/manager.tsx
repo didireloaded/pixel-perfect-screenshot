@@ -218,6 +218,7 @@ function Manager() {
       {tab === "Calendar" && <ManagerCalendar data={d} />}
       {tab === "Tasks" && (
         <div className="space-y-5">
+          <ManagerJobBriefs onAdd={() => setShowJobForm(true)} />
           <ManagerJobBoard
             jobs={d.jobs}
             steps={d.jobSteps}
@@ -252,7 +253,8 @@ function Manager() {
         <DialogContent className="max-h-[90dvh] overflow-y-auto">
           <DialogTitle>Create job</DialogTitle>
           <DialogDescription>
-            Assign a location, work instructions and lunch plan to a worker’s shift.
+            Add the job, its location and details. Select employees only when specific people are
+            needed.
           </DialogDescription>
           <ManagerJobBrief onSaved={() => setShowJobForm(false)} />
         </DialogContent>

@@ -5,13 +5,18 @@ export function calendarJobs(
 ): CalendarJob[] {
   return [
     ...(data.calendarJobs ?? []),
-    ...data.jobs.map((job) => ({
-      id: job.id,
-      date: job.date,
-      title: job.title,
-      details: job.instructions || job.destination,
-      employeeIds: [job.assignee],
-      assignedNames: data.employees.filter((e) => e.id === job.assignee).map((e) => e.name),
-    })),
+    ...data.jobs
+      .filter((job) => !job.calendarJobId)
+      .map((job) => ({
+        id: job.id,
+        date: job.date,
+        title: job.title,
+        details: job.instructions || job.destination,
+        address: job.destination,
+        latitude: job.latitude ?? null,
+        longitude: job.longitude ?? null,
+        employeeIds: [job.assignee],
+        assignedNames: data.employees.filter((e) => e.id === job.assignee).map((e) => e.name),
+      })),
   ].sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title));
 }

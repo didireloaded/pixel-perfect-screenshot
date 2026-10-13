@@ -102,6 +102,7 @@ export function WorkerJobCalendar({ data }: { data: AttendanceSnapshot }) {
         <WorkerSheet title={detail.title} onClose={() => setDetailId(null)}>
           <p className="worker-muted-copy">{detail.date}</p>
           <p className="my-4 whitespace-pre-wrap">{detail.details}</p>
+          {detail.address && <p className="my-3">Job destination: {detail.address}</p>}
           <h3 className="worker-sheet-section">Assigned team</h3>
           <p>
             {detail.assignedNames.length

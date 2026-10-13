@@ -334,6 +334,7 @@ export type Database = {
       };
       sl_calendar_jobs: {
         Row: {
+          address: string;
           company_id: string;
           created_at: string;
           created_by: string;
@@ -341,9 +342,13 @@ export type Database = {
           details: string;
           employee_ids: string[];
           id: string;
+          latitude: number | null;
+          longitude: number | null;
+          radius_m: number;
           title: string;
         };
         Insert: {
+          address?: string;
           company_id: string;
           created_at?: string;
           created_by: string;
@@ -351,9 +356,13 @@ export type Database = {
           details: string;
           employee_ids?: string[];
           id: string;
+          latitude?: number | null;
+          longitude?: number | null;
+          radius_m?: number;
           title: string;
         };
         Update: {
+          address?: string;
           company_id?: string;
           created_at?: string;
           created_by?: string;
@@ -361,6 +370,9 @@ export type Database = {
           details?: string;
           employee_ids?: string[];
           id?: string;
+          latitude?: number | null;
+          longitude?: number | null;
+          radius_m?: number;
           title?: string;
         };
         Relationships: [
@@ -1209,6 +1221,7 @@ export type Database = {
       };
       sl_jobs: {
         Row: {
+          calendar_job_id: string | null;
           company_id: string;
           destination: string;
           employee_id: string;
@@ -1227,6 +1240,7 @@ export type Database = {
           title: string;
         };
         Insert: {
+          calendar_job_id?: string | null;
           company_id: string;
           destination: string;
           employee_id: string;
@@ -1245,6 +1259,7 @@ export type Database = {
           title: string;
         };
         Update: {
+          calendar_job_id?: string | null;
           company_id?: string;
           destination?: string;
           employee_id?: string;
@@ -1263,6 +1278,13 @@ export type Database = {
           title?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "sl_job_plan_company";
+            columns: ["calendar_job_id", "company_id"];
+            isOneToOne: false;
+            referencedRelation: "sl_calendar_jobs";
+            referencedColumns: ["id", "company_id"];
+          },
           {
             foreignKeyName: "sl_jobs_company_id_fkey";
             columns: ["company_id"];

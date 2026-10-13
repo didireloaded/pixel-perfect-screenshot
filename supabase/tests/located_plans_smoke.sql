@@ -1,0 +1,38 @@
+begin;
+set local statement_timeout='30s';
+set local lock_timeout='5s';
+do $$
+declare manager uuid:=gen_random_uuid(); worker uuid:=gen_random_uuid(); outsider uuid:=gen_random_uuid();
+ setup jsonb; invite jsonb; payload jsonb; response jsonb; plan_id uuid:=gen_random_uuid(); event_id uuid:=gen_random_uuid(); denied boolean:=false;
+begin
+ insert into auth.users(id) values(manager),(worker),(outsider);
+ perform set_config('request.jwt.claim.sub',manager::text,true);
+ setup:=public.sl_command('setup',jsonb_build_object('company','Located plans rollback','name','Manager','site','Office','timezone','UTC'));
+ invite:=public.sl_command('create_employee',jsonb_build_object('name','Worker','no','PLAN-SMOKE','siteId',setup->'snapshot'->'sites'->0->>'id'));
+ payload:=jsonb_build_object('id',plan_id,'date',setup->'snapshot'->>'today','title','Rollback job','details','Confirmed instructions','employeeIds','[]'::jsonb,'address','Confirmed destination','latitude',-22.6,'longitude',17.08,'radiusM',150);
+ response:=public.sl_command('create_calendar_job',payload);
+ if jsonb_array_length(response->'snapshot'->'shifts')<>0 or jsonb_array_length(response->'snapshot'->'jobs')<>0 then raise exception 'FAIL: plan invented attendance'; end if;
+ if (response->'snapshot'->'calendarJobs'->0->>'latitude')::numeric<>-22.6 then raise exception 'FAIL: lost location'; end if;
+ response:=public.sl_command('update_job_plan_location',jsonb_build_object('id',plan_id,'address','Confirmed destination','latitude',-22.61,'longitude',17.08,'radiusM',200,'expected',jsonb_build_object('address','Confirmed destination','latitude',-22.6,'longitude',17.08,'radiusM',150)));
+ if (response->'snapshot'->'calendarJobs'->0->>'latitude')::numeric<>-22.61 then raise exception 'FAIL: edit location'; end if;
+ perform set_config('request.jwt.claim.sub',worker::text,true);
+ perform public.sl_command('activate',jsonb_build_object('employeeNo','PLAN-SMOKE','code',invite->>'activationCode'));
+ begin perform public.sl_command('start_calendar_job',jsonb_build_object('id',event_id,'calendarJobId',plan_id));
+ exception when others then if sqlerrm not like '%Clock in%' then raise; end if; denied:=true; end;
+ if not denied then raise exception 'FAIL: started without attendance'; end if;
+ perform public.sl_command('start_workday',jsonb_build_object('id',gen_random_uuid(),'expectedEnd','23:59'));
+ response:=public.sl_command('start_calendar_job',jsonb_build_object('id',event_id,'calendarJobId',plan_id));
+ if response->'snapshot'->'states'->0->>'state'<>'on_job' or response->'snapshot'->'jobs'->0->>'calendarJobId'<>plan_id::text then raise exception 'FAIL: job start'; end if;
+ if (response->'snapshot'->'jobs'->0->>'latitude')::numeric<>-22.61 then raise exception 'FAIL: stale job location'; end if;
+ response:=public.sl_command('start_calendar_job',jsonb_build_object('id',event_id,'calendarJobId',plan_id));
+ if response->>'duplicate'<>'true' or jsonb_array_length(response->'snapshot'->'jobs')<>1 then raise exception 'FAIL: replay'; end if;
+ perform public.sl_command('transition',jsonb_build_object('id',gen_random_uuid(),'type','start_lunch'));
+ if public.sl_snapshot()->'states'->0->>'state'<>'on_lunch' then raise exception 'FAIL: lunch'; end if;
+ perform public.sl_command('transition',jsonb_build_object('id',gen_random_uuid(),'type','end_lunch'));
+ if public.sl_snapshot()->'states'->0->>'state'<>'on_job' then raise exception 'FAIL: job resume'; end if;
+ perform set_config('request.jwt.claim.sub',outsider::text,true);
+ perform public.sl_command('setup',jsonb_build_object('company','Other rollback','name','Other','site','Other','timezone','UTC'));
+ if jsonb_array_length(public.sl_snapshot()->'calendarJobs')<>0 then raise exception 'FAIL: company isolation'; end if;
+end $$;
+rollback;
+select 'Located job plans smoke passed; all fixtures rolled back' as result;

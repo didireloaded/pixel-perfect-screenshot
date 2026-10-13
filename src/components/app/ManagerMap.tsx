@@ -86,6 +86,25 @@ export function ManagerMap() {
             radiusM: j.radiusM,
           }))
       : []),
+    ...(jobsVisible
+      ? (d.calendarJobs ?? [])
+          .filter(
+            (plan) =>
+              plan.date === d.today &&
+              plan.latitude != null &&
+              plan.longitude != null &&
+              !d.jobs.some((job) => job.calendarJobId === plan.id && job.status !== "completed"),
+          )
+          .map((plan) => ({
+            id: `plan:${plan.id}`,
+            name: plan.title,
+            detail: `${plan.address} · Planned job destination`,
+            lng: plan.longitude!,
+            lat: plan.latitude!,
+            kind: "job" as const,
+            radiusM: plan.radiusM ?? 150,
+          }))
+      : []),
     ...workers.map((p) => ({
       id: p.employeeId,
       name: d.employees.find((e) => e.id === p.employeeId)?.name || "Employee",

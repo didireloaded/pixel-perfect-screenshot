@@ -3,14 +3,30 @@ import { useAttendance } from "@/lib/app-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { JobAddressPicker, type JobAddress } from "./JobAddressPicker";
 export function CalendarJobForm({ date, onSaved }: { date: string; onSaved: () => void }) {
   const d = useAttendance();
   const [id] = useState(() => crypto.randomUUID());
   const [selected, setSelected] = useState<string[]>([]);
+  const [location, setLocation] = useState<JobAddress>({
+    address: "",
+    latitude: null,
+    longitude: null,
+  });
+  const site = d.sites?.find((site) => site.latitude != null && site.longitude != null);
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const fields = Object.fromEntries(new FormData(event.currentTarget));
-    if (await d.command("create_calendar_job", { ...fields, id, employeeIds: selected })) onSaved();
+    if (
+      await d.command("create_calendar_job", {
+        ...fields,
+        ...location,
+        radiusM: Number(fields["radiusM"]),
+        id,
+        employeeIds: selected,
+      })
+    )
+      onSaved();
   };
   return (
     <form onSubmit={submit} className="space-y-4">
@@ -48,6 +64,24 @@ export function CalendarJobForm({ date, onSaved }: { date: string; onSaved: () =
             </label>
           ))}
       </fieldset>
+      <p className="text-xs text-muted-foreground">
+        {selected.length
+          ? `${selected.length} required worker(s) selected`
+          : "No specific crew required"}
+      </p>
+      <JobAddressPicker
+        value={location}
+        onChange={setLocation}
+        proximity={
+          site?.longitude != null && site.latitude != null
+            ? [site.longitude, site.latitude]
+            : undefined
+        }
+      />
+      <label className="block text-sm">
+        Job boundary (metres)
+        <Input name="radiusM" type="number" min={100} max={5000} defaultValue={150} required />
+      </label>
       <Button className="w-full" disabled={d.busy || !d.online}>
         {d.busy ? "Saving…" : "Add job"}
       </Button>

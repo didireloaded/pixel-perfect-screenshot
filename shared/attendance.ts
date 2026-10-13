@@ -90,6 +90,7 @@ export interface Shift {
   totals: Totals;
 }
 export interface Job {
+  calendarJobId?: string | null;
   id: string;
   shiftId: string;
   title: string;
@@ -147,6 +148,10 @@ export interface Period {
   lockedAt: string;
 }
 export interface CalendarJob {
+  address?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  radiusM?: number;
   id: string;
   date: string;
   title: string;

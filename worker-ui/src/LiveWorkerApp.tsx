@@ -103,6 +103,7 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
   const [departureNote, setDepartureNote] = useState("");
   const writeLock = useRef(false);
   const revision = useRef(0);
+  const planStartIds = useRef(new Map<string, string>());
   const [pendingAttendance, setPendingAttendance] = useState<QueuedAttendance[]>([]);
   const outbox = useMemo(
     () => (data?.me ? attendanceOutbox(localStorage, data.company.id, data.me) : null),
@@ -364,6 +365,12 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
         ])
       : (data?.states.find((s) => s.shiftId === shift?.id)?.state ?? "not_clocked_in");
   const myJobs = data?.jobs.filter((j) => j.assignee === data.me) ?? [];
+  const availablePlans = (data?.calendarJobs ?? []).filter(
+    (plan) =>
+      ["all", "assigned"].includes(jobFilter) &&
+      !myJobs.some((job) => job.calendarJobId === plan.id) &&
+      (jobFilter !== "assigned" || plan.date >= (data?.today ?? "")),
+  );
   const activeJob = data ? activeJobForShift(data.events, myJobs, shift?.id) : undefined;
   const unread = data?.messages.filter((m) => m.recipientId === data.me && !m.readAt).length ?? 0;
   const site = data?.sites.find((s) => s.id === shift?.siteId);
@@ -605,6 +612,49 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
                 </button>
               ))}
             </div>
+            {availablePlans.map((plan) => (
+              <Card key={plan.id}>
+                <h2 className="font-semibold">{plan.title}</h2>
+                <p className="text-sm mt-2">
+                  {plan.date} · {plan.address || "Location needs confirmation"}
+                </p>
+                <p className="mt-3 whitespace-pre-wrap">{plan.details}</p>
+                <p className="text-xs mt-2">
+                  {plan.assignedNames.length
+                    ? `Required employees: ${plan.assignedNames.join(", ")}`
+                    : "Open to company workers"}
+                </p>
+                <Action
+                  disabled={
+                    busy ||
+                    !online ||
+                    pendingAttendance.length > 0 ||
+                    reviewPending ||
+                    state !== "working" ||
+                    plan.date !== data.today ||
+                    plan.latitude == null ||
+                    !plan.address ||
+                    (plan.employeeIds.length > 0 && !plan.employeeIds.includes(data.me))
+                  }
+                  onClick={() => {
+                    let eventId = planStartIds.current.get(plan.id);
+                    if (!eventId) {
+                      eventId = crypto.randomUUID();
+                      planStartIds.current.set(plan.id, eventId);
+                    }
+                    void run(
+                      "start_calendar_job",
+                      { id: eventId, calendarJobId: plan.id },
+                      "Started job",
+                    ).then((saved) => {
+                      if (saved) planStartIds.current.delete(plan.id);
+                    });
+                  }}
+                >
+                  Leave for this job
+                </Action>
+              </Card>
+            ))}
             {myJobs
               .filter((job) => jobFilter === "all" || job.status === jobFilter)
               .sort((a, b) => `${a.date}${a.start}`.localeCompare(`${b.date}${b.start}`))
@@ -620,13 +670,14 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
                   state={state}
                 />
               ))}
-            {!myJobs.some((job) => jobFilter === "all" || job.status === jobFilter) && (
-              <EmptyState
-                icon={<Briefcase size={27} />}
-                title="No jobs here yet"
-                description="Assigned work will appear here with your schedule and team."
-              />
-            )}
+            {!availablePlans.length &&
+              !myJobs.some((job) => jobFilter === "all" || job.status === jobFilter) && (
+                <EmptyState
+                  icon={<Briefcase size={27} />}
+                  title="No jobs here yet"
+                  description="Assigned work will appear here with your schedule and team."
+                />
+              )}
           </>
         )}
         {!secondary && tab === "inbox" && <Inbox data={data} busy={busy || !online} run={run} />}

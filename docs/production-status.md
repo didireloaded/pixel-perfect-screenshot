@@ -96,3 +96,27 @@ real HTTP PDF/TXT upload and an actual employee activity day still need acceptan
 with legitimate records. New work activities currently require connectivity;
 background interpretation, push delivery and summaries remain later stages. See
 [workplace-reports.md](workplace-reports.md) for behavior, access and limits.
+
+## Located job plans (2026-10-13)
+
+Managers create date-based job plans without assigning attendance shifts. Crew
+selection is optional; a selected crew restricts who can start the job. Workers
+start today's plan from their actual, clocked-in workday. The server attaches
+the execution to that workday, preserves complete instructions and uses the
+confirmed destination and boundary for existing job geofencing. Repeated starts
+reuse the same execution. Job briefs remain separate from the execution board.
+
+Job forms use permanent Mapbox Geocoding address suggestions, a draggable map
+pin and manual coordinates. Namibia venue-name coverage is limited: unmatched
+places require a confirmed pin, never invented coordinates. The configured
+token accepted permanent requests; no Mapbox billing or licensing settings were
+changed. A saved destination is not evidence of a worker's live position.
+Managers can edit a plan's location before execution starts, with stale-edit
+protection and safe identical retries. Started destinations are locked.
+
+Both migrations are deployed. Hosted rollback verification covers plan creation,
+location edits, worker execution, retries, lunch resumption and tenant isolation;
+fixtures were rolled back. Both apps type-check and build, with zero lint errors
+and 19 existing warnings. Live address selection and the loaded location editor
+were checked without submitting a test job or changing existing company records.
+AI processing remains unconnected; address search uses Mapbox, not AI.

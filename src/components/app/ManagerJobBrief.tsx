@@ -5,17 +5,20 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ThemedSelect } from "../../../shared/ThemedSelect";
 import type { Job } from "../../../shared/attendance";
+import { CalendarJobForm } from "./CalendarJobForm";
+import { JobPlanLocationForm } from "./JobPlanLocationForm";
 export function ManagerJobBrief({ job, onSaved }: { job?: Job; onSaved: () => void }) {
   const d = useAttendance();
   const [id] = useState(() => crypto.randomUUID());
   const shifts = d.shifts.filter((s) => s.employeeId !== d.me);
-  const [shiftId, setShiftId] = useState(
+  const [shiftId] = useState(
     job?.shiftId || shifts.find((s) => s.date >= d.today)?.id || shifts[0]?.id || "",
   );
   const shift = d.shifts.find((s) => s.id === shiftId);
   const site = d.sites.find((s) => s.id === shift?.siteId);
   const [latitude, setLatitude] = useState(job?.latitude == null ? "" : String(job.latitude));
   const [longitude, setLongitude] = useState(job?.longitude == null ? "" : String(job.longitude));
+  if (!job) return <CalendarJobForm date={d.today} onSaved={onSaved} />;
   return (
     <form
       className="space-y-4"
@@ -37,76 +40,13 @@ export function ManagerJobBrief({ job, onSaved }: { job?: Job; onSaved: () => vo
         });
       }}
     >
-      {job ? (
-        <p className="rounded-xl bg-muted p-3 text-sm">
-          {job.title} · {job.destination}
-          <br />
-          <span className="text-xs text-muted-foreground">
-            {job.date} · {job.start}–{job.end}
-          </span>
-        </p>
-      ) : (
-        <>
-          <label className="block text-sm">
-            Assigned shift
-            <ThemedSelect
-              className="mt-2"
-              name="shiftId"
-              required
-              value={shiftId}
-              onValueChange={setShiftId}
-            >
-              <option value="">Choose a worker shift</option>
-              {shifts.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {d.employees.find((e) => e.id === s.employeeId)?.name} · {s.date} · {s.start}–
-                  {s.end}
-                </option>
-              ))}
-            </ThemedSelect>
-          </label>
-          <label className="block text-sm">
-            Job title
-            <input
-              className="mt-2 w-full rounded-xl border border-border bg-muted p-3"
-              name="title"
-              maxLength={100}
-              required
-            />
-          </label>
-          <label className="block text-sm">
-            Job address / destination
-            <input
-              className="mt-2 w-full rounded-xl border border-border bg-muted p-3"
-              name="destination"
-              maxLength={200}
-              required
-            />
-          </label>
-          <div className="grid grid-cols-2 gap-3" key={shiftId}>
-            {["start", "end"].map((name) => (
-              <label key={name} className="text-sm capitalize">
-                {name}
-                <input
-                  className="mt-2 w-full rounded-xl border border-border bg-muted p-3"
-                  name={name}
-                  type="time"
-                  defaultValue={name === "start" ? shift?.start : shift?.end}
-                  required
-                />
-              </label>
-            ))}
-          </div>
-          <label className="block text-sm">
-            Instructions
-            <textarea
-              name="instructions"
-              className="mt-2 min-h-24 w-full rounded-xl border border-border bg-muted p-3"
-              maxLength={1000}
-            />
-          </label>
-        </>
-      )}
+      <p className="rounded-xl bg-muted p-3 text-sm">
+        {job.title} · {job.destination}
+        <br />
+        <span className="text-xs text-muted-foreground">
+          {job.date} · {job.start}–{job.end}
+        </span>
+      </p>
       <div className="rounded-2xl border border-border p-4">
         <h3 className="flex items-center gap-2 text-sm font-semibold">
           <MapPin size={16} />
@@ -198,6 +138,7 @@ export function ManagerJobBriefs({ onAdd }: { onAdd: () => void }) {
   const d = useAttendance();
   const [selected, setSelected] = useState("");
   const job = d.jobs.find((j) => j.id === selected);
+  const plan = d.calendarJobs?.find((item) => item.id === selected);
   return (
     <section className="project-panel">
       <div className="project-panel-head">
@@ -210,6 +151,28 @@ export function ManagerJobBriefs({ onAdd }: { onAdd: () => void }) {
         <Button onClick={onAdd}>New job</Button>
       </div>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        {(d.calendarJobs ?? []).map((plan) => (
+          <article key={plan.id} className="rounded-2xl border border-border p-4">
+            <h3 className="font-semibold">{plan.title}</h3>
+            <p className="text-xs mt-1">
+              {plan.date} · {plan.address || "Location needs confirmation"}
+            </p>
+            <p className="text-xs mt-2">
+              {plan.assignedNames.length
+                ? plan.assignedNames.join(", ")
+                : "Open to company workers"}
+            </p>
+            <p className="mt-3 whitespace-pre-wrap text-sm">{plan.details}</p>
+            <Button
+              className="mt-3"
+              variant="soft"
+              disabled={d.jobs.some((job) => job.calendarJobId === plan.id)}
+              onClick={() => setSelected(plan.id)}
+            >
+              Edit job location
+            </Button>
+          </article>
+        ))}
         {d.jobs.map((j) => (
           <article key={j.id} className="rounded-2xl border border-border p-4">
             <h3 className="font-semibold">{j.title}</h3>
@@ -235,13 +198,13 @@ export function ManagerJobBriefs({ onAdd }: { onAdd: () => void }) {
           </article>
         ))}
       </div>
-      {!d.jobs.length && (
+      {!d.jobs.length && !(d.calendarJobs ?? []).length && (
         <p className="mt-5 text-sm text-muted-foreground">
-          Create a job after assigning a worker shift.
+          Create a company job. Employee assignment is optional.
         </p>
       )}
       <Dialog
-        open={!!job}
+        open={!!job || !!plan}
         onOpenChange={(open) => {
           if (!open) setSelected("");
         }}
@@ -250,6 +213,9 @@ export function ManagerJobBriefs({ onAdd }: { onAdd: () => void }) {
           <DialogTitle>Edit job brief</DialogTitle>
           <DialogDescription>Change the location and plan before work starts.</DialogDescription>
           {job && <ManagerJobBrief key={job.id} job={job} onSaved={() => setSelected("")} />}
+          {plan && (
+            <JobPlanLocationForm key={plan.id} plan={plan} onSaved={() => setSelected("")} />
+          )}
         </DialogContent>
       </Dialog>
     </section>
