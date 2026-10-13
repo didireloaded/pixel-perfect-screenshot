@@ -14,6 +14,7 @@ import {
 import type { AttendanceSnapshot, AttendanceState, EventType } from "../../../shared/attendance";
 import { WorkerCard, formatHours, formatTime } from "./WorkerUI";
 import { liveWorkMinutes } from "../../../shared/live-work-minutes";
+import { checkinClosed } from "../../../shared/checkin-cutoff";
 export function WorkerHome({
   data,
   state,
@@ -43,6 +44,9 @@ export function WorkerHome({
     return () => clearInterval(timer);
   }, []);
   const shift = data.shifts.find((item) => item.employeeId === data.me && item.date === data.today);
+  const closed =
+    state === "not_clocked_in" &&
+    checkinClosed(data.company.timezone, data.company.checkinCloseTime, now);
   const events = data.events
     .filter((event) => event.shiftId === shift?.id && event.employeeId === data.me)
     .sort((a, b) => a.capturedAt - b.capturedAt);
@@ -180,10 +184,18 @@ export function WorkerHome({
                           ? "Clock out"
                           : "Return to work"
                 }
-                disabled={busy}
+                disabled={busy || closed}
                 onClick={() => onAction(action)}
               >
-                <span>{busy ? "Saving…" : action === "clock_out" ? "Clock out" : stateTitle}</span>
+                <span>
+                  {closed
+                    ? "Check-in closed"
+                    : busy
+                      ? "Saving…"
+                      : action === "clock_out"
+                        ? "Clock out"
+                        : stateTitle}
+                </span>
                 {state !== "not_clocked_in" && (
                   <small>
                     {state === "working"

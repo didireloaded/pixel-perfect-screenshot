@@ -21,6 +21,19 @@ export function CompanySettings() {
     <div className="grid gap-5 lg:grid-cols-2">
       <div className="space-y-5">
         <RecordForm
+          title="Check-in cutoff"
+          action="set_checkin_cutoff"
+          label="Save knock-off time"
+          fields={[
+            {
+              name: "time",
+              label: "Check-in closes at (company timezone)",
+              type: "time",
+              value: d.company.checkinCloseTime ?? "17:00",
+            },
+          ]}
+        />
+        <RecordForm
           title={`Company policy · current version ${p.version}`}
           action="save_policy"
           label="Save a new policy version"

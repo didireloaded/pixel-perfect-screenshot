@@ -394,18 +394,21 @@ export type Database = {
       };
       sl_companies: {
         Row: {
+          checkin_close_time: string;
           current_policy_version: number;
           id: string;
           name: string;
           timezone: string;
         };
         Insert: {
+          checkin_close_time?: string;
           current_policy_version?: number;
           id?: string;
           name: string;
           timezone?: string;
         };
         Update: {
+          checkin_close_time?: string;
           current_policy_version?: number;
           id?: string;
           name?: string;
@@ -1659,6 +1662,54 @@ export type Database = {
           },
         ];
       };
+      sl_notifications: {
+        Row: {
+          company_id: string;
+          created_at: string;
+          destination: string;
+          employee_id: string;
+          id: string;
+          read_at: string | null;
+          source: string;
+          title: string;
+        };
+        Insert: {
+          company_id: string;
+          created_at?: string;
+          destination: string;
+          employee_id: string;
+          id?: string;
+          read_at?: string | null;
+          source: string;
+          title: string;
+        };
+        Update: {
+          company_id?: string;
+          created_at?: string;
+          destination?: string;
+          employee_id?: string;
+          id?: string;
+          read_at?: string | null;
+          source?: string;
+          title?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "sl_notifications_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "sl_companies";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sl_notifications_employee_id_fkey";
+            columns: ["employee_id"];
+            isOneToOne: false;
+            referencedRelation: "sl_employees";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       sl_pay_rates: {
         Row: {
           company_id: string;
@@ -2685,6 +2736,19 @@ export type Database = {
     };
     Functions: {
       sl_command: { Args: { p_action: string; p_data: Json }; Returns: Json };
+      sl_notifications_api: {
+        Args: { action: string; payload?: Json };
+        Returns: Json;
+      };
+      sl_push_batch: { Args: never; Returns: Json };
+      sl_push_configuration: {
+        Args: { private_key?: string; public_key?: string };
+        Returns: Json;
+      };
+      sl_push_result: {
+        Args: { delivery: string; outcome: string; token: string };
+        Returns: undefined;
+      };
       sl_snapshot: { Args: never; Returns: Json };
       sl_worker_access_target: {
         Args: { p_employee_id: string };

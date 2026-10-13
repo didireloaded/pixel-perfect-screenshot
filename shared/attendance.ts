@@ -160,6 +160,7 @@ export interface CalendarJob {
   assignedNames: string[];
 }
 export interface AttendanceSnapshot {
+  unreadNotificationCount?: number;
   workActivities?: WorkActivity[];
   incidents?: WorkplaceIncident[];
   incidentExceptions?: IncidentException[];
@@ -168,7 +169,7 @@ export interface AttendanceSnapshot {
   calendarJobs?: CalendarJob[];
   me: string;
   role: "manager" | "employee";
-  company: { id: string; name: string; timezone: string };
+  company: { id: string; name: string; timezone: string; checkinCloseTime?: string };
   today: string;
   employees: Employee[];
   sites: Site[];

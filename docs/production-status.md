@@ -120,3 +120,49 @@ fixtures were rolled back. Both apps type-check and build, with zero lint errors
 and 19 existing warnings. Live address selection and the loaded location editor
 were checked without submitting a test job or changing existing company records.
 AI processing remains unconnected; address search uses Mapbox, not AI.
+
+## Check-in cutoff and browser notifications (14 October 2026)
+
+Each company has a check-in cutoff, defaulting to 17:00 in its configured
+timezone. Company settings can change it. The worker button turns grey at the
+cutoff, including an already-open confirmation sheet; the server rejects new
+live check-ins after it. Accepted event retries remain valid. Clock-out, breaks,
+existing work and reviewed corrections are not stopped or rewritten.
+
+New messages, jobs, announcements, request decisions, timesheet approvals,
+pending registrations and work-boundary alerts create employee-scoped notification
+records. Read receipts are separate from approval and message read status. The
+feed shows the latest 100 updates. Existing work records remain available; old
+history is not sent retroactively as push alerts. Expected-finish reminders do
+not create attendance evidence or automatically clock anyone out.
+
+Both apps have installation manifests, icons and separate push service workers.
+Users explicitly enable phone notifications. iPhone users must first save the
+app to their Home Screen using Safari (Web Push requires iOS 16.4 or newer).
+Lock-screen alerts contain generic categories, never message bodies, medical
+details or GPS observations. Subscriptions are company-account scoped and can
+be disabled. Sign-out attempts to unregister the current device; offline cleanup
+may fail, so a generic alert can still arrive until connectivity returns or the
+subscription is disabled. No private content is included in that alert.
+
+VAPID and dispatch secrets are generated on the server and stored in Supabase
+Vault. A minute-by-minute scheduled Edge dispatcher uses leased delivery rows,
+bounded retries and expired-subscription handling. Server acceptance does not
+guarantee OS display. Physical iPhone/Android notification acceptance still
+requires a legitimate signed-in user to enable permission and receive a real
+work update. This change does not add offline cold-start, offline clock-in or
+native background GPS.
+
+Verification: 74 frontend/shared tests and 27 database tests pass (26 established
+checks plus the new notification/cutoff test). Both apps type-check and build.
+The Edge function type-checks; scheduled requests return HTTP 200. Hosted
+rollback SQL verifies cutoff boundaries, rejected late clock-ins and notification
+access/read isolation without leaving fixtures. The notification interface was
+checked on a phone viewport. Existing onboarding behavior is preserved.
+
+The new notification RPC follows the existing public-invoker/private-definer
+pattern. Network-extension execution is revoked from ordinary app roles.
+Supabase still reports the non-relocatable pg_net extension's default public
+namespace ([extension advisory](https://supabase.com/docs/guides/database/database-linter?lint=0014_extension_in_public)),
+the existing leaked-password-protection warning, and deliberate default-deny
+RLS informational notices. No new missing-FK-index warning was reported.

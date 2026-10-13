@@ -1,0 +1,14 @@
+{
+  "id": "/manager",
+  "name": "Shiftline Manager",
+  "short_name": "Shiftline",
+  "start_url": "/manager",
+  "scope": "/manager",
+  "display": "standalone",
+  "background_color": "#e9e9ef",
+  "theme_color": "#6d4aff",
+  "icons": [
+    { "src": "/app-icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/app-icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

@@ -76,7 +76,9 @@ function Manager() {
         ) : undefined
       }
       onRefresh={() => void d.refresh()}
-      notificationCount={managerNotifications(d).filter((item) => !item.read).length}
+      notificationCount={
+        d.unreadNotificationCount ?? managerNotifications(d).filter((item) => !item.read).length
+      }
       onSignOut={() => void d.logout()}
     >
       {tab === "Overview" && <ManagerOverview data={d} onSelect={setTab} />}

@@ -76,6 +76,20 @@ export function createBackend(app: "manager" | "worker") {
     return workerAccess({ action: "reset_code", employeeId });
   }
   async function signOut() {
+    if ("serviceWorker" in navigator) {
+      try {
+        const registration = await navigator.serviceWorker.getRegistration(
+          app === "manager" ? "/manager" : "/",
+        );
+        const subscription = await registration?.pushManager.getSubscription();
+        if (subscription) {
+          await notifications("unsubscribe", { endpoint: subscription.endpoint });
+          await subscription.unsubscribe();
+        }
+      } catch {
+        /* Sign-out still completes when device notification cleanup is offline. */
+      }
+    }
     const { error } = await requireClient().auth.signOut({ scope: "local" });
     check(error);
   }
@@ -101,6 +115,14 @@ export function createBackend(app: "manager" | "worker") {
   async function snapshot<T>(): Promise<T> {
     const { data, error } = await requireClient().rpc("sl_snapshot");
     check(error);
+    if (data && typeof data === "object" && !Array.isArray(data) && data["company"]) {
+      try {
+        const rows = await notifications<{ read_at: string | null }[]>("list");
+        data["unreadNotificationCount"] = rows.filter((item) => !item.read_at).length;
+      } catch {
+        /* Notification delivery must not block ordinary attendance. */
+      }
+    }
     return data as T;
   }
   async function command<T>(action: string, payload: Record<string, unknown>): Promise<T> {
@@ -161,8 +183,20 @@ export function createBackend(app: "manager" | "worker") {
   }
   const watch = (companyId: string, refresh: () => Promise<void>) =>
     startLiveSync(requireClient(), companyId, refresh);
+  async function notifications<T>(
+    action: string,
+    payload: Record<string, unknown> = {},
+  ): Promise<T> {
+    const { data, error } = await requireClient().rpc("sl_notifications_api", {
+      action,
+      payload: payload as Json,
+    });
+    check(error);
+    return data as T;
+  }
   return {
     configured: Boolean(client),
+    notifications,
     hasSession,
     signIn,
     registerWorker,

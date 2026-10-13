@@ -1,4 +1,6 @@
 import { activeJobForShift } from "../../shared/active-job";
+import { checkinClosed } from "../../shared/checkin-cutoff";
+import { BrowserNotifications } from "../../shared/BrowserNotifications";
 import { watchWorkPosition } from "../../shared/watch-work-position";
 import { attendanceOutbox, type QueuedAttendance } from "../../shared/web-attendance-outbox";
 import { deriveState } from "../../src/lib/attendance";
@@ -61,7 +63,9 @@ const displayDate = (iso: string) =>
   });
 export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) {
   const [data, setData] = useState<AttendanceSnapshot | null>(null);
-  const [secondary, setSecondary] = useState<"profile" | "requests" | "notifications" | null>(null);
+  const [secondary, setSecondary] = useState<"profile" | "requests" | "notifications" | null>(() =>
+    new URLSearchParams(window.location.search).has("notification") ? "notifications" : null,
+  );
   const [correction, setCorrection] = useState<Shift | null>(null);
   const [jobFilter, setJobFilter] = useState<"all" | "assigned" | "in_progress" | "completed">(
     "all",
@@ -95,6 +99,11 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
   const [visible, setVisible] = useState(() => document.visibilityState === "visible");
   const [clockInOpen, setClockInOpen] = useState(false);
   const [expectedEnd, setExpectedEnd] = useState("17:00");
+  const [cutoffNow, setCutoffNow] = useState(Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setCutoffNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
   const [shareDuringWork, setShareDuringWork] = useState(true);
   const [locating, setLocating] = useState(false);
   const clockInLock = useRef(false);
@@ -258,6 +267,16 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
   );
 
   const act = async (type: EventType, extra: Record<string, unknown> = {}) => {
+    if (
+      type === "clock_in" &&
+      data &&
+      checkinClosed(data.company.timezone, data.company.checkinCloseTime)
+    ) {
+      setError(
+        `Check-in closes at ${data.company.checkinCloseTime ?? "17:00"}. Contact your manager if you need a correction.`,
+      );
+      return false;
+    }
     let location: Record<string, number> | undefined;
     const shift = data?.shifts.find((s) => s.employeeId === data.me && s.date === data.today);
     if (type === "clock_in" && !extra["expectedEnd"]) {
@@ -504,7 +523,7 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
               onClick={() => setSecondary("notifications")}
             >
               <Bell size={19} />
-              {unread > 0 && <i />}
+              {(data.unreadNotificationCount ?? unread) > 0 && <i />}
             </button>
             <button
               className="worker-icon-button"
@@ -535,6 +554,18 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
         )}
       </header>
       <div key={secondary ?? tab} className="worker-scroll no-scrollbar">
+        {!secondary && tab === "today" && <BrowserNotifications app="worker" />}
+        {secondary === "notifications" && (
+          <BrowserNotifications
+            app="worker"
+            feed
+            onOpen={(destination) => {
+              if (destination === "jobs") switchTab("jobs");
+              else if (destination === "requests") setSecondary("requests");
+              else switchTab("inbox");
+            }}
+          />
+        )}
         {!online && (
           <div role="status" className="worker-offline">
             <WifiOff size={15} />
@@ -759,7 +790,15 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
               finish.
             </label>
             {error && <p role="alert">{error}</p>}
-            <button className="worker-action mt-5" disabled={busy || locating || !online}>
+            <button
+              className="worker-action mt-5"
+              disabled={
+                busy ||
+                locating ||
+                !online ||
+                checkinClosed(data.company.timezone, data.company.checkinCloseTime, cutoffNow)
+              }
+            >
               {locating ? "Checking location…" : busy ? "Checking in…" : "Check in now"}
             </button>
           </form>

@@ -305,6 +305,8 @@ dialog.worker-sheet textarea {
   color: #eee8ff;
 }
 .worker-orb:disabled {
+  background: #77717e;
+  box-shadow: none;
   opacity: 0.5;
 }
 .worker-orb-area.on-break .worker-orb {

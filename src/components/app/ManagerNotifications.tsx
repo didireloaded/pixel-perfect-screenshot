@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { BrowserNotifications } from "../../../shared/BrowserNotifications";
 import { Bell, ChevronRight, Check, Search } from "lucide-react";
 import { useAttendance } from "@/lib/app-store";
 import { managerNotifications } from "../../../shared/manager-notifications";
@@ -19,9 +20,27 @@ export function ManagerNotifications({
   );
   return (
     <section className="project-panel">
+      <BrowserNotifications
+        app="manager"
+        feed
+        onOpen={(destination) =>
+          onSelect(
+            (
+              {
+                messages: "Messages",
+                jobs: "Calendar",
+                requests: "Requests",
+                announcements: "Announcements",
+                map: "Map",
+                team: "Team",
+              } as const
+            )[destination as "messages"] ?? "Overview",
+          )
+        }
+      />
       <div className="project-panel-head">
         <div>
-          <h2>Notifications</h2>
+          <h2>Work records</h2>
           <p className="project-panel-sub">
             {all.filter((item) => !item.read).length} unread · registrations, requests, messages and
             worksite alerts
