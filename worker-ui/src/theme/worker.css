@@ -55,7 +55,6 @@
   position: relative;
   width: 100%;
   height: 100dvh;
-  max-width: 430px;
   overflow: hidden;
   background: var(--color-page);
   font-family: var(--font-sans);
@@ -1217,12 +1216,6 @@ dialog.worker-sheet textarea {
   background: #412c3a;
 }
 @media (min-width: 640px) {
-  .worker-device {
-    height: min(860px, 96dvh);
-    border-radius: 38px;
-    box-shadow: 0 20px 70px #23123018;
-    border: 1px solid #dcd7e5;
-  }
   .worker-header {
     padding-top: 27px;
   }
@@ -1230,8 +1223,7 @@ dialog.worker-sheet textarea {
     padding-top: 23px;
   }
   .worker-sheet {
-    bottom: 2dvh;
-    border-radius: 28px;
+    border-radius: 28px 28px 0 0;
   }
   .worker-tabbar {
     padding-bottom: 18px;
