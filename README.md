@@ -1,6 +1,6 @@
 # Shiftline
 
-Shiftline is an employee attendance and job app with a manager workspace. Employees record clock-in, lunch, job departures, personal departures and clock-out; review shifts, tasks, messages, company news, events and approved hours; and submit requests and timesheets. Managers assign shifts and jobs, review requests and corrections, publish notices, discuss jobs with workers, manage job steps and teams, review attendance, and see recent worksite presence.
+Shiftline is an employee attendance and job app with a manager workspace. Employees start their own workday, record lunch, job departures, personal departures and clock-out; review jobs, tasks, messages, company news, events and approved hours; and submit requests and timesheets. Managers plan jobs with optional crews, review requests and corrections, publish notices, discuss jobs with workers, manage job steps and teams, review attendance, and see recent worksite presence.
 
 The employee web app is designed for a phone-sized viewport. The new iOS-style worker web UI lives in [`worker-ui/`](worker-ui/README.md) and uses the same Supabase database as the manager workspace. The manager dashboard follows the Project Inc. reference with a purple sidebar, purple task controls, a task board, and bookmarkable sections. Payroll is not shown in the manager dashboard. An Expo client for employee attendance lives in [`mobile/`](mobile/README.md); newer web communication screens are not yet mirrored there.
 
@@ -39,12 +39,13 @@ npm run lint
 npm run build
 ```
 
-The database tests run the actual migrations and RPCs against an isolated embedded PostgreSQL database. They cover attendance transitions, tenant isolation, approvals, messages, job progress and exports. Physical-device GPS, background scheduling, hosted authentication and email delivery require separate validation. Browser offline clock-in, web push delivery and an installable PWA are not implemented.
+The database tests run the actual migrations and RPCs against an isolated embedded PostgreSQL database. They cover attendance transitions, tenant isolation, approvals, messages, job progress and exports. Installable web apps, opt-in Web Push and queued offline attendance after first clock-in are implemented. Offline first clock-in and native background GPS remain unavailable. Real-device push delivery, physical GPS and email delivery require acceptance testing. See [production status](docs/production-status.md) for current verification and limitations.
 
 ## Shared backend
 
-The hosted project now has all seventeen migrations, including chat, manager workspace, task-board changes and database integrity protections. See [docs/backend.md](docs/backend.md) for the schema, access rules, verification and backup procedure. Both web clients use generated Supabase types in `shared/database.types.ts`.
-# Hosted apps
+The versioned migrations include attendance, chat, job calendars, workplace reports, notification delivery and database integrity protections. See [docs/backend.md](docs/backend.md) for the schema, access rules, verification and backup procedure. Both web clients use generated Supabase types in `shared/database.types.ts`.
+
+## Hosted apps
 
 See [ChatGPT Sites hosting](hosting/sites/README.md) for deployment source,
 artifact assembly and the live worker and manager URLs.
