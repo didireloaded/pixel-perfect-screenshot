@@ -62,7 +62,23 @@ const displayDate = (iso: string) =>
     month: "short",
     timeZone: "UTC",
   });
-export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) {
+export default function LiveWorkerApp({
+  onSignOut,
+  onAccessChanged,
+}: {
+  onSignOut: () => void;
+  onAccessChanged?: () => void;
+}) {
+  const accessChanged = useRef(onAccessChanged);
+  accessChanged.current = onAccessChanged;
+  const lifecycle = useRef({ active: true });
+  useEffect(() => {
+    const current = { active: true };
+    lifecycle.current = current;
+    return () => {
+      current.active = false;
+    };
+  }, []);
   const [data, setData] = useState<AttendanceSnapshot | null>(null);
   const [secondary, setSecondary] = useState<"profile" | "requests" | "notifications" | null>(() =>
     new URLSearchParams(window.location.search).has("notification") ? "notifications" : null,
@@ -115,6 +131,20 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
   const revision = useRef(0);
   const planStartIds = useRef(new Map<string, string>());
   const [pendingAttendance, setPendingAttendance] = useState<QueuedAttendance[]>([]);
+  const acceptSnapshot = useCallback((next: AttendanceSnapshot | { onboarding: true }) => {
+    if (!lifecycle.current.active) return false;
+    if (next.onboarding || !("me" in next)) {
+      lifecycle.current.active = false;
+      setData(null);
+      setLocationEnabled(false);
+      setLoading(false);
+      setError("Your workplace access has changed. Contact your manager.");
+      accessChanged.current?.();
+      return false;
+    }
+    setData(next);
+    return true;
+  }, []);
   const outbox = useMemo(
     () => (data?.me ? attendanceOutbox(localStorage, data.company.id, data.me) : null),
     [data?.company.id, data?.me],
@@ -127,6 +157,8 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
           data.shifts.some((shift) => shift.id === item.shift_id && shift.date === data.today)),
     ) ?? false;
   const syncAttendance = useCallback(async () => {
+    const current = lifecycle.current;
+    if (!current.active) return;
     if (!outbox || !navigator.onLine || writeLock.current || reviewPending) return;
     try {
       if (outbox.list().length === 0) return;
@@ -140,17 +172,19 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
     try {
       const synchronize = () =>
         outbox.flush(async (event) => {
+          if (!current.active)
+            throw new Error("Account changed. Saved attendance remains on this device.");
           const result = await backend.command<Result>("submit_attendance", { ...event });
-          if (result.status === "synced" || result.status === "needs_review")
-            setData(result.snapshot);
+          if (current.active && (result.status === "synced" || result.status === "needs_review"))
+            acceptSnapshot(result.snapshot);
           return result;
         });
       const results = navigator.locks
         ? await navigator.locks.request("shiftline-attendance-sync", synchronize)
         : await synchronize();
       const latest = results.at(-1);
-      if (latest) {
-        setData(latest.snapshot);
+      if (latest && current.active) {
+        if (!acceptSnapshot(latest.snapshot)) return;
         setError("");
         setNotice(
           latest.status === "needs_review"
@@ -159,21 +193,24 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
         );
       }
     } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : "Attendance is saved on this device. Retry synchronization.",
-      );
+      if (current.active)
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "Attendance is saved on this device. Retry synchronization.",
+        );
     } finally {
-      try {
-        setPendingAttendance(outbox.list());
-      } catch (cause) {
-        setError(cause instanceof Error ? cause.message : "Could not read saved attendance");
+      if (current.active) {
+        try {
+          setPendingAttendance(outbox.list());
+        } catch (cause) {
+          setError(cause instanceof Error ? cause.message : "Could not read saved attendance");
+        }
+        writeLock.current = false;
+        setBusy(false);
       }
-      writeLock.current = false;
-      setBusy(false);
     }
-  }, [outbox, reviewPending]);
+  }, [outbox, reviewPending, acceptSnapshot]);
   useEffect(() => {
     if (!outbox) return;
     try {
@@ -210,23 +247,29 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, []);
   const refresh = useCallback(async () => {
+    const current = lifecycle.current;
+    if (!current.active) return;
     if (writeLock.current) return;
     const token = ++revision.current;
     try {
-      const next = await backend.snapshot<AttendanceSnapshot>();
-      if (token === revision.current && !writeLock.current) {
-        setData(next);
+      const next = await backend.snapshot<AttendanceSnapshot | { onboarding: true }>();
+      if (current.active && token === revision.current && !writeLock.current) {
+        if (!acceptSnapshot(next)) return;
         setError("");
       }
     } catch (cause) {
-      if (token === revision.current)
+      if (current.active && token === revision.current)
         setError(cause instanceof Error ? cause.message : "Could not load your records");
     } finally {
-      setLoading(false);
+      if (current.active || token === revision.current) setLoading(false);
     }
-  }, []);
+  }, [acceptSnapshot]);
   useEffect(() => {
     void refresh();
+    const rev = revision;
+    return () => {
+      ++rev.current;
+    };
   }, [refresh]);
   useEffect(() => {
     if (!data?.company.id) return;
@@ -234,6 +277,8 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
   }, [data?.company.id, refresh]);
   const run = useCallback(
     async (action: string, payload: Record<string, unknown>, success: string) => {
+      const current = lifecycle.current;
+      if (!current.active) return false;
       if (writeLock.current || !navigator.onLine || pendingAttendance.length > 0) {
         setError(
           navigator.onLine
@@ -249,7 +294,8 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
       setNotice("");
       try {
         const result = await backend.command<Result>(action, payload);
-        setData(result.snapshot);
+        if (!current.active) return false;
+        if (!acceptSnapshot(result.snapshot)) return false;
         setNotice(
           result.status === "needs_review"
             ? `Saved for manager review: ${result.reason ?? "attendance conflict"}`
@@ -257,17 +303,20 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
         );
         return true;
       } catch (cause) {
-        setError(cause instanceof Error ? cause.message : "Could not save this action");
+        if (current.active)
+          setError(cause instanceof Error ? cause.message : "Could not save this action");
         return false;
       } finally {
         writeLock.current = false;
-        setBusy(false);
+        if (current.active) setBusy(false);
       }
     },
-    [pendingAttendance.length],
+    [pendingAttendance.length, acceptSnapshot],
   );
 
   const act = async (type: EventType, extra: Record<string, unknown> = {}) => {
+    const current = lifecycle.current;
+    if (!current.active) return false;
     if (
       type === "clock_in" &&
       data &&
@@ -281,6 +330,12 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
     let location: Record<string, number> | undefined;
     const shift = data?.shifts.find((s) => s.employeeId === data.me && s.date === data.today);
     if (type === "clock_in" && !extra["expectedEnd"]) {
+      if (previousOpenShift) {
+        setError(
+          `Your workday from ${previousOpenShift.date} is still open. Ask your manager to review it before checking in again.`,
+        );
+        return false;
+      }
       setClockInOpen(true);
       return false;
     }
@@ -342,16 +397,18 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
           accuracyM: position.coords.accuracy,
         };
       } catch {
+        if (!current.active) return false;
         setError(
           "Location is required to clock in under your company policy. Enable location and try again.",
         );
         clockInLock.current = false;
         return false;
       } finally {
-        setLocating(false);
+        if (current.active) setLocating(false);
       }
     }
     try {
+      if (!current.active) return false;
       return await run(
         type === "clock_in" ? "start_workday" : "transition",
         {
@@ -368,6 +425,15 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
   };
   const me = data?.employees.find((e) => e.id === data.me);
   const shift = data?.shifts.find((s) => s.employeeId === data.me && s.date === data.today);
+  const previousOpenShift = data?.shifts.find(
+    (item) =>
+      item.employeeId === data.me &&
+      item.date < data.today &&
+      data.states.some(
+        (entry) =>
+          entry.shiftId === item.id && !["not_clocked_in", "clocked_out"].includes(entry.state),
+      ),
+  );
   const state =
     pendingAttendance.some((item) => item.shiftId === shift?.id) && data
       ? deriveState([
@@ -469,15 +535,17 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
         <Action onClick={() => void refresh()}>Retry</Action>
       </div>
     );
-  if (data.onboarding || !me)
+  if (!me)
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 bg-page px-7 text-center dark:bg-dpage">
-        <p className="font-semibold">Activate your employee account</p>
+        <p className="font-semibold">Workplace access required</p>
         <p className="text-sm text-sub">
-          Ask your manager for your employee number and one-time code, then sign in again to
-          activate.
+          Your company membership could not be confirmed. Ask your manager to check your
+          registration.
         </p>
-        <Action onClick={onSignOut}>Sign in again</Action>
+        <Action onClick={() => (accessChanged.current ? accessChanged.current() : onSignOut())}>
+          Check workplace access
+        </Action>
       </div>
     );
   return (
@@ -573,6 +641,24 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
             You’re offline. Lunch and clock-out for an open workday can be saved on this device.
           </div>
         )}
+        {!secondary && tab === "today" && previousOpenShift && state === "not_clocked_in" && (
+          <Card>
+            <h2 className="font-semibold">Previous workday needs review</h2>
+            <p className="mt-2 text-sm">
+              Your workday from {previousOpenShift.date} is still open. Ask your manager to resolve
+              it before you check in again.
+            </p>
+            <Action
+              secondary
+              onClick={() => {
+                setCorrection(previousOpenShift);
+                setSecondary("requests");
+              }}
+            >
+              Review previous workday
+            </Action>
+          </Card>
+        )}
         {pendingAttendance.length > 0 && (
           <div role="status" className="worker-offline">
             {pendingAttendance.length} attendance event(s) saved on this device. Not yet confirmed.
@@ -600,6 +686,7 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
             data={data}
             state={state}
             busy={busy || locating || reviewPending}
+            checkInBlocked={!!previousOpenShift && state === "not_clocked_in"}
             onAction={(type) => void act(type)}
             onDeparture={() => setDepartureOpen(true)}
             onEmergency={() => {
@@ -765,7 +852,8 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
         >
           <p className="worker-muted-copy">
             Your check-in time is recorded when you confirm. Choose your expected finish so location
-            sharing stops on time.
+            sharing stops on time. The finish must be today; work across midnight is not supported
+            yet.
           </p>
           <form
             onSubmit={async (event) => {

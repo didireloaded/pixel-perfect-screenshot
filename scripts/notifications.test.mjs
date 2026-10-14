@@ -94,6 +94,30 @@ test("check-in cutoff and durable push records preserve identity, retries and re
     const queued = (await db.query("select * from shiftline_private.push_deliveries")).rows[0];
     assert.equal(queued.status, "pending");
     assert.equal(queued.attempts, 1);
+    // An expired sender must not acknowledge a delivery claimed by a new worker.
+    await db.query(
+      "update shiftline_private.push_deliveries set next_attempt=clock_timestamp()-interval '1 second' where id=$1",
+      [batch[0].id],
+    );
+    const retry = (await db.query("select public.sl_push_batch() result")).rows[0].result;
+    assert.equal(retry.length, 1);
+    assert.notEqual(retry[0].lease, batch[0].lease);
+    await db.query("select public.sl_push_result($1,$2,'sent')", [batch[0].id, batch[0].lease]);
+    const stillSending = (await db.query("select * from shiftline_private.push_deliveries"))
+      .rows[0];
+    assert.equal(stillSending.status, "sending");
+    assert.equal(stillSending.attempts, 2);
+    // A dead endpoint is retired only by the current lease holder.
+    await db.query("select public.sl_push_result($1,$2,'gone')", [batch[0].id, batch[0].lease]);
+    assert.equal(
+      (await db.query("select active from shiftline_private.push_subscriptions")).rows[0].active,
+      true,
+    );
+    await db.query("select public.sl_push_result($1,$2,'gone')", [retry[0].id, retry[0].lease]);
+    assert.equal(
+      (await db.query("select status from shiftline_private.push_deliveries")).rows[0].status,
+      "failed",
+    );
     await api(worker, "unsubscribe", { endpoint: subscription.endpoint });
     assert.equal(
       (await db.query("select active from shiftline_private.push_subscriptions")).rows[0].active,

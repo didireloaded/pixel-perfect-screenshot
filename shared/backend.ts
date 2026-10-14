@@ -12,7 +12,8 @@ import {
 } from "./worker-signup";
 
 export function createBackend(app: "manager" | "worker") {
-  const config = readSupabaseConfig(import.meta.env);
+  const metaEnv = (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
+  const config = readSupabaseConfig(metaEnv ?? {});
   const client = config
     ? createClient<Database>(config.url, config.key, {
         auth: { storageKey: `shiftline-${app}-auth`, persistSession: true, autoRefreshToken: true },
@@ -29,7 +30,27 @@ export function createBackend(app: "manager" | "worker") {
     if (!client) return false;
     const { data, error } = await client.auth.getSession();
     check(error);
-    return Boolean(data.session);
+    if (!data.session) return false;
+    // Persisted credentials are not proof that the account or session still exists.
+    const verified = await client.auth.getUser();
+    if (verified.error) {
+      const invalid =
+        verified.error.status === 401 ||
+        verified.error.status === 403 ||
+        [
+          "user_not_found",
+          "session_not_found",
+          "bad_jwt",
+          "refresh_token_not_found",
+          "refresh_token_already_used",
+        ].includes(verified.error.code ?? "");
+      if (!invalid) check(verified.error);
+      const latest = await client.auth.getSession();
+      // A slow failure from an older sign-in must not sign out a different account.
+      if (latest.data.session?.access_token === data.session.access_token) await signOut();
+      return false;
+    }
+    return Boolean(verified.data.user);
   }
   async function signIn(email: string, password: string, create = false) {
     const auth = requireClient().auth;
@@ -90,8 +111,12 @@ export function createBackend(app: "manager" | "worker") {
         );
         const subscription = await registration?.pushManager.getSubscription();
         if (subscription) {
-          await notifications("unsubscribe", { endpoint: subscription.endpoint });
-          await subscription.unsubscribe();
+          try {
+            await notifications("unsubscribe", { endpoint: subscription.endpoint });
+          } finally {
+            // Revoke this browser's endpoint even if server cleanup is offline.
+            await subscription.unsubscribe();
+          }
         }
       } catch {
         /* Sign-out still completes when device notification cleanup is offline. */

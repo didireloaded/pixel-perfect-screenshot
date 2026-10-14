@@ -38,7 +38,10 @@ function Shell() {
                 </p>
               }
             >
-              <LiveWorkerApp onSignOut={() => setPhase("welcome")} />
+              <LiveWorkerApp
+                onSignOut={() => setPhase("welcome")}
+                onAccessChanged={() => setPhase("waiting")}
+              />
             </Suspense>
           )}
           <ToastHost />

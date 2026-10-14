@@ -19,6 +19,7 @@ export function WorkerHome({
   data,
   state,
   busy,
+  checkInBlocked = false,
   onAction,
   onDeparture,
   onEmergency,
@@ -30,6 +31,7 @@ export function WorkerHome({
   data: AttendanceSnapshot;
   state: AttendanceState;
   busy: boolean;
+  checkInBlocked?: boolean;
   onAction: (type: EventType) => void;
   onDeparture: () => void;
   onEmergency?: () => void;
@@ -184,17 +186,19 @@ export function WorkerHome({
                           ? "Clock out"
                           : "Return to work"
                 }
-                disabled={busy || closed}
+                disabled={busy || closed || checkInBlocked}
                 onClick={() => onAction(action)}
               >
                 <span>
                   {closed
                     ? "Check-in closed"
-                    : busy
-                      ? "Saving…"
-                      : action === "clock_out"
-                        ? "Clock out"
-                        : stateTitle}
+                    : checkInBlocked
+                      ? "Needs review"
+                      : busy
+                        ? "Saving…"
+                        : action === "clock_out"
+                          ? "Clock out"
+                          : stateTitle}
                 </span>
                 {state !== "not_clocked_in" && (
                   <small>

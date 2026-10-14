@@ -199,3 +199,35 @@ logo access and existing cross-company mutations. A hosted two-company setup/pro
 smoke test passed inside a rolled-back transaction, leaving no fixture records.
 Existing workspace data is not reset by the migration; any reset is a separate,
 explicit destructive operation.
+
+## Multi-agent reliability pass · 14 October 2026
+
+Three focused agents reviewed session/location privacy, notification delivery state,
+and midnight attendance. Integration also fixes worker access changes while the app
+is open. Auth validates restored credentials against the server; authoritative
+rejection clears the saved login while transient outages preserve it. This does not
+promise instant revocation of every unexpired JWT. Browser push revocation is attempted
+even if server cleanup fails.
+
+Existing push endpoints must belong to the current account before the UI reports
+enabled delivery. Delayed polls cannot undo a saved notification read receipt, and
+async notification actions stop updating a disposed account screen. The one-time
+install prompt no longer gets consumed by visiting manual notification settings.
+
+GPS watchers stop immediately on hide/offline/page departure. Old-generation and
+stale positions are discarded. A delayed clock-in GPS response cannot submit after
+the worker screen unmounts. Offline replay stops after account disposal and keeps
+unsent evidence. Revoked membership snapshots clear company records and return the
+worker to approval instead of crashing on missing snapshot fields.
+
+A new migration lets already-committed legacy transition IDs retry after a date
+change without weakening ownership/evidence checks. New cross-midnight evidence
+still needs review and cannot currently be approved as an overnight workday.
+Workers see an unresolved previous workday before attempting another check-in.
+See `docs/overnight-design.md`; overnight support is not claimed.
+
+Verification: 28 database tests, five additional tenancy/integrity tests, 40 overtime
+tests, both TypeScript checks and production builds pass. The full frontend/shared
+suite and dedicated lifecycle tests cover the new account/GPS races. Lint has zero
+errors and 19 existing warnings. Real-phone push/GPS acceptance, a backup restore,
+monitoring/load acceptance and complete overnight work remain release gates.

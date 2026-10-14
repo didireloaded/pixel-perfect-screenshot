@@ -33,6 +33,22 @@ function transport() {
   };
 }
 describe("company snapshot synchronization", () => {
+  it("recovers after a rejected refresh without an unhandled promise", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+    vi.spyOn(navigator, "onLine", "get").mockReturnValue(true);
+    const api = transport();
+    const refresh = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Temporary outage"))
+      .mockResolvedValue(undefined);
+    const stop = startLiveSync(api.client, "company-1", refresh);
+    await Promise.resolve();
+    api.broadcast();
+    await vi.advanceTimersByTimeAsync(15000);
+    expect(refresh).toHaveBeenCalledTimes(2);
+    stop();
+  });
   it("uses a private company channel, recovers on focus and stops after cleanup", async () => {
     vi.useFakeTimers();
     vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");

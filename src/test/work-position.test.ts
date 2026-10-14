@@ -47,12 +47,18 @@ it("removes the marker after an in-flight report finishes and ignores late GPS c
       : Promise.resolve(),
   );
   const stop = watchWorkPosition(shift, "UTC", send, vi.fn());
-  callback({ coords: { latitude: -22.6, longitude: 17.08, accuracy: 10 } } as GeolocationPosition);
+  callback({
+    timestamp: Date.now(),
+    coords: { latitude: -22.6, longitude: 17.08, accuracy: 10 },
+  } as GeolocationPosition);
   await Promise.resolve();
   await Promise.resolve();
   expect(send).toHaveBeenCalledWith("report_position", expect.any(Object));
   stop();
-  callback({ coords: { latitude: 99, longitude: 99, accuracy: 10 } } as GeolocationPosition);
+  callback({
+    timestamp: Date.now(),
+    coords: { latitude: 99, longitude: 99, accuracy: 10 },
+  } as GeolocationPosition);
   finish();
   await vi.advanceTimersByTimeAsync(1);
   expect(send.mock.calls.map(([action]) => action)).toEqual(["report_position", "clear_position"]);
@@ -61,7 +67,10 @@ it("pauses for a hidden tab without forwarding its position", async () => {
   const send = vi.fn().mockResolvedValue({});
   const stop = watchWorkPosition(shift, "UTC", send, vi.fn());
   Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
-  callback({ coords: { latitude: 99, longitude: 99, accuracy: 10 } } as GeolocationPosition);
+  callback({
+    timestamp: Date.now(),
+    coords: { latitude: 99, longitude: 99, accuracy: 10 },
+  } as GeolocationPosition);
   await vi.advanceTimersByTimeAsync(1000);
   expect(send).not.toHaveBeenCalledWith("report_position", expect.anything());
   expect(clear).toHaveBeenCalledWith(1);
@@ -81,6 +90,7 @@ it("sends fresh movement every ten seconds without flooding the server", async (
   const send = vi.fn().mockResolvedValue({});
   const stop = watchWorkPosition(shift, "UTC", send, vi.fn());
   const point = {
+    timestamp: Date.now(),
     coords: { latitude: -22.6, longitude: 17.08, accuracy: 10 },
   } as GeolocationPosition;
   callback(point);
@@ -91,5 +101,71 @@ it("sends fresh movement every ten seconds without flooding the server", async (
   callback(point);
   await vi.advanceTimersByTimeAsync(1);
   expect(send.mock.calls.filter(([action]) => action === "report_position")).toHaveLength(2);
+  stop();
+});
+
+it("stops immediately on visibility and page lifecycle changes without waiting for a timer", async () => {
+  const send = vi.fn().mockResolvedValue({});
+  const stop = watchWorkPosition(shift, "UTC", send, vi.fn());
+  const beforePause = callback;
+  Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
+  document.dispatchEvent(new Event("visibilitychange"));
+  expect(clear).toHaveBeenCalledWith(1);
+  Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
+  document.dispatchEvent(new Event("visibilitychange"));
+  expect(watch).toHaveBeenCalledTimes(2);
+  beforePause({
+    timestamp: Date.now(),
+    coords: { latitude: 1, longitude: 1, accuracy: 10 },
+  } as GeolocationPosition);
+  await vi.advanceTimersByTimeAsync(1);
+  expect(send).not.toHaveBeenCalledWith("report_position", expect.anything());
+  window.dispatchEvent(new Event("pagehide"));
+  expect(clear).toHaveBeenCalledTimes(2);
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(watch).toHaveBeenCalledTimes(2);
+  window.dispatchEvent(new Event("pageshow"));
+  expect(watch).toHaveBeenCalledTimes(3);
+  stop();
+  document.dispatchEvent(new Event("visibilitychange"));
+  expect(watch).toHaveBeenCalledTimes(3);
+});
+
+it("discards queued evidence that became stale during a slow network request", async () => {
+  let finish: () => void = () => {};
+  const send = vi.fn((action: string) =>
+    action === "report_position"
+      ? new Promise<void>((resolve) => {
+          finish = resolve;
+        })
+      : Promise.resolve(),
+  );
+  const stop = watchWorkPosition(shift, "UTC", send, vi.fn());
+  const point = () =>
+    ({
+      timestamp: Date.now(),
+      coords: { latitude: 1, longitude: 1, accuracy: 10 },
+    }) as GeolocationPosition;
+  callback(point());
+  await vi.advanceTimersByTimeAsync(10000);
+  callback(point());
+  await vi.advanceTimersByTimeAsync(30001);
+  finish();
+  await vi.advanceTimersByTimeAsync(1);
+  expect(send.mock.calls.filter(([action]) => action === "report_position")).toHaveLength(1);
+  stop();
+});
+
+it("rejects stale and future-dated browser samples", async () => {
+  const send = vi.fn().mockResolvedValue({});
+  const stop = watchWorkPosition(shift, "UTC", send, vi.fn());
+  for (const timestamp of [Date.now() - 30001, Date.now() + 1001, Number.NaN]) {
+    callback({
+      timestamp,
+      coords: { latitude: 1, longitude: 1, accuracy: 10 },
+    } as GeolocationPosition);
+  }
+  await vi.advanceTimersByTimeAsync(1);
+  expect(send).not.toHaveBeenCalled();
   stop();
 });

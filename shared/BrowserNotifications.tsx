@@ -32,8 +32,17 @@ export function BrowserNotifications({
   const [updates, setUpdates] = useState<Update[]>([]);
   const [promptOpen, setPromptOpen] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
+  const feedRevision = useRef(0);
+  const accountLifecycle = useRef({ active: true });
   const heading = useId();
   const promptKey = `shiftline-notification-setup-seen:${app}`;
+  useEffect(() => {
+    const lifecycle = { active: true };
+    accountLifecycle.current = lifecycle;
+    return () => {
+      lifecycle.active = false;
+    };
+  }, [app]);
   useEffect(() => {
     const element = dialog.current;
     if (prompt && promptOpen) element?.showModal();
@@ -44,7 +53,7 @@ export function BrowserNotifications({
       window.matchMedia("(display-mode: standalone)").matches ||
         Boolean((navigator as Navigator & { standalone?: boolean }).standalone),
     );
-    const prompt = (event: Event) => {
+    const installPrompt = (event: Event) => {
       event.preventDefault();
       setInstall(event as InstallEvent);
     };
@@ -52,7 +61,7 @@ export function BrowserNotifications({
       setInstalled(true);
       setInstall(null);
     };
-    window.addEventListener("beforeinstallprompt", prompt);
+    window.addEventListener("beforeinstallprompt", installPrompt);
     window.addEventListener("appinstalled", done);
     let live = true;
     const considerPrompt = (subscription: PushSubscription | null) => {
@@ -76,11 +85,12 @@ export function BrowserNotifications({
     };
     const update = async () => {
       if (document.visibilityState !== "visible") return;
+      const token = ++feedRevision.current;
       try {
         const rows = await api.notifications<Update[]>("list");
-        if (live) setUpdates(rows);
+        if (live && token === feedRevision.current) setUpdates(rows);
       } catch {
-        if (live)
+        if (live && token === feedRevision.current)
           setMessage("Could not refresh notifications. Check your connection and try again.");
       }
     };
@@ -90,20 +100,61 @@ export function BrowserNotifications({
       void navigator.serviceWorker
         .register(`/push-${app}-sw.js`, { scope: app === "manager" ? "/manager" : "/" })
         .then((r) => r.pushManager.getSubscription())
-        .then((s) => {
-          if (live) setEnabled(Boolean(s));
+        .then(async (s) => {
+          if (!live) return;
+          if (s) {
+            try {
+              // A browser subscription outlives an app login. Verify that this
+              // account owns it before presenting phone delivery as enabled.
+              const json = s.toJSON();
+              await api.notifications("subscribe", {
+                endpoint: json.endpoint,
+                p256dh: json.keys?.["p256dh"],
+                auth: json.keys?.["auth"],
+                app,
+              });
+            } catch (cause) {
+              if (!live) return;
+              setEnabled(false);
+              if (
+                cause instanceof Error &&
+                cause.message.includes("Subscription belongs to another account")
+              ) {
+                // Revoke delivery to the previous account on a shared device.
+                // The next enable gesture creates a fresh endpoint.
+                await s.unsubscribe();
+                if (!live) return;
+                setMessage("Enable phone notifications for your current account.");
+                considerPrompt(null);
+              } else {
+                setMessage(
+                  "Could not verify phone notifications. Reconnect and enable them again.",
+                );
+              }
+              return;
+            }
+          }
+          if (!live) return;
+          setEnabled(Boolean(s));
           considerPrompt(s);
         })
-        .catch(() => {});
+        .catch(() => {
+          if (live) {
+            setEnabled(false);
+            setMessage("Could not check phone notifications. Try again when connected.");
+          }
+        });
     else void Promise.resolve().then(() => considerPrompt(null));
     return () => {
       live = false;
       clearInterval(timer);
-      window.removeEventListener("beforeinstallprompt", prompt);
+      window.removeEventListener("beforeinstallprompt", installPrompt);
       window.removeEventListener("appinstalled", done);
     };
   }, [api, app, feed, prompt, promptKey]);
   const enable = async () => {
+    const lifecycle = accountLifecycle.current;
+    const current = () => lifecycle.active;
     setBusy(true);
     setMessage("");
     try {
@@ -117,11 +168,13 @@ export function BrowserNotifications({
         );
       // Permission is requested only from this user gesture.
       const permission = await Notification.requestPermission();
+      if (!current()) return;
       if (permission !== "granted")
         throw new Error(
           "Notifications are not allowed. You can change this in browser or phone settings.",
         );
       const { key } = await api.notifications<{ key: string | null }>("public_key");
+      if (!current()) return;
       if (!key) throw new Error("Push delivery is not configured yet.");
       const bytes = Uint8Array.from(atob(key.replace(/-/g, "+").replace(/_/g, "/")), (c) =>
         c.charCodeAt(0),
@@ -129,6 +182,7 @@ export function BrowserNotifications({
       const registration = await navigator.serviceWorker.register(`/push-${app}-sw.js`, {
         scope: app === "manager" ? "/manager" : "/",
       });
+      if (!current()) return;
       if (!registration.active)
         await new Promise<void>((resolve) => {
           const worker = registration.installing ?? registration.waiting;
@@ -140,12 +194,14 @@ export function BrowserNotifications({
             if (worker.state === "activated") resolve();
           });
         });
+      if (!current()) return;
       const subscription =
         (await registration.pushManager.getSubscription()) ??
         (await registration.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: bytes,
         }));
+      if (!current()) return;
       const json = subscription.toJSON();
       await api.notifications("subscribe", {
         endpoint: json.endpoint,
@@ -153,6 +209,7 @@ export function BrowserNotifications({
         auth: json.keys?.["auth"],
         app,
       });
+      if (!current()) return;
       setEnabled(true);
       try {
         localStorage.setItem(promptKey, "complete");
@@ -162,26 +219,38 @@ export function BrowserNotifications({
       setPromptOpen(false);
       setMessage("Notifications enabled on this device.");
     } catch (cause) {
-      setMessage(cause instanceof Error ? cause.message : "Could not enable notifications.");
+      if (current())
+        setMessage(cause instanceof Error ? cause.message : "Could not enable notifications.");
     } finally {
-      setBusy(false);
+      if (current()) setBusy(false);
     }
   };
   const disable = async () => {
+    const lifecycle = accountLifecycle.current;
+    const current = () => lifecycle.active;
     setBusy(true);
     try {
       const r = await navigator.serviceWorker.getRegistration(app === "manager" ? "/manager" : "/");
       const s = await r?.pushManager.getSubscription();
+      if (!current()) return;
       if (s) {
-        await api.notifications("unsubscribe", { endpoint: s.endpoint });
-        await s.unsubscribe();
+        try {
+          await api.notifications("unsubscribe", { endpoint: s.endpoint });
+        } finally {
+          // Browser revocation must still happen when server cleanup is offline.
+          await s.unsubscribe();
+          if (current()) setEnabled(false);
+        }
       }
-      setEnabled(false);
-      setMessage("Notifications disabled on this device.");
+      if (current()) {
+        setEnabled(false);
+        setMessage("Notifications disabled on this device.");
+      }
     } catch {
-      setMessage("Could not disable notifications. Try again when connected.");
+      if (current())
+        setMessage("Could not complete notification cleanup. Try again when connected.");
     } finally {
-      setBusy(false);
+      if (current()) setBusy(false);
     }
   };
   const content = (
@@ -254,15 +323,19 @@ export function BrowserNotifications({
                   <button
                     className="text-sm py-2"
                     onClick={async () => {
+                      const lifecycle = accountLifecycle.current;
                       try {
                         await api.notifications("read", { id: item.id });
+                        if (!lifecycle.active) return;
+                        // Discard any list captured before this successful receipt.
+                        ++feedRevision.current;
                         setUpdates((items) =>
                           items.map((v) =>
                             v.id === item.id ? { ...v, read_at: new Date().toISOString() } : v,
                           ),
                         );
                       } catch {
-                        setMessage("Could not save read status.");
+                        if (lifecycle.active) setMessage("Could not save read status.");
                       }
                     }}
                   >

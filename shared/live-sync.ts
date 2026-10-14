@@ -19,6 +19,8 @@ export function startLiveSync(
     running = true;
     try {
       await refresh();
+    } catch {
+      // The caller owns its error UI. A failed read must not break later recovery.
     } finally {
       running = false;
       if (pending && !stopped) {
@@ -53,6 +55,8 @@ export function startLiveSync(
     window.removeEventListener("online", trigger);
     window.removeEventListener("focus", trigger);
     document.removeEventListener("visibilitychange", trigger);
-    void client.removeChannel(channel);
+    void client.removeChannel(channel).catch(() => {
+      /* Local listeners are already stopped, even if channel teardown is offline. */
+    });
   };
 }
