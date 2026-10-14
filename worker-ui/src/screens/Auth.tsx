@@ -20,7 +20,7 @@ export function Splash() {
           <p role="status" className="mt-4 px-6 text-center text-sm">
             {authError
               ? "Could not reconnect to your account. Your saved session has not been signed out."
-              : "Restoring your account…"}
+              : "Opening Shiftline…"}
           </p>
           {authError && (
             <Button className="mt-4" onClick={retrySession}>

@@ -1,4 +1,5 @@
 import { activeJobForShift } from "../../shared/active-job";
+import { jobDepartureBlock } from "./job-departure";
 import { checkinClosed } from "../../shared/checkin-cutoff";
 import { BrowserNotifications } from "../../shared/BrowserNotifications";
 import { watchWorkPosition } from "../../shared/watch-work-position";
@@ -643,49 +644,60 @@ export default function LiveWorkerApp({ onSignOut }: { onSignOut: () => void }) 
                 </button>
               ))}
             </div>
-            {availablePlans.map((plan) => (
-              <Card key={plan.id}>
-                <h2 className="font-semibold">{plan.title}</h2>
-                <p className="text-sm mt-2">
-                  {plan.date} · {plan.address || "Location needs confirmation"}
-                </p>
-                <p className="mt-3 whitespace-pre-wrap">{plan.details}</p>
-                <p className="text-xs mt-2">
-                  {plan.assignedNames.length
-                    ? `Required employees: ${plan.assignedNames.join(", ")}`
-                    : "Open to company workers"}
-                </p>
-                <Action
-                  disabled={
-                    busy ||
-                    !online ||
-                    pendingAttendance.length > 0 ||
-                    reviewPending ||
-                    state !== "working" ||
-                    plan.date !== data.today ||
-                    plan.latitude == null ||
-                    !plan.address ||
-                    (plan.employeeIds.length > 0 && !plan.employeeIds.includes(data.me))
-                  }
-                  onClick={() => {
-                    let eventId = planStartIds.current.get(plan.id);
-                    if (!eventId) {
-                      eventId = crypto.randomUUID();
-                      planStartIds.current.set(plan.id, eventId);
-                    }
-                    void run(
-                      "start_calendar_job",
-                      { id: eventId, calendarJobId: plan.id },
-                      "Started job",
-                    ).then((saved) => {
-                      if (saved) planStartIds.current.delete(plan.id);
-                    });
-                  }}
-                >
-                  Leave for this job
-                </Action>
-              </Card>
-            ))}
+            {availablePlans.map((plan) => {
+              const blocked = jobDepartureBlock(plan, {
+                today: data.today,
+                employeeId: data.me,
+                state,
+                busy,
+                online,
+                pendingAttendance: pendingAttendance.length > 0,
+                reviewPending,
+              });
+              return (
+                <Card key={plan.id}>
+                  <h2 className="font-semibold">{plan.title}</h2>
+                  <p className="text-sm mt-2">
+                    {plan.date} · {plan.address || "Location needs confirmation"}
+                  </p>
+                  <p className="mt-3 whitespace-pre-wrap">{plan.details}</p>
+                  <p className="text-xs mt-2">
+                    {plan.assignedNames.length
+                      ? `Required employees: ${plan.assignedNames.join(", ")}`
+                      : "Open to company workers"}
+                  </p>
+                  <Action
+                    disabled={!!blocked}
+                    onClick={() => {
+                      let eventId = planStartIds.current.get(plan.id);
+                      if (!eventId) {
+                        eventId = crypto.randomUUID();
+                        planStartIds.current.set(plan.id, eventId);
+                      }
+                      void run(
+                        "start_calendar_job",
+                        { id: eventId, calendarJobId: plan.id },
+                        "Started job",
+                      ).then((saved) => {
+                        if (saved) planStartIds.current.delete(plan.id);
+                      });
+                    }}
+                  >
+                    Leave for this job
+                  </Action>
+                  {blocked && (
+                    <p className="mt-3 text-sm" role="status">
+                      {blocked}
+                    </p>
+                  )}
+                  {blocked && ["not_clocked_in", "on_lunch", "on_personal"].includes(state) && (
+                    <Action secondary onClick={() => switchTab("today")}>
+                      Go to Today
+                    </Action>
+                  )}
+                </Card>
+              );
+            })}
             {myJobs
               .filter((job) => jobFilter === "all" || job.status === jobFilter)
               .sort((a, b) => `${a.date}${a.start}`.localeCompare(`${b.date}${b.start}`))

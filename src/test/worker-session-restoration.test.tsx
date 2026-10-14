@@ -44,6 +44,7 @@ it("waits beyond the old splash deadline for a saved session", async () => {
     vi.advanceTimersByTime(2000);
   });
   expect(screen.queryByText("welcome")).not.toBeInTheDocument();
+  expect(screen.getByRole("status")).toHaveTextContent("Opening Shiftline…");
   await act(async () => {
     finish({ onboarding: false });
   });

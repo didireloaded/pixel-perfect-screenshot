@@ -51,7 +51,7 @@ export function ManagerMap() {
       d.states.some((s) => s.shiftId === p.shiftId && ["working", "on_job"].includes(s.state)),
   );
   const workers = presence.filter(
-    (p) => filter === "all" || (filter === "jobs" ? !!p.jobId : !p.jobId),
+    (p) => filter === "all" || (filter === "jobs" ? !!p.jobId : !p.jobId && p.inside),
   );
   const points: Point[] = [
     ...(sitesVisible
@@ -108,7 +108,7 @@ export function ManagerMap() {
     ...workers.map((p) => ({
       id: p.employeeId,
       name: d.employees.find((e) => e.id === p.employeeId)?.name || "Employee",
-      detail: `${p.jobId ? d.jobs.find((j) => j.id === p.jobId)?.title || "On job" : "At workplace"} · ${p.inside ? "Inside boundary" : "Outside boundary"} · accuracy ±${Math.round(p.accuracyM ?? 0)}m · ${new Date(p.checkedAt).toLocaleTimeString()}`,
+      detail: `${p.jobId ? d.jobs.find((j) => j.id === p.jobId)?.title || "On job" : p.inside ? "At workplace" : "Working off-site"} · ${p.inside ? "Inside boundary" : "Outside boundary"} · accuracy ±${Math.round(p.accuracyM ?? 0)}m · ${new Date(p.checkedAt).toLocaleTimeString()}`,
       lng: p.longitude!,
       lat: p.latitude!,
       kind: "worker" as const,
@@ -425,7 +425,9 @@ export function ManagerMap() {
                     {current
                       ? current.jobId
                         ? "On job · live"
-                        : "At workplace · live"
+                        : current.inside
+                          ? "At workplace · live"
+                          : "Working off-site · live"
                       : state === "working" || state === "on_job"
                         ? shift && localTime >= shift.trackingStop
                           ? "Tracking ended · clock-out pending"
