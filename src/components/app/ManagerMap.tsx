@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Map as MapboxMap, Marker, GeoJSONSource } from "mapbox-gl";
 import { geofencePolygon } from "../../../shared/geofence-polygon";
+import { currentWorkday, workPositionAllowed } from "../../../shared/workday";
 import { LocateFixed, MapPin, RefreshCw, Users, Briefcase, ShieldCheck } from "lucide-react";
 import { useAttendance } from "@/lib/app-store";
 import { STATE_LABEL } from "@/lib/attendance";
@@ -30,24 +31,12 @@ export function ManagerMap() {
   const [sitesVisible, setSitesVisible] = useState(true);
   const [jobsVisible, setJobsVisible] = useState(true);
   const token = import.meta.env["VITE_MAPBOX_ACCESS_TOKEN"];
-  const localTime = new Intl.DateTimeFormat("en-GB", {
-    timeZone: d.company.timezone,
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).format(new Date(now));
   const presence = d.sitePresence.filter(
     (p) =>
       p.latitude != null &&
       p.longitude != null &&
       now - Date.parse(p.checkedAt) < 180000 &&
-      d.shifts.some(
-        (s) =>
-          s.id === p.shiftId &&
-          s.date === d.today &&
-          localTime >= s.start &&
-          localTime < s.trackingStop,
-      ) &&
+      d.shifts.some((s) => s.id === p.shiftId && workPositionAllowed(s, d.company.timezone, now)) &&
       d.states.some((s) => s.shiftId === p.shiftId && ["working", "on_job"].includes(s.state)),
   );
   const workers = presence.filter(
@@ -71,7 +60,7 @@ export function ManagerMap() {
       ? d.jobs
           .filter(
             (j) =>
-              j.date === d.today &&
+              (j.date === d.today || presence.some((p) => p.jobId === j.id)) &&
               j.status !== "completed" &&
               j.latitude != null &&
               j.longitude != null,
@@ -305,7 +294,12 @@ export function ManagerMap() {
                 d.states.filter(
                   (state) =>
                     ["working", "on_job"].includes(state.state) &&
-                    d.shifts.some((shift) => shift.id === state.shiftId && shift.date === d.today),
+                    d.shifts.some(
+                      (shift) =>
+                        shift.id === state.shiftId &&
+                        shift.date <= d.today &&
+                        (shift.finishDate ?? shift.date) >= d.today,
+                    ),
                 ).length
               }{" "}
               working
@@ -315,7 +309,12 @@ export function ManagerMap() {
                 d.states.filter(
                   (state) =>
                     state.state === "on_lunch" &&
-                    d.shifts.some((shift) => shift.id === state.shiftId && shift.date === d.today),
+                    d.shifts.some(
+                      (shift) =>
+                        shift.id === state.shiftId &&
+                        shift.date <= d.today &&
+                        (shift.finishDate ?? shift.date) >= d.today,
+                    ),
                 ).length
               }{" "}
               on lunch · location hidden
@@ -396,7 +395,7 @@ export function ManagerMap() {
         {d.employees
           .filter((e) => e.role === "employee" && e.accessStatus !== "rejected")
           .map((e) => {
-            const shift = d.shifts.find((s) => s.employeeId === e.id && s.date === d.today);
+            const shift = currentWorkday(d, e.id);
             const state = d.states.find((s) => s.shiftId === shift?.id)?.state;
             const current = workers.find((p) => p.employeeId === e.id);
             return (
@@ -429,7 +428,7 @@ export function ManagerMap() {
                           ? "At workplace · live"
                           : "Working off-site · live"
                       : state === "working" || state === "on_job"
-                        ? shift && localTime >= shift.trackingStop
+                        ? shift && !workPositionAllowed(shift, d.company.timezone, now)
                           ? "Tracking ended · clock-out pending"
                           : "Location unavailable"
                         : state

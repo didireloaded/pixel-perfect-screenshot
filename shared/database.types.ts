@@ -2121,6 +2121,7 @@ export type Database = {
       };
       sl_shifts: {
         Row: {
+          finish_date: string;
           company_id: string;
           date: string;
           employee_id: string;
@@ -2134,6 +2135,7 @@ export type Database = {
           start_time: string;
         };
         Insert: {
+          finish_date?: string;
           company_id: string;
           date: string;
           employee_id: string;
@@ -2147,6 +2149,7 @@ export type Database = {
           start_time: string;
         };
         Update: {
+          finish_date?: string;
           company_id?: string;
           date?: string;
           employee_id?: string;

@@ -1,10 +1,22 @@
 # Overnight attendance boundary and implementation scope
 
-Reviewed 14 October 2026. Overnight attendance is **not supported**. Do not advertise
-the retry fix as overnight support, fabricate a midnight clock-out, or move a worker's
-recorded timestamp onto another date.
+Updated 14 October 2026. Workers can explicitly choose a finish today or tomorrow,
+up to 24 hours from the start. Attendance and period locking belong to the start
+date. Existing same-day records retain their original deadlines and date rules.
+Never fabricate a midnight clock-out or move recorded evidence to another date.
 
-## Verified current behavior
+New overnight workdays stay available after midnight. Lunch, job travel, corrections,
+offline submissions and location windows use the explicit finish date. Location
+sharing stops at the planned finish, even when a clock-out is missing. Late evidence
+enters review; approval within the 24-hour boundary does not extend tracking.
+Work beyond 24 hours requires a separate workday after the previous one is resolved.
+
+`npm run test:overnight` covers midnight events, period ownership, late evidence,
+approval, duplicate clock-in, privacy deadlines and timezone conversion. Browser
+tests cover active-workday selection and watcher shutdown. Physical phone and
+long-running offline acceptance remain required before commercial rollout.
+
+## Historical same-day behavior preserved for legacy records
 
 `scripts/employee-clockin.test.mjs` executes the actual migration chain against an
 isolated PostgreSQL-compatible database. Its midnight case uses Africa/Windhoek
@@ -23,7 +35,7 @@ and dates in the past, independent of the host's time or timezone. It verifies:
   today's shift. Different employees, revoked access, changed event types and
   changed notes are rejected. New transitions retain the existing date guards.
 
-## Coherent overnight implementation required before release
+## Design invariants
 
 1. Add explicit expected-end date or a finish instant to attendance workdays, with
    a bounded duration. Preserve the start date as the reporting identity and retain
@@ -49,5 +61,5 @@ and dates in the past, independent of the host's time or timezone. It verifies:
    workdays, reporting and privacy. Include at least one non-Namibia timezone in
    database conversion tests even though the current market is Namibia.
 
-This scope is an implementation boundary, not a migration or an enabled feature.
-The current fix adds no speculative columns or automatically altered evidence.
+The explicit finish-date migration implements these boundaries. It does not
+automatically close workdays, approve hours or change existing attendance evidence.

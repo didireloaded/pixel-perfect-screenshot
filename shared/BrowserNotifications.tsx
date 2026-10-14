@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createBackend } from "./backend";
+import { waitForPushActivation } from "./push-activation";
 type Update = {
   id: string;
   title: string;
@@ -33,6 +34,7 @@ export function BrowserNotifications({
   const [promptOpen, setPromptOpen] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
   const feedRevision = useRef(0);
+  const pushRevision = useRef(0);
   const accountLifecycle = useRef({ active: true });
   const heading = useId();
   const promptKey = `shiftline-notification-setup-seen:${app}`;
@@ -96,63 +98,81 @@ export function BrowserNotifications({
     };
     if (feed) void update();
     const timer = feed ? setInterval(update, 15000) : undefined;
-    if ("serviceWorker" in navigator)
-      void navigator.serviceWorker
-        .register(`/push-${app}-sw.js`, { scope: app === "manager" ? "/manager" : "/" })
-        .then((r) => r.pushManager.getSubscription())
-        .then(async (s) => {
-          if (!live) return;
-          if (s) {
-            try {
-              // A browser subscription outlives an app login. Verify that this
-              // account owns it before presenting phone delivery as enabled.
-              const json = s.toJSON();
-              await api.notifications("subscribe", {
-                endpoint: json.endpoint,
-                p256dh: json.keys?.["p256dh"],
-                auth: json.keys?.["auth"],
-                app,
-              });
-            } catch (cause) {
-              if (!live) return;
-              setEnabled(false);
-              if (
-                cause instanceof Error &&
-                cause.message.includes("Subscription belongs to another account")
-              ) {
-                // Revoke delivery to the previous account on a shared device.
-                // The next enable gesture creates a fresh endpoint.
-                await s.unsubscribe();
-                if (!live) return;
-                setMessage("Enable phone notifications for your current account.");
-                considerPrompt(null);
-              } else {
-                setMessage(
-                  "Could not verify phone notifications. Reconnect and enable them again.",
-                );
+    const verifyPhone = () => {
+      if (navigator.onLine === false || document.visibilityState === "hidden") return;
+      const revision = ++pushRevision.current;
+      const current = () => live && revision === pushRevision.current;
+      if ("serviceWorker" in navigator)
+        void navigator.serviceWorker
+          .register(`/push-${app}-sw.js`, { scope: app === "manager" ? "/manager" : "/" })
+          .then((r) => r.pushManager.getSubscription())
+          .then(async (s) => {
+            if (!current()) return;
+            if (s) {
+              try {
+                // A browser subscription outlives an app login. Verify that this
+                // account owns it before presenting phone delivery as enabled.
+                const json = s.toJSON();
+                await api.notifications("subscribe", {
+                  endpoint: json.endpoint,
+                  p256dh: json.keys?.["p256dh"],
+                  auth: json.keys?.["auth"],
+                  app,
+                });
+              } catch (cause) {
+                if (!current()) return;
+                setEnabled(false);
+                if (
+                  cause instanceof Error &&
+                  cause.message.includes("Subscription belongs to another account")
+                ) {
+                  // Revoke delivery to the previous account on a shared device.
+                  // The next enable gesture creates a fresh endpoint.
+                  await s.unsubscribe();
+                  if (!current()) return;
+                  setMessage("Enable phone notifications for your current account.");
+                  considerPrompt(null);
+                } else {
+                  setMessage(
+                    "Could not verify phone notifications. Reconnect and enable them again.",
+                  );
+                }
+                return;
               }
-              return;
             }
-          }
-          if (!live) return;
-          setEnabled(Boolean(s));
-          considerPrompt(s);
-        })
-        .catch(() => {
-          if (live) {
-            setEnabled(false);
-            setMessage("Could not check phone notifications. Try again when connected.");
-          }
-        });
-    else void Promise.resolve().then(() => considerPrompt(null));
+            if (!current()) return;
+            setEnabled(Boolean(s));
+            setMessage((value) =>
+              value.startsWith("Could not verify phone notifications") ||
+              value.startsWith("Could not check phone notifications")
+                ? ""
+                : value,
+            );
+            considerPrompt(s);
+          })
+          .catch(() => {
+            if (current()) {
+              setEnabled(false);
+              setMessage("Could not check phone notifications. Try again when connected.");
+            }
+          });
+      else void Promise.resolve().then(() => considerPrompt(null));
+    };
+    verifyPhone();
+    window.addEventListener("online", verifyPhone);
+    document.addEventListener("visibilitychange", verifyPhone);
     return () => {
       live = false;
       clearInterval(timer);
+      ++pushRevision.current;
+      window.removeEventListener("online", verifyPhone);
+      document.removeEventListener("visibilitychange", verifyPhone);
       window.removeEventListener("beforeinstallprompt", installPrompt);
       window.removeEventListener("appinstalled", done);
     };
   }, [api, app, feed, prompt, promptKey]);
   const enable = async () => {
+    ++pushRevision.current;
     const lifecycle = accountLifecycle.current;
     const current = () => lifecycle.active;
     setBusy(true);
@@ -183,17 +203,7 @@ export function BrowserNotifications({
         scope: app === "manager" ? "/manager" : "/",
       });
       if (!current()) return;
-      if (!registration.active)
-        await new Promise<void>((resolve) => {
-          const worker = registration.installing ?? registration.waiting;
-          if (!worker) {
-            resolve();
-            return;
-          }
-          worker.addEventListener("statechange", () => {
-            if (worker.state === "activated") resolve();
-          });
-        });
+      await waitForPushActivation(registration);
       if (!current()) return;
       const subscription =
         (await registration.pushManager.getSubscription()) ??
@@ -226,6 +236,7 @@ export function BrowserNotifications({
     }
   };
   const disable = async () => {
+    ++pushRevision.current;
     const lifecycle = accountLifecycle.current;
     const current = () => lifecycle.active;
     setBusy(true);

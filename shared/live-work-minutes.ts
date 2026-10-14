@@ -18,7 +18,14 @@ export function liveWorkMinutes(
   )
     return { minutes: recorded, estimated: false };
   return {
-    minutes: recorded + Math.floor(Math.max(0, now - last.capturedAt) / 60000),
+    minutes:
+      recorded +
+      Math.floor(
+        Math.max(
+          0,
+          Math.min(now, shift.finishesAt ? Date.parse(shift.finishesAt) : now) - last.capturedAt,
+        ) / 60000,
+      ),
     estimated: true,
   };
 }

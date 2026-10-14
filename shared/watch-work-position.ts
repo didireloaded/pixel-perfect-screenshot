@@ -1,8 +1,9 @@
 import type { Shift } from "./attendance";
+import { workPositionAllowed } from "./workday";
 
 // Both web entry points share this privacy lifecycle. No background location.
 export function watchWorkPosition(
-  shift: Pick<Shift, "id" | "date" | "start" | "trackingStop">,
+  shift: Pick<Shift, "id" | "date" | "start" | "trackingStop" | "startsAt" | "finishesAt">,
   timezone: string,
   send: (action: string, data: Record<string, unknown>) => Promise<unknown>,
   onError: (message: string) => void,
@@ -15,21 +16,8 @@ export function watchWorkPosition(
   let lastRequested = 0;
   let pending: Promise<unknown> = Promise.resolve();
   const allowed = () => {
-    const local = new Intl.DateTimeFormat("sv-SE", {
-      timeZone: timezone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      hourCycle: "h23",
-    }).format(new Date());
-    const [date, time] = local.split(" ");
     return (
-      date === shift.date &&
-      !!time &&
-      time >= shift.start &&
-      time < shift.trackingStop &&
+      workPositionAllowed(shift, timezone) &&
       !leavingPage &&
       document.visibilityState === "visible" &&
       navigator.onLine

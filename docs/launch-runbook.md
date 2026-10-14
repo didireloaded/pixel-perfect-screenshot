@@ -61,8 +61,9 @@ After hosting is chosen, configure availability and error alerts for both app
 addresses, worker-access provisioning and Supabase. Never send access codes,
 message bodies, precise coordinates or full snapshots to monitoring logs.
 
-Overnight work still needs coordinated database window, snapshot, job and privacy
-changes. Granular manager roles and multiple-company membership need a reviewed
+Overnight work has explicit finish dates and automated midnight tests. Verify an
+actual overnight phone session, offline recovery and tracking cutoff before rollout.
+Granular manager roles and multiple-company membership need a reviewed
 access policy. Native locked-phone tracking remains a separate product effort.
 Leaked-password protection must be verified against the current plan and enabled
 through Supabase Auth settings. These requirements are not satisfied by CI.

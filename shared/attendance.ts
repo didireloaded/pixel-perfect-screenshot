@@ -81,6 +81,9 @@ export interface Shift {
   id: string;
   employeeId: string;
   date: string;
+  finishDate?: string;
+  startsAt?: string | undefined;
+  finishesAt?: string | undefined;
   start: string;
   end: string;
   lunch: string;

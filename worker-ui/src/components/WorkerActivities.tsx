@@ -3,6 +3,7 @@ import type { AttendanceSnapshot, AttendanceState } from "../../../shared/attend
 import { ThemedSelect } from "../../../shared/ThemedSelect";
 import { WorkerCard } from "./WorkerUI";
 import { displayInstant } from "../../../shared/display-date";
+import { currentWorkday } from "../../../shared/workday";
 
 export function WorkerActivities({
   data,
@@ -20,7 +21,7 @@ export function WorkerActivities({
   const [kind, setKind] = useState("other");
   const [jobId, setJobId] = useState("");
   const id = useRef(crypto.randomUUID());
-  const shift = data.shifts.find((item) => item.employeeId === data.me && item.date === data.today);
+  const shift = currentWorkday(data);
   const jobs = data.jobs.filter(
     (item) =>
       item.assignee === data.me && item.shiftId === shift?.id && item.status !== "completed",

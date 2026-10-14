@@ -1,5 +1,6 @@
 import { activeJobForShift } from "../../../shared/active-job";
 import { displayDate } from "../../../shared/display-date";
+import { currentWorkday } from "../../../shared/workday";
 import { NoticeCard } from "./NoticeDetails";
 import { useEffect, useState } from "react";
 import {
@@ -46,7 +47,7 @@ export function WorkerHome({
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
-  const shift = data.shifts.find((item) => item.employeeId === data.me && item.date === data.today);
+  const shift = currentWorkday(data);
   const closed =
     state === "not_clocked_in" &&
     checkinClosed(data.company.timezone, data.company.checkinCloseTime, now);
@@ -98,6 +99,14 @@ export function WorkerHome({
   )[0];
   return (
     <>
+      {shift?.finishesAt &&
+        now >= Date.parse(shift.finishesAt) &&
+        !["clocked_out", "not_clocked_in"].includes(state) && (
+          <p role="status" className="rounded-xl bg-bad/10 p-3 text-sm">
+            Expected finish passed. Record your actual clock-out or request a correction. Location
+            sharing is paused; estimated time stops at the planned finish.
+          </p>
+        )}
       <div className="worker-time">
         <p>
           {new Date(now).toLocaleDateString("en-GB", {
@@ -225,7 +234,7 @@ export function WorkerHome({
       <div className="worker-shift-caption">
         <span className={`worker-status-dot ${state !== "not_clocked_in" ? "active" : ""}`} />
         {shift
-          ? `${state === "not_clocked_in" ? "Your shift" : "Today’s shift"} · ${shift.start}–${shift.end}`
+          ? `Workday · ${shift.start}–${shift.end}${shift.finishDate && shift.finishDate !== shift.date ? " (+1 day)" : ""}`
           : "Ready to work? Clock in to start your day."}
       </div>
       {(state === "working" || state === "on_job") && (
@@ -261,7 +270,9 @@ export function WorkerHome({
                   "No worksite assigned")}
             </b>
             <p>
-              {shift ? `Shift ends at ${shift.end}` : "Your attendance starts when you clock in"}
+              {shift
+                ? `Expected finish ${shift.end}${shift.finishDate && shift.finishDate !== shift.date ? ` · ${displayDate(shift.finishDate)}` : ""}`
+                : "Your attendance starts when you clock in"}
             </p>
           </span>
         </div>

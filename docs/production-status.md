@@ -231,3 +231,31 @@ tests, both TypeScript checks and production builds pass. The full frontend/shar
 suite and dedicated lifecycle tests cover the new account/GPS races. Lint has zero
 errors and 19 existing warnings. Real-phone push/GPS acceptance, a backup restore,
 monitoring/load acceptance and complete overnight work remain release gates.
+
+## Explicit overnight attendance and notification recovery · 14 October 2026
+
+This update supersedes the earlier overnight implementation limit. Workers choose
+Today or Tomorrow for the expected finish, with a 24-hour maximum. Reports and
+period locks belong to the start date. Existing same-day rows retain their finish
+date and privacy deadline. Active overnight attendance, breaks and job travel stay
+available after midnight. No midnight clock-out or payable time is manufactured.
+
+New overnight evidence after the expected finish requires review. A manager can
+approve evidence within the 24-hour boundary, subject to the existing period lock
+and approval rules. Location visibility and the live estimate stop at the planned
+finish even when attendance remains unresolved. Late evidence never extends GPS.
+
+Phone notification ownership verification retries on reconnect or return to the
+visible app. Installation failure, redundant service workers and activation timeout
+produce recoverable errors rather than leaving setup stuck. No permission request
+is made by automatic retries. The hosted dispatch schedule is active; there were
+no stored device subscriptions at inspection, so actual phone delivery is unproven.
+
+Validation: 126 frontend/shared tests, 28 existing database tests, five overnight
+database tests and six tenancy/profile tests pass. Both TypeScript checks and
+production builds pass. ESLint has zero errors and 19 existing warnings. The hosted
+overnight migration is applied and existing workday windows pass validation.
+
+Remaining release gates: real-phone overnight/offline/GPS/push acceptance, backup
+restoration and monitoring/load verification. Native background tracking, granular
+HR permissions, leave balances and background AI remain outside this update.

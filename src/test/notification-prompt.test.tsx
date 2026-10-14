@@ -164,6 +164,32 @@ it("shows setup once, then leaves the home screen clear after dismissal and remo
   );
   expect(screen.queryByRole("region", { name: "App notifications" })).not.toBeInTheDocument();
 });
+it("rechecks an unverified subscription after reconnection without requesting permission", async () => {
+  const subscription = {
+    endpoint: "current-device",
+    toJSON: () => ({ endpoint: "current-device", keys: { p256dh: "key", auth: "secret" } }),
+  };
+  vi.stubGlobal("navigator", {
+    onLine: true,
+    serviceWorker: {
+      register: vi.fn().mockResolvedValue({
+        pushManager: { getSubscription: vi.fn().mockResolvedValue(subscription) },
+      }),
+    },
+  });
+  notifications.mockRejectedValueOnce(new Error("Failed to fetch"));
+  render(<BrowserNotifications app="worker" />);
+  await screen.findByText("Could not verify phone notifications. Reconnect and enable them again.");
+  notifications.mockResolvedValue({ ok: true });
+  fireEvent(window, new Event("online"));
+  expect(
+    await screen.findByRole("button", { name: "Disable phone notifications" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByText("Could not verify phone notifications. Reconnect and enable them again."),
+  ).not.toBeInTheDocument();
+  expect(Notification.requestPermission).not.toHaveBeenCalled();
+});
 it("does not nag when notifications were denied, while keeping manual settings available", async () => {
   vi.stubGlobal("Notification", { permission: "denied", requestPermission: vi.fn() });
   const view = render(<BrowserNotifications app="worker" prompt />);

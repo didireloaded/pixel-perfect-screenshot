@@ -1,4 +1,5 @@
 import { activeJobForShift } from "../../shared/active-job";
+import { currentWorkday } from "../../shared/workday";
 import { displayDate } from "../../shared/display-date";
 import { jobDepartureBlock } from "./job-departure";
 import { checkinClosed } from "../../shared/checkin-cutoff";
@@ -118,6 +119,7 @@ export default function LiveWorkerApp({
   const [visible, setVisible] = useState(() => document.visibilityState === "visible");
   const [clockInOpen, setClockInOpen] = useState(false);
   const [expectedEnd, setExpectedEnd] = useState("17:00");
+  const [finishDay, setFinishDay] = useState("today");
   const [cutoffNow, setCutoffNow] = useState(Date.now());
   useEffect(() => {
     const timer = window.setInterval(() => setCutoffNow(Date.now()), 1000);
@@ -156,7 +158,7 @@ export default function LiveWorkerApp({
       (item) =>
         item.status === "needs_review" &&
         (pendingAttendance.some((event) => event.shiftId === item.shift_id) ||
-          data.shifts.some((shift) => shift.id === item.shift_id && shift.date === data.today)),
+          currentWorkday(data)?.id === item.shift_id),
     ) ?? false;
   const syncAttendance = useCallback(async () => {
     const current = lifecycle.current;
@@ -330,7 +332,7 @@ export default function LiveWorkerApp({
       return false;
     }
     let location: Record<string, number> | undefined;
-    const shift = data?.shifts.find((s) => s.employeeId === data.me && s.date === data.today);
+    const shift = data ? currentWorkday(data) : undefined;
     if (type === "clock_in" && !extra["expectedEnd"]) {
       if (previousOpenShift) {
         setError(
@@ -426,11 +428,12 @@ export default function LiveWorkerApp({
     }
   };
   const me = data?.employees.find((e) => e.id === data.me);
-  const shift = data?.shifts.find((s) => s.employeeId === data.me && s.date === data.today);
+  const shift = data ? currentWorkday(data) : undefined;
   const previousOpenShift = data?.shifts.find(
     (item) =>
       item.employeeId === data.me &&
       item.date < data.today &&
+      item.id !== shift?.id &&
       data.states.some(
         (entry) =>
           entry.shiftId === item.id && !["not_clocked_in", "clocked_out"].includes(entry.state),
@@ -470,6 +473,8 @@ export default function LiveWorkerApp({
     shiftDate = shift?.date,
     shiftStart = shift?.start,
     trackingStop = shift?.trackingStop,
+    startsAt = shift?.startsAt,
+    finishesAt = shift?.finishesAt,
     timezone = data?.company.timezone;
   const targetLatitude = state === "on_job" ? activeJob?.latitude : site?.latitude;
   const targetLongitude = state === "on_job" ? activeJob?.longitude : site?.longitude;
@@ -491,7 +496,7 @@ export default function LiveWorkerApp({
     )
       return;
     return watchWorkPosition(
-      { id: shiftId, date: shiftDate, start: shiftStart, trackingStop },
+      { id: shiftId, date: shiftDate, start: shiftStart, trackingStop, startsAt, finishesAt },
       timezone,
       async (action, payload) => {
         const result = await backend.command<Result>(action, payload);
@@ -507,6 +512,8 @@ export default function LiveWorkerApp({
     shiftDate,
     shiftStart,
     trackingStop,
+    startsAt,
+    finishesAt,
     timezone,
     locationEnabled,
     visible,
@@ -867,13 +874,13 @@ export default function LiveWorkerApp({
         >
           <p className="worker-muted-copy">
             Your clock-in time is recorded when you confirm. Choose your expected finish so location
-            sharing stops on time. The finish must be today; work across midnight is not supported
-            yet.
+            sharing stops on time. Choose today or tomorrow explicitly. Workdays cannot exceed 24
+            hours.
           </p>
           <form
             onSubmit={async (event) => {
               event.preventDefault();
-              if (await act("clock_in", { expectedEnd })) {
+              if (await act("clock_in", { expectedEnd, finishDay })) {
                 setLocationEnabled(shareDuringWork);
                 localStorage.setItem(monitorKey, shareDuringWork ? "on" : "off");
                 setClockInOpen(false);
@@ -881,9 +888,9 @@ export default function LiveWorkerApp({
             }}
           >
             <label className="block my-4">
-              Expected finish today
+              Expected finish
               <input
-                aria-label="Expected finish today"
+                aria-label="Expected finish"
                 type="time"
                 required
                 value={expectedEnd}
@@ -891,9 +898,16 @@ export default function LiveWorkerApp({
                 className="block w-full rounded-xl border p-3 mt-2"
               />
             </label>
+            <label className="block my-4">
+              Finish day
+              <ThemedSelect value={finishDay} onValueChange={setFinishDay}>
+                <option value="today">Today</option>
+                <option value="tomorrow">Tomorrow</option>
+              </ThemedSelect>
+            </label>
             <p className="worker-muted-copy">
-              Lunch is planned for 12:00–13:00. Tap Start lunch and End lunch to record your actual
-              break. Regular time is 8 hours; extra time needs approval.
+              Tap Start lunch and End lunch to record your actual break. Regular time is 8 hours;
+              extra time needs approval.
             </p>
             <label className="flex items-center gap-2.5 my-4 text-sm cursor-pointer">
               <input
@@ -1184,7 +1198,7 @@ function JobCard({
               </button>
             </form>
           </div>
-          {job.date === data.today &&
+          {job.shiftId === currentWorkday(data)?.id &&
             job.status !== "completed" &&
             job.assignee === data.me &&
             state === "working" && (
@@ -1394,7 +1408,9 @@ function Hours({
               </span>
             </div>
             <p className="mt-1 text-xs text-sub">
-              {s.start}–{s.end} · {data.sites.find((site) => site.id === s.siteId)?.name}
+              {s.start}–{s.end}
+              {s.finishDate && s.finishDate !== s.date ? " (+1 day)" : ""} ·{" "}
+              {data.sites.find((site) => site.id === s.siteId)?.name}
             </p>
             <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
               <p>

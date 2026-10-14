@@ -1,4 +1,5 @@
 import { activeJobForShift } from "../../shared/active-job";
+import { currentWorkday } from "../../shared/workday";
 import { watchWorkPosition } from "../../shared/watch-work-position";
 // Attendance writes and totals belong to the PostgreSQL API.
 import {
@@ -263,7 +264,7 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
     if (monitoringKey) localStorage.setItem(monitoringKey, enabled ? "on" : "off");
     setMonitoringEnabled(enabled);
   };
-  const activeShift = data?.shifts.find((s) => s.employeeId === data.me && s.date === data.today);
+  const activeShift = data ? currentWorkday(data) : undefined;
   const activeSite = data?.sites.find((s) => s.id === activeShift?.siteId);
   const activeState = data?.states.find((s) => s.shiftId === activeShift?.id)?.state;
   useEffect(() => {
@@ -277,6 +278,8 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
     positionDate = activeShift?.date,
     positionStart = activeShift?.start,
     positionStop = activeShift?.trackingStop,
+    positionStartsAt = activeShift?.startsAt,
+    positionFinishesAt = activeShift?.finishesAt,
     positionTimezone = data?.company.timezone;
   const targetLatitude = activeState === "on_job" ? activeJob?.latitude : activeSite?.latitude;
   const targetLongitude = activeState === "on_job" ? activeJob?.longitude : activeSite?.longitude;
@@ -302,7 +305,14 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
       return;
     }
     return watchWorkPosition(
-      { id: positionShiftId, date: positionDate, start: positionStart, trackingStop: positionStop },
+      {
+        id: positionShiftId,
+        date: positionDate,
+        start: positionStart,
+        trackingStop: positionStop,
+        startsAt: positionStartsAt,
+        finishesAt: positionFinishesAt,
+      },
       positionTimezone,
       async (action, payload) => {
         const result = await api.command<CommandResult>(action, payload);
@@ -321,6 +331,8 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
     positionShiftId,
     positionDate,
     positionStart,
+    positionStartsAt,
+    positionFinishesAt,
     positionStop,
     targetLatitude,
     targetLongitude,
@@ -359,15 +371,7 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
     remind();
     const timer = window.setInterval(remind, 30000);
     return () => window.clearInterval(timer);
-  }, [
-    data?.company.timezone,
-    activeShift?.id,
-    activeShift?.lunch,
-    activeShift?.end,
-    activeShift?.lunchMinutes,
-    activeState,
-    data?.events,
-  ]);
+  }, [data, activeShift, activeState]);
   if (recovering)
     return (
       <PasswordRecovery
@@ -411,9 +415,9 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
         logout={logout}
       />
     );
-  const shift = data.shifts.find((s) => s.employeeId === data.me && s.date === data.today);
+  const shift = currentWorkday(data);
   const todayEvents = (id: string) => {
-    const sh = data.shifts.find((s) => s.employeeId === id && s.date === data.today);
+    const sh = currentWorkday(data, id);
     return sh ? data.events.filter((e) => e.shiftId === sh.id) : [];
   };
   const myEvents = todayEvents(data.me);
