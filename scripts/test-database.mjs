@@ -61,7 +61,9 @@ export async function runRpc(db, userId, action, data = {}) {
       // Historical integration fixtures may clock in at any test-run hour.
       // Cutoff tests explicitly set the policy they verify.
       await tx.exec("reset role");
-      await tx.query("update public.sl_companies set checkin_close_time='23:59' where id=$1", [result.snapshot.company.id]);
+      await tx.query("update public.sl_companies set checkin_close_time='23:59' where id=$1", [
+        result.snapshot.company.id,
+      ]);
     }
     return result;
   });

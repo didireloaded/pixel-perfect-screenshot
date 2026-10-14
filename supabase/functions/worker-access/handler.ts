@@ -52,8 +52,10 @@ export async function handleWorkerAccess(request: Request) {
       if (typeof body.fullName !== "string" || typeof body.phone !== "string")
         return reply({ error: "Enter your name and phone number" }, 400);
       const profile = normalizeWorkerProfile({ fullName: body.fullName, phone: body.phone });
-      const companyCode = typeof body.companyCode === "string" ? body.companyCode.trim().toUpperCase() : "";
-      if (!/^[0-9A-F]{16}$/.test(companyCode)) return reply({ error: "Enter the company registration code from your manager." }, 400);
+      const companyCode =
+        typeof body.companyCode === "string" ? body.companyCode.trim().toUpperCase() : "";
+      if (!/^[0-9A-F]{16}$/.test(companyCode))
+        return reply({ error: "Enter the company registration code from your manager." }, 400);
       // The gateway supplies the client IP. A global cap also bounds signup if IP headers are absent/spoofed.
       const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
       const { data: reservation, error: limitError } = await admin.rpc("sl_worker_signup_start", {

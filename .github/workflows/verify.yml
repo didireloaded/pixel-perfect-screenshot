@@ -28,6 +28,7 @@ jobs:
       - run: npm run lint
       - run: npm test -- --maxWorkers=2
       - run: npm run test:database
+      - run: npm run test:tenancy
       - run: npx vitest run src/calc/overtime.test.ts
         working-directory: worker-ui
       - name: Verify both production builds
