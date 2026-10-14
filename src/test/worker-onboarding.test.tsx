@@ -25,11 +25,14 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 const fill = () => {
+  fireEvent.change(screen.getByLabelText("Company registration code"), {
+    target: { value: "ABCDEF1234567890" },
+  });
   fireEvent.change(screen.getByLabelText("Full name"), { target: { value: "Worker Name" } });
   fireEvent.change(screen.getByLabelText("Phone number"), { target: { value: "+264811234567" } });
 };
 describe("worker onboarding", () => {
-  it("asks only for name and phone and keeps credentials visible until saved", async () => {
+  it("uses a company code with name and phone and keeps credentials visible until saved", async () => {
     render(<CreateAccount />);
     expect(screen.queryByLabelText("Email address")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Password")).not.toBeInTheDocument();
@@ -38,10 +41,13 @@ describe("worker onboarding", () => {
     await screen.findByRole("heading", { name: "Save your access details" });
     expect(screen.getByText("SL-100001")).toBeInTheDocument();
     expect(screen.getByText("aB7!xy2?")).toBeInTheDocument();
-    expect(api.registerWorker).toHaveBeenCalledWith({
-      fullName: "Worker Name",
-      phone: "+264811234567",
-    });
+    expect(api.registerWorker).toHaveBeenCalledWith(
+      {
+        fullName: "Worker Name",
+        phone: "+264811234567",
+      },
+      "ABCDEF1234567890",
+    );
     expect(state.setPhase).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
     fireEvent.click(screen.getByRole("checkbox"));

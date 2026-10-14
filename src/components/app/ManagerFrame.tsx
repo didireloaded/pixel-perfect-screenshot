@@ -15,7 +15,8 @@ import { managerGroups, type ManagerSection } from "./manager-sections";
 export function ManagerFrame({
   active,
   onSelect,
-  company = "Project Inc.",
+  company = "Your company",
+  logoUrl,
   managerName = "Manager",
   onRefresh,
   onSignOut,
@@ -26,6 +27,7 @@ export function ManagerFrame({
   active: ManagerSection;
   onSelect: (section: ManagerSection) => void;
   company?: string;
+  logoUrl?: string | undefined;
   managerName?: string;
   onRefresh?: () => void;
   onSignOut?: () => void;
@@ -115,7 +117,11 @@ export function ManagerFrame({
             aria-label={`${company} · toggle navigation`}
             onClick={() => setExpanded((value) => !value)}
           >
-            <Waypoints size={30} strokeWidth={1.8} />
+            {logoUrl ? (
+              <img src={logoUrl} alt="" className="h-9 w-9 rounded-lg object-contain" />
+            ) : (
+              <Waypoints size={30} strokeWidth={1.8} />
+            )}
             <span>
               {company}
               <small>Shiftline workspace</small>

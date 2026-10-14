@@ -65,8 +65,15 @@ export function createBackend(app: "manager" | "worker") {
       throw new Error("Account services returned an incomplete result. Contact your manager.");
     return { employeeNo: data.employeeNo, accessCode: data.accessCode };
   }
-  async function registerWorker(profile: WorkerProfile) {
-    return workerAccess({ action: "register", ...normalizeWorkerProfile(profile) });
+  async function registerWorker(profile: WorkerProfile, companyCode = "") {
+    const code = companyCode.trim().toUpperCase();
+    if (!/^[0-9A-F]{16}$/.test(code))
+      throw new Error("Enter the company registration code from your manager.");
+    return workerAccess({
+      action: "register",
+      ...normalizeWorkerProfile(profile),
+      companyCode: code,
+    });
   }
   async function signInWorker(employeeNo: string, accessCode: string) {
     return signIn(workerLoginEmail(employeeNo), accessCode);
@@ -112,9 +119,25 @@ export function createBackend(app: "manager" | "worker") {
     const { error } = await requireClient().auth.updateUser({ password });
     check(error);
   }
+  async function hydrateCompanyLogo(data: Json) {
+    if (data && typeof data === "object" && !Array.isArray(data) && data["company"]) {
+      const company = data["company"] as Record<string, Json>;
+      if (typeof company["logoPath"] === "string") {
+        try {
+          const logo = await requireClient()
+            .storage.from("company-logos")
+            .createSignedUrl(company["logoPath"], 3600);
+          if (!logo.error) company["logoUrl"] = logo.data.signedUrl;
+        } catch {
+          /* Branding must not block attendance or account access. */
+        }
+      }
+    }
+  }
   async function snapshot<T>(): Promise<T> {
     const { data, error } = await requireClient().rpc("sl_snapshot");
     check(error);
+    await hydrateCompanyLogo(data);
     if (data && typeof data === "object" && !Array.isArray(data) && data["company"]) {
       try {
         const rows = await notifications<{ read_at: string | null }[]>("list");
@@ -131,6 +154,8 @@ export function createBackend(app: "manager" | "worker") {
       p_data: payload as Json,
     });
     check(error);
+    if (data && typeof data === "object" && !Array.isArray(data) && data["snapshot"])
+      await hydrateCompanyLogo(data["snapshot"]);
     return data as T;
   }
   function onAuthChange(callback: (event: AuthChangeEvent, userId: string | null) => void) {
@@ -172,6 +197,23 @@ export function createBackend(app: "manager" | "worker") {
       await command("finish_report_document", { id });
     }
   }
+  async function uploadCompanyLogo(companyId: string, file: File) {
+    if (app !== "manager") throw new Error("Manager access required");
+    const extensions: Record<string, string> = {
+      "image/png": "png",
+      "image/jpeg": "jpg",
+      "image/webp": "webp",
+    };
+    const extension = extensions[file.type];
+    if (!extension || file.size < 1 || file.size > 1048576)
+      throw new Error("Choose a PNG, JPEG or WebP logo up to 1 MB.");
+    const path = `${companyId}/${crypto.randomUUID()}.${extension}`;
+    const { error } = await requireClient()
+      .storage.from("company-logos")
+      .upload(path, file, { contentType: file.type, upsert: false });
+    check(error);
+    return path;
+  }
   async function reportDocumentUrl(path: string) {
     if (app !== "manager") throw new Error("Manager access required");
     const { data, error } = await requireClient()
@@ -211,6 +253,7 @@ export function createBackend(app: "manager" | "worker") {
     onAuthChange,
     watch,
     uploadReport,
+    uploadCompanyLogo,
     reportDocumentUrl,
   };
 }

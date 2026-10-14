@@ -176,6 +176,7 @@ export function CreateAccount() {
   const { setPhase, toast } = useApp();
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
+  const [companyCode, setCompanyCode] = useState("");
   const [credentials, setCredentials] = useState<WorkerCredentials | null>(null);
   const [saved, setSaved] = useState(false);
   const [err, setErr] = useState("");
@@ -288,7 +289,7 @@ export function CreateAccount() {
             setLoading(true);
             setErr("");
             try {
-              setCredentials(await backend.registerWorker({ fullName, phone }));
+              setCredentials(await backend.registerWorker({ fullName, phone }, companyCode));
             } catch (error) {
               setErr(error instanceof Error ? error.message : "Account creation failed");
             } finally {
@@ -296,6 +297,19 @@ export function CreateAccount() {
             }
           }}
         >
+          <Field label="Company registration code" htmlFor="signup-company">
+            <input
+              id="signup-company"
+              className={inputCls}
+              value={companyCode}
+              onChange={(event) => setCompanyCode(event.target.value.toUpperCase())}
+              placeholder="Ask your manager for this code"
+              maxLength={16}
+              minLength={16}
+              autoComplete="off"
+              required
+            />
+          </Field>
           <Field label="Full name" htmlFor="signup-name">
             <input
               id="signup-name"

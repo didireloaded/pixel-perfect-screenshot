@@ -54,6 +54,13 @@ export function WorkerProfile({
           {me.team || "Employee"} · {me.no}
         </p>
         <small>{data.company.name}</small>
+        {data.company.logoUrl && (
+          <img
+            src={data.company.logoUrl}
+            alt={`${data.company.name} logo`}
+            className="mx-auto mt-3 h-12 w-12 rounded-lg object-contain"
+          />
+        )}
       </div>
       <div className="worker-profile-group">
         <p>YOUR WORK</p>

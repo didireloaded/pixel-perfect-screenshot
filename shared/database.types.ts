@@ -394,6 +394,8 @@ export type Database = {
       };
       sl_companies: {
         Row: {
+          registration_code: string;
+          logo_path: string | null;
           checkin_close_time: string;
           current_policy_version: number;
           id: string;
@@ -401,6 +403,8 @@ export type Database = {
           timezone: string;
         };
         Insert: {
+          registration_code?: string;
+          logo_path?: string | null;
           checkin_close_time?: string;
           current_policy_version?: number;
           id?: string;
@@ -408,6 +412,8 @@ export type Database = {
           timezone?: string;
         };
         Update: {
+          registration_code?: string;
+          logo_path?: string | null;
           checkin_close_time?: string;
           current_policy_version?: number;
           id?: string;
@@ -2768,7 +2774,9 @@ export type Database = {
         Returns: Json;
       };
       sl_worker_signup_start: {
-        Args: { p_ip_hash: string; p_phone_hash: string };
+        Args:
+          | { p_ip_hash: string; p_phone_hash: string }
+          | { p_ip_hash: string; p_phone_hash: string; p_company_code: string };
         Returns: Json;
       };
     };

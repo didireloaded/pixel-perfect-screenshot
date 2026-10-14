@@ -20,12 +20,20 @@ beforeEach(() => {
 });
 describe("worker account boundary", () => {
   it("registers only name and normalized phone through the server, without email or a chosen password", async () => {
-    const result = await createBackend("worker").registerWorker({
-      fullName: " Worker Name ",
-      phone: "+264 (81) 123-4567",
-    });
+    const result = await createBackend("worker").registerWorker(
+      {
+        fullName: " Worker Name ",
+        phone: "+264 (81) 123-4567",
+      },
+      " abcdef1234567890 ",
+    );
     expect(invoke).toHaveBeenCalledWith("worker-access", {
-      body: { action: "register", fullName: "Worker Name", phone: "+264811234567" },
+      body: {
+        action: "register",
+        fullName: "Worker Name",
+        phone: "+264811234567",
+        companyCode: "ABCDEF1234567890",
+      },
     });
     expect(result).toEqual({ employeeNo: "SL-100001", accessCode: "aB7!xy2?" });
     expect(auth.signUp).not.toHaveBeenCalled();
@@ -37,7 +45,9 @@ describe("worker account boundary", () => {
     { fullName: "Worker", phone: "" },
     { fullName: "Worker", phone: "081234567" },
   ])("rejects incomplete contact details", async (profile) => {
-    await expect(createBackend("worker").registerWorker(profile)).rejects.toThrow();
+    await expect(
+      createBackend("worker").registerWorker(profile, "ABCDEF1234567890"),
+    ).rejects.toThrow();
     expect(invoke).not.toHaveBeenCalled();
   });
   it("uses native Supabase sessions for number-and-code sign in", async () => {
@@ -68,11 +78,17 @@ describe("worker account boundary", () => {
       error: { context: new Response(JSON.stringify({ error: "Too many attempts" })) },
     });
     await expect(
-      createBackend("worker").registerWorker({ fullName: "Worker", phone: "+264811234567" }),
+      createBackend("worker").registerWorker(
+        { fullName: "Worker", phone: "+264811234567" },
+        "ABCDEF1234567890",
+      ),
     ).rejects.toThrow("Too many attempts");
     invoke.mockResolvedValue({ error: null, data: { employeeNo: "SL-100001" } });
     await expect(
-      createBackend("worker").registerWorker({ fullName: "Worker", phone: "+264811234567" }),
+      createBackend("worker").registerWorker(
+        { fullName: "Worker", phone: "+264811234567" },
+        "ABCDEF1234567890",
+      ),
     ).rejects.toThrow("incomplete");
   });
 });

@@ -17,9 +17,9 @@ npm ci
 npm run dev -- --host 127.0.0.1 --port 8083 --strictPort
 ```
 
-Open `http://127.0.0.1:8084/manager` and `http://127.0.0.1:8083/`. Both require real Supabase accounts. Confirm the manager account, create the company/worksite, approve worker registrations and assign shifts. Worker signup uses name and phone and issues an employee number/private code. There are no local account endpoints, reusable access codes, automatic test logins or sample-record screens. Empty accounts show their actual setup and empty states.
+Open `http://127.0.0.1:8084/manager` and `http://127.0.0.1:8083/`. Both require real Supabase accounts. Confirm the manager account, create a company/workplace with an optional logo, and share its registration code from Team or Settings. Approve worker registrations and plan jobs; workers record their own attendance. There are no local account endpoints, automatic test logins or sample-record screens. Empty accounts show their actual setup and empty states.
 
-Workers register with name and phone only. The server issues an employee number and private eight-character access code; Team shows the registration immediately, and a manager approves workplace access. No worker email confirmation or chosen password is required. Lost codes are replaced in Team.
+Workers register with their company's registration code, name and phone. The server issues an employee number and private eight-character login code; Team shows the registration immediately, and a manager approves workplace access. The company registration code selects the workplace and never grants access. No worker email confirmation or chosen password is required. Lost login codes are replaced in Team. Each account belongs to one company; separate companies have independent records and private logo storage.
 
 Both clients share the typed backend in `shared/backend.ts`. Manager and worker sessions use separate storage keys. Committed commands notify private company channels with an invalidation only; each client reads its authorized snapshot again. Updates also refresh on focus, reconnection and every 15 seconds while visible. `shared/live-sync.ts` coalesces overlapping reads. Supabase Realtime initializes its notification partitions on the first connection; polling remains the fallback during a cold start or outage.
 

@@ -45,6 +45,8 @@ const initial = {
   ],
 } as unknown as AttendanceSnapshot;
 beforeEach(() => {
+  HTMLDialogElement.prototype.showModal = vi.fn();
+  HTMLDialogElement.prototype.close = vi.fn();
   localStorage.clear();
   vi.clearAllMocks();
   api.snapshot.mockResolvedValue(initial);

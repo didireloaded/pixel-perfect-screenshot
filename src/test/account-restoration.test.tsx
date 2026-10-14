@@ -85,14 +85,16 @@ describe("real account restoration", () => {
     await screen.findByRole("heading", { name: "Welcome back" });
     expect(screen.queryByText("Returning manager")).not.toBeInTheDocument();
   });
-  it("asks for an access code for an account without company membership", async () => {
+  it("offers company setup for an account without company membership", async () => {
     api.snapshot.mockResolvedValue({ onboarding: true });
     render(
       <AttendanceProvider>
         <RecordView />
       </AttendanceProvider>,
     );
-    expect(await screen.findByRole("heading", { name: "Join your workplace" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Set up your company" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "I have a workplace access code" }));
+    expect(screen.getByRole("heading", { name: "Join your workplace" })).toBeInTheDocument();
   });
   it("discards an old command result and restores a newly signed-in account", async () => {
     api.snapshot.mockResolvedValue(records("First account"));

@@ -169,7 +169,15 @@ export interface AttendanceSnapshot {
   calendarJobs?: CalendarJob[];
   me: string;
   role: "manager" | "employee";
-  company: { id: string; name: string; timezone: string; checkinCloseTime?: string };
+  company: {
+    id: string;
+    name: string;
+    timezone: string;
+    checkinCloseTime?: string;
+    registrationCode?: string;
+    logoPath?: string | null;
+    logoUrl?: string;
+  };
   today: string;
   employees: Employee[];
   sites: Site[];

@@ -14,5 +14,6 @@ export const {
   watch,
   replaceWorkerCode,
   uploadReport,
+  uploadCompanyLogo,
   reportDocumentUrl,
 } = backend;

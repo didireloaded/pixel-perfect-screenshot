@@ -68,7 +68,8 @@ function Manager() {
     <ManagerFrame
       active={tab}
       onSelect={setTab}
-      company={d.company.name || "Project Inc."}
+      company={d.company.name}
+      logoUrl={d.company.logoUrl}
       managerName={d.employees.find((employee) => employee.id === d.me)?.name || "Manager"}
       insights={
         ["Tasks", "Overview", "Views"].includes(tab) ? (
@@ -203,6 +204,15 @@ function Manager() {
                 Ask workers to open the worker app and register with their name and phone number.
                 The system gives each worker an employee number and private login code. New
                 registrations appear here for approval.
+              </p>
+              <p className="mt-3 text-sm">
+                Company registration code:{" "}
+                <strong className="select-all break-all font-mono">
+                  {d.company.registrationCode}
+                </strong>
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Workers must enter this code to register with your company.
               </p>
             </section>
             <RecordForm

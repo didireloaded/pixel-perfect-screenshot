@@ -2,6 +2,7 @@ import { useAttendance } from "@/lib/app-store";
 import { RecordForm } from "./RecordForm";
 import { Button } from "@/components/ui/button";
 import { StatusPill } from "./EmployeeShell";
+import { CompanyProfile } from "./CompanyProfile";
 const BOOL = [
   { value: "false", label: "Off" },
   { value: "true", label: "On" },
@@ -20,6 +21,7 @@ export function CompanySettings() {
   return (
     <div className="grid gap-5 lg:grid-cols-2">
       <div className="space-y-5">
+        <CompanyProfile />
         <RecordForm
           title="Check-in cutoff"
           action="set_checkin_cutoff"

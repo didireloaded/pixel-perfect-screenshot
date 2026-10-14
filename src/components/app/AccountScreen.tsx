@@ -7,7 +7,9 @@ import {
   resetPassword,
   updatePassword,
   signIn,
+  uploadCompanyLogo,
 } from "@/lib/backend";
+import type { AttendanceSnapshot } from "../../../shared/attendance";
 export function AccountScreen({
   signed,
   error,
@@ -24,7 +26,7 @@ export function AccountScreen({
   logout: () => Promise<void>;
 }) {
   const [create, setCreate] = useState(false);
-  const [manager, setManager] = useState(false);
+  const [manager, setManager] = useState(true);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
   const [confirmEmail, setConfirmEmail] = useState("");
@@ -63,8 +65,8 @@ export function AccountScreen({
         }
         if (ok) await onAuthenticated();
         else setConfirmEmail(get("email"));
-      } else
-        await command(
+      } else {
+        const result = await command(
           manager ? "setup" : "join_workplace",
           manager
             ? {
@@ -76,6 +78,20 @@ export function AccountScreen({
               }
             : { code: get("code") },
         );
+        const logo = form.get("logo");
+        if (manager && result && logo instanceof File && logo.size) {
+          const company = (result as { snapshot: AttendanceSnapshot }).snapshot.company;
+          try {
+            const logoPath = await uploadCompanyLogo(company.id, logo);
+            await command("save_company_profile", { name: company.name, logoPath });
+          } catch {
+            // Company creation succeeded. Allow a safe retry from company settings.
+            window.alert(
+              "Your company was created. Upload your logo from Settings to finish branding.",
+            );
+          }
+        }
+      }
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Could not continue");
     } finally {
@@ -182,7 +198,7 @@ export function AccountScreen({
         <p className="mt-2 text-sm text-muted-foreground">
           {signed
             ? manager
-              ? "Create your first site, then add employees and their shifts."
+              ? "Create your private workspace. Invite employees using your company registration code."
               : "Enter the access code from your manager."
             : "Your shift, jobs and hours in one place."}
         </p>
@@ -198,7 +214,16 @@ export function AccountScreen({
             </>
           ) : manager ? (
             <>
-              {field("company", "Company name", "text", "Project Inc.")}
+              {field("company", "Company name")}
+              <label className="block text-sm font-medium">
+                Company logo (optional, PNG/JPEG/WebP, up to 1 MB)
+                <Input
+                  name="logo"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="mt-2"
+                />
+              </label>
               {field("name", "Your name")}
               {field("site", "Work site")}
               {field("address", "Site address")}

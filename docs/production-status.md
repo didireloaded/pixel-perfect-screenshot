@@ -183,3 +183,19 @@ Sessions belong to an origin and browser: localhost, 127.0.0.1 and the hosted
 address each require their own initial login. Private browsing, cleared site
 storage, revoked sessions and expired/invalid refresh tokens still require login.
 No password or access-code storage was added, and no auth checks were bypassed.
+
+## Multi-company onboarding · 14 October 2026
+
+Company owners can create independent workspaces, provide company/workplace details,
+and upload a private company logo. Team and Settings show a company registration code.
+Workers must supply this code with their name and phone; manager approval still gates
+company access. The previous implicit single-company signup path now fails closed.
+Each account belongs to one company. Multi-membership switching and billing are outside
+this change. Logos use membership-scoped Storage policies and signed display URLs.
+
+Verification: frontend/shared suite, both TypeScript checks and production builds;
+five focused SQL tests cover multi-company enrollment, approvals, profiles, private
+logo access and existing cross-company mutations. A hosted two-company setup/profile
+smoke test passed inside a rolled-back transaction, leaving no fixture records.
+Existing workspace data is not reset by the migration; any reset is a separate,
+explicit destructive operation.

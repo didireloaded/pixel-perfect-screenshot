@@ -9,9 +9,13 @@ const service = (db, sql, params) =>
     return (await tx.query(sql, params)).rows[0]?.result;
   });
 async function enroll(db, companyId, phone = "+264811234567") {
-  const reservation = await service(db, "select public.sl_worker_signup_start($1,$2) result", [
+  const code = (
+    await db.query("select registration_code from public.sl_companies where id=$1", [companyId])
+  ).rows[0].registration_code;
+  const reservation = await service(db, "select public.sl_worker_signup_start($1,$2,$3) result", [
     hash(randomUUID()),
     hash(phone),
+    code,
   ]);
   assert.equal(reservation.companyId, companyId);
   const userId = randomUUID();
@@ -131,7 +135,7 @@ test("name and phone registration stays private until manager approval and is vi
       hash("other"),
       hash("other"),
     ]);
-    assert.match(refused.error, /not configured/);
+    assert.match(refused.error, /company registration code/);
     for (const role of ["anon", "authenticated"])
       await assert.rejects(
         db.transaction(async (tx) => {
@@ -179,16 +183,18 @@ test("signup limits survive denial and duplicate phones cannot claim an existing
       1,
     );
     for (let i = 0; i < 5; i++) {
-      const result = await service(db, "select public.sl_worker_signup_start($1,$2) result", [
+      const result = await service(db, "select public.sl_worker_signup_start($1,$2,$3) result", [
         hash("same-ip"),
         hash(`phone-${i}`),
+        setup.snapshot.company.registrationCode,
       ]);
       assert.ok(result.employeeNo);
     }
     for (let i = 0; i < 2; i++) {
-      const denied = await service(db, "select public.sl_worker_signup_start($1,$2) result", [
+      const denied = await service(db, "select public.sl_worker_signup_start($1,$2,$3) result", [
         hash("same-ip"),
         hash(`later-${i}`),
+        setup.snapshot.company.registrationCode,
       ]);
       assert.match(denied.error, /Too many/);
     }
