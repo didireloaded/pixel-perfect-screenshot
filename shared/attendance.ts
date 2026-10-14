@@ -45,6 +45,7 @@ export interface Employee {
   jobTitle?: string;
   bio?: string;
   photoUrl?: string;
+  photoPath?: string;
 }
 export interface Site {
   id: string;

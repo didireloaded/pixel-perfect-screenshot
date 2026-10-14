@@ -12,7 +12,7 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:tenancy": "node --test scripts/multi-company.test.mjs scripts/worker-access.test.mjs scripts/backend-integrity.test.mjs",
+    "test:tenancy": "node --test scripts/multi-company.test.mjs scripts/worker-access.test.mjs scripts/backend-integrity.test.mjs scripts/profile-photos.test.mjs",
     "test:database": "node --test scripts/database.test.mjs scripts/advanced.test.mjs scripts/workflows.test.mjs scripts/communications.test.mjs scripts/backend-integrity.test.mjs scripts/migration-history.test.mjs scripts/live-sync.test.mjs scripts/worker-join.test.mjs scripts/worker-access.test.mjs scripts/shift-scheduling.test.mjs scripts/workplace-operations.test.mjs scripts/employee-clockin.test.mjs scripts/hr-calendar.test.mjs scripts/workplace-reports.test.mjs scripts/located-plans.test.mjs scripts/notifications.test.mjs"
   },
   "overrides": {

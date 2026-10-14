@@ -683,6 +683,7 @@ export type Database = {
           payroll_admin: boolean;
           phone: string;
           photo_url: string;
+          photo_path: string | null;
           role: string;
           site_id: string;
           team: string;
@@ -703,6 +704,7 @@ export type Database = {
           payroll_admin?: boolean;
           phone?: string;
           photo_url?: string;
+          photo_path?: string | null;
           role: string;
           site_id: string;
           team?: string;
@@ -723,6 +725,7 @@ export type Database = {
           payroll_admin?: boolean;
           phone?: string;
           photo_url?: string;
+          photo_path?: string | null;
           role?: string;
           site_id?: string;
           team?: string;

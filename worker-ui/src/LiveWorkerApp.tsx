@@ -826,6 +826,10 @@ export default function LiveWorkerApp({
         {secondary === "profile" && (
           <WorkerProfile
             data={data}
+            onPhotoUpload={async (photo) => {
+              const path = await backend.uploadProfilePhoto(data.company.id, data.me, photo);
+              return run("save_profile_photo", { path }, "Profile photo saved");
+            }}
             onRequests={() => {
               setCorrection(null);
               setSecondary("requests");

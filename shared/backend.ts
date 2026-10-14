@@ -145,6 +145,36 @@ export function createBackend(app: "manager" | "worker") {
     check(error);
   }
   async function hydrateCompanyLogo(data: Json) {
+    if (
+      data &&
+      typeof data === "object" &&
+      !Array.isArray(data) &&
+      Array.isArray(data["employees"])
+    ) {
+      const employees = data["employees"].filter(
+        (item): item is Record<string, Json> =>
+          Boolean(item) && typeof item === "object" && !Array.isArray(item),
+      );
+      const photos = employees.filter((item) => typeof item["photoPath"] === "string");
+      if (photos.length) {
+        try {
+          const signed = await requireClient()
+            .storage.from("employee-photos")
+            .createSignedUrls(
+              photos.map((item) => item["photoPath"] as string),
+              3600,
+            );
+          for (const employee of photos) {
+            const url = signed.data?.find(
+              (item) => item.path === employee["photoPath"] && !item.error,
+            )?.signedUrl;
+            employee["photoUrl"] = url ?? "";
+          }
+        } catch {
+          /* Photos must not block attendance. */
+        }
+      }
+    }
     if (data && typeof data === "object" && !Array.isArray(data) && data["company"]) {
       const company = data["company"] as Record<string, Json>;
       if (typeof company["logoPath"] === "string") {
@@ -248,6 +278,18 @@ export function createBackend(app: "manager" | "worker") {
     if (!data) throw new Error("Document is unavailable");
     return data.signedUrl;
   }
+  async function uploadProfilePhoto(companyId: string, employeeId: string, photo: Blob) {
+    if (photo.type !== "image/jpeg" || photo.size < 1 || photo.size > 1048576)
+      throw new Error("Choose a profile photo up to 1 MB.");
+    const path = `${companyId}/${employeeId}/avatar.jpg`;
+    const { error } = await requireClient().storage.from("employee-photos").upload(path, photo, {
+      contentType: "image/jpeg",
+      upsert: true,
+      cacheControl: "0",
+    });
+    check(error);
+    return path;
+  }
   const watch = (companyId: string, refresh: () => Promise<void>) =>
     startLiveSync(requireClient(), companyId, refresh);
   async function notifications<T>(
@@ -279,6 +321,7 @@ export function createBackend(app: "manager" | "worker") {
     watch,
     uploadReport,
     uploadCompanyLogo,
+    uploadProfilePhoto,
     reportDocumentUrl,
   };
 }

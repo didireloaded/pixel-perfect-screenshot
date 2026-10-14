@@ -14,4 +14,5 @@ export const {
   watch,
   signInWorker,
   registerWorker,
+  uploadProfilePhoto,
 } = backend;

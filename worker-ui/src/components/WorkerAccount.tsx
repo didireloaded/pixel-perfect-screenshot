@@ -1,4 +1,5 @@
 import { ThemedSelect } from "../../../shared/ThemedSelect";
+import { prepareProfilePhoto } from "../profile-photo";
 import { displayDate, displayInstant } from "../../../shared/display-date";
 import { useState, type FormEvent } from "react";
 import {
@@ -29,32 +30,81 @@ export function WorkerProfile({
   onSignOut,
   onMonitoring,
   monitoring,
+  onPhotoUpload,
 }: {
   data: AttendanceSnapshot;
   onRequests: () => void;
   onSignOut: () => void;
   onMonitoring: () => void;
   monitoring: boolean;
+  onPhotoUpload: (photo: Blob) => Promise<boolean>;
 }) {
   const { isDark, setAppearance, reduceMotion, setReduceMotion } = useApp();
   const [privacy, setPrivacy] = useState(false);
   const [help, setHelp] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [photoMessage, setPhotoMessage] = useState("");
   const me = data.employees.find((employee) => employee.id === data.me)!;
   return (
     <>
       <div className="worker-profile-identity">
-        <span>
-          {me.name
-            .split(" ")
-            .map((part) => part[0])
-            .join("")
-            .slice(0, 2)}
-        </span>
+        {me.photoUrl ? (
+          <img
+            src={me.photoUrl}
+            alt={`${me.name}'s profile`}
+            className="mx-auto h-20 w-20 rounded-full object-cover"
+          />
+        ) : (
+          <span>
+            {me.name
+              .split(" ")
+              .map((part) => part[0])
+              .join("")
+              .slice(0, 2)}
+          </span>
+        )}
         <h2>{me.name}</h2>
         <p>
           {me.team || "Employee"} · {me.no}
         </p>
         <small>{data.company.name}</small>
+        <label className="block mt-4 text-sm">
+          {uploading ? "Saving photo…" : "Add or change profile photo"}
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            disabled={uploading}
+            className="block mx-auto mt-2 max-w-full text-xs"
+            aria-label="Profile photo"
+            onChange={async (event) => {
+              const file = event.target.files?.[0];
+              event.target.value = "";
+              if (!file) return;
+              setUploading(true);
+              setPhotoMessage("");
+              try {
+                const photo = await prepareProfilePhoto(file);
+                setPhotoMessage(
+                  (await onPhotoUpload(photo))
+                    ? "Profile photo saved."
+                    : "Photo was not saved. Please try again.",
+                );
+              } catch (error) {
+                setPhotoMessage(
+                  error instanceof Error ? error.message : "Could not upload this photo.",
+                );
+              } finally {
+                setUploading(false);
+              }
+            }}
+          />
+        </label>
+        <p className="mt-2 text-xs">Visible to your company. JPEG, PNG or WebP, up to 10 MB.</p>
+        {photoMessage && (
+          <p role="status" className="mt-2 text-sm">
+            {photoMessage}
+          </p>
+        )}
         {data.company.logoUrl && (
           <img
             src={data.company.logoUrl}
