@@ -36,6 +36,7 @@ export function JobAddressPicker({
   const [suggestions, setSuggestions] = useState<AddressFeature[]>([]);
   const [message, setMessage] = useState("");
   const [searching, setSearching] = useState(false);
+  const [coordinatesOpen, setCoordinatesOpen] = useState(!token);
   const centerLng = proximity?.[0] ?? 17.08,
     centerLat = proximity?.[1] ?? -22.57;
   useEffect(() => {
@@ -242,28 +243,44 @@ export function JobAddressPicker({
           {message}
         </p>
       )}
-      <div className="grid grid-cols-2 gap-3">
-        {(["latitude", "longitude"] as const).map((field) => (
-          <label className="text-sm capitalize" key={field}>
-            {field}
-            <input
-              className="mt-1 w-full rounded-xl border bg-muted p-2"
-              type="number"
-              step="any"
-              min={field === "latitude" ? -90 : -180}
-              max={field === "latitude" ? 90 : 180}
-              required
-              value={value[field] ?? ""}
-              onChange={(event) =>
-                onChange({
-                  ...value,
-                  [field]: event.target.value === "" ? null : Number(event.target.value),
-                })
-              }
-            />
-          </label>
-        ))}
-      </div>
+      <details
+        className="rounded-xl border bg-muted/40 p-3 text-xs"
+        open={coordinatesOpen || !token}
+        onToggle={(event) => setCoordinatesOpen(event.currentTarget.open)}
+      >
+        <summary className="cursor-pointer select-none font-medium text-foreground hover:underline">
+          {validPoint(value)
+            ? `Coordinates: ${value.latitude?.toFixed(5)}, ${value.longitude?.toFixed(5)} (Click to adjust)`
+            : "Advanced: enter confirmed coordinates"}
+        </summary>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          {(["latitude", "longitude"] as const).map((field) => (
+            <label className="text-xs font-medium capitalize" key={field}>
+              {field}
+              <input
+                className="mt-1 w-full rounded-lg border bg-background p-2 text-sm text-foreground"
+                type="number"
+                step="any"
+                min={field === "latitude" ? -90 : -180}
+                max={field === "latitude" ? 90 : 180}
+                required
+                onInvalid={(event) => {
+                  setCoordinatesOpen(true);
+                  const details = event.currentTarget.closest("details");
+                  if (details) details.open = true;
+                }}
+                value={value[field] ?? ""}
+                onChange={(event) =>
+                  onChange({
+                    ...value,
+                    [field]: event.target.value === "" ? null : Number(event.target.value),
+                  })
+                }
+              />
+            </label>
+          ))}
+        </div>
+      </details>
     </div>
   );
 }

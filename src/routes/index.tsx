@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   MapPin,
   Utensils,
@@ -12,7 +12,7 @@ import {
   CalendarDays,
   Megaphone,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { EmployeeShell, ConnectionBanner, StatusPill } from "@/components/app/EmployeeShell";
 import { DepartureSheet } from "@/components/app/DepartureSheet";
 import { Button } from "@/components/ui/button";
@@ -50,6 +50,12 @@ const EVENT_LABEL: Record<EventType, string> = {
 
 function Today() {
   const d = useAttendance();
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (d.role === "manager") {
+      void navigate({ to: "/manager" });
+    }
+  }, [d.role, navigate]);
   const [sheet, setSheet] = useState(false);
   const me = d.employees.find((e) => e.id === d.me)!;
   const site = d.sites.find((s) => s.id === d.shift.siteId)!;
@@ -135,6 +141,12 @@ function Today() {
 
   return (
     <EmployeeShell title="Today">
+      <div className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-primary/20 bg-primary/10 p-3.5 text-xs text-primary">
+        <span>Looking for the mobile punch clock?</span>
+        <a href="/worker/" className="font-semibold underline">
+          Open Worker App →
+        </a>
+      </div>
       <section className="card-surface p-5" aria-label="Attendance">
         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
           {new Date().toLocaleDateString([], {

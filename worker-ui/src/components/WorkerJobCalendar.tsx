@@ -2,6 +2,7 @@ import { useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, Users } from "lucide-react";
 import type { AttendanceSnapshot } from "../../../shared/attendance";
 import { calendarJobs } from "../../../shared/calendar-jobs";
+import { displayDate } from "../../../shared/display-date";
 import { EmptyState, WorkerCard, WorkerSheet } from "./WorkerUI";
 const day = (date: string) => new Date(`${date}T12:00:00Z`);
 export function WorkerJobCalendar({ data }: { data: AttendanceSnapshot }) {
@@ -100,7 +101,7 @@ export function WorkerJobCalendar({ data }: { data: AttendanceSnapshot }) {
       )}
       {detail && (
         <WorkerSheet title={detail.title} onClose={() => setDetailId(null)}>
-          <p className="worker-muted-copy">{detail.date}</p>
+          <p className="worker-muted-copy">{displayDate(detail.date)}</p>
           <p className="my-4 whitespace-pre-wrap">{detail.details}</p>
           {detail.address && <p className="my-3">Job destination: {detail.address}</p>}
           <h3 className="worker-sheet-section">Assigned team</h3>

@@ -4,6 +4,20 @@ export default {
   async fetch(request, env, context) {
     const url = new URL(request.url);
     let response;
+    const legacyWorkerPaths = new Set([
+      "/jobs",
+      "/hours",
+      "/requests",
+      "/calendar",
+      "/inbox",
+      "/today",
+    ]);
+    if (legacyWorkerPaths.has(url.pathname)) {
+      const view = url.pathname.slice(1);
+      url.pathname = "/";
+      url.searchParams.set("view", view);
+      return Response.redirect(url.toString(), 302);
+    }
     if (url.pathname === "/" || url.pathname === "/index.html") {
       url.pathname = "/worker/";
       response = await env.ASSETS.fetch(new Request(url, request));

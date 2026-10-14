@@ -54,6 +54,8 @@
 .worker-device {
   position: relative;
   width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
   height: 100dvh;
   overflow: hidden;
   background: var(--color-page);
@@ -82,6 +84,7 @@ dialog.worker-sheet textarea {
 @media (max-width: 639px) {
   .worker-device {
     max-width: none;
+    box-shadow: none;
   }
   .worker-device,
   .worker-sheet {
@@ -221,7 +224,8 @@ dialog.worker-sheet textarea {
   justify-content: space-between;
   gap: 8px;
   border-radius: 14px;
-  background: #ffffffc9;
+  background: #ffffff;
+  border: 1px solid var(--color-sep);
   padding: 5px 14px;
   font-size: 12px;
 }
@@ -229,8 +233,9 @@ dialog.worker-sheet textarea {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #4e9c69;
+  color: #176448;
   font-size: 12px;
+  font-weight: 500;
   line-height: 1.2;
 }
 .worker-lunch-label > svg {
@@ -238,24 +243,27 @@ dialog.worker-sheet textarea {
   padding: 5px;
   background: #daf4e2;
   border-radius: 8px;
+  color: #176448;
 }
 .worker-lunch button {
   min-height: 44px;
   min-width: 66px;
-  color: var(--color-ok);
+  color: #176448;
   font-size: 13px;
   font-weight: 600;
 }
 .worker-lunch button:disabled {
-  color: #a1c7ac;
+  color: #797285;
 }
 .worker-lunch time {
   font-size: 12px;
-  color: #79a588;
+  color: #2e5c3e;
   font-variant-numeric: tabular-nums;
+  font-weight: 500;
 }
 .worker-lunch.active {
-  background: #e6f6ec;
+  background: #e8f7ee;
+  border-color: #a4ddb8;
 }
 .worker-orb-area {
   display: grid;
@@ -1181,9 +1189,32 @@ dialog.worker-sheet textarea {
   color: #f1ebfa;
 }
 .dark .worker-daily-stats,
-.dark .worker-calendar-card,
+.dark .worker-calendar-card {
+  background: #272130;
+}
 .dark .worker-lunch {
   background: #272130;
+  border-color: var(--color-dsep);
+}
+.dark .worker-lunch-label {
+  color: #7ce3b6;
+}
+.dark .worker-lunch-label > svg {
+  background: #19382b;
+  color: #7ce3b6;
+}
+.dark .worker-lunch button {
+  color: #7ce3b6;
+}
+.dark .worker-lunch button:disabled {
+  color: #928b9d;
+}
+.dark .worker-lunch time {
+  color: #a1ebd0;
+}
+.dark .worker-lunch.active {
+  background: #1c3228;
+  border-color: #2a5944;
 }
 .dark .worker-tabbar {
   background: #211a2dec;

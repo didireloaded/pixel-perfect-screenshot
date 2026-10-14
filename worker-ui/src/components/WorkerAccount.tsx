@@ -1,4 +1,5 @@
 import { ThemedSelect } from "../../../shared/ThemedSelect";
+import { displayDate, displayInstant } from "../../../shared/display-date";
 import { useState, type FormEvent } from "react";
 import {
   Bell,
@@ -16,7 +17,7 @@ import {
 } from "lucide-react";
 import type { AttendanceSnapshot, EventType, RequestKind, Shift } from "../../../shared/attendance";
 import { useApp } from "../state";
-import { EmptyState } from "./WorkerUI";
+import { EmptyState, formatTime } from "./WorkerUI";
 export type WorkerRun = (
   action: string,
   payload: Record<string, unknown>,
@@ -151,7 +152,7 @@ export function WorkerRequests({
 }) {
   const [kind, setKind] = useState<RequestKind>(correction ? "correction" : "leave");
   const [summary, setSummary] = useState(
-    correction ? `Attendance correction · ${correction.date}` : "",
+    correction ? `Attendance correction · ${displayDate(correction.date)}` : "",
   );
   const [detail, setDetail] = useState("");
   const [leaveStart, setLeaveStart] = useState(data.today);
@@ -299,7 +300,7 @@ export function WorkerRequests({
                   <option value="">Choose a shift</option>
                   {shifts.map((shift) => (
                     <option key={shift.id} value={shift.id}>
-                      {shift.date} · {shift.start}–{shift.end}
+                      {displayDate(shift.date)} · {shift.start}–{shift.end}
                     </option>
                   ))}
                 </ThemedSelect>
@@ -313,7 +314,7 @@ export function WorkerRequests({
                     .map((item) => (
                       <option key={item.id} value={item.id}>
                         {item.type.replace(/_/g, " ")} ·{" "}
-                        {new Date(item.capturedAt).toLocaleTimeString()}
+                        {formatTime(item.capturedAt, data.company.timezone)}
                       </option>
                     ))}
                 </ThemedSelect>
@@ -396,14 +397,15 @@ export function WorkerRequests({
           <p className="worker-muted-copy">{request.detail || request.kind.replace(/_/g, " ")}</p>
           {request.leaveStart && (
             <p className="my-2 text-xs">
-              {request.leaveStart}–{request.leaveEnd}
+              {displayDate(request.leaveStart)}–
+              {displayDate(request.leaveEnd ?? request.leaveStart)}
               {request.leaveStartTime
                 ? ` · ${request.leaveStartTime}–${request.leaveEndTime}`
                 : " · Full days"}
             </p>
           )}
           <small className="text-[10px] text-sub">
-            {new Date(request.submittedAt).toLocaleDateString()}
+            {displayInstant(request.submittedAt, data.company.timezone)}
           </small>
           {request.reason && (
             <p className="mt-3 rounded-xl bg-fill p-3 text-xs dark:bg-dfill">
@@ -423,7 +425,7 @@ export function WorkerRequests({
             </span>
           </div>
           <p className="worker-muted-copy">{item.reason}</p>
-          <small>{new Date(item.replacement_value.capturedAt).toLocaleString()}</small>
+          <small>{displayInstant(item.replacement_value.capturedAt, data.company.timezone)}</small>
           {item.decision_reason && (
             <p className="worker-muted-copy">Manager: {item.decision_reason}</p>
           )}
@@ -512,7 +514,7 @@ export function WorkerNotifications({
           </span>
           <span>
             <b>Timesheet approved</b>
-            <p>{sheet.date} · View your hours</p>
+            <p>{displayDate(sheet.date)} · View your hours</p>
           </span>
           <ChevronRight size={16} />
         </button>

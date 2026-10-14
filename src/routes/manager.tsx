@@ -31,6 +31,8 @@ import { managerGroups, type ManagerSection } from "@/components/app/manager-sec
 const TABS: ManagerSection[] = [
   ...managerGroups.flatMap((group) => group.items.map((item) => item.name)),
   "Settings",
+  "Project management",
+  "Views",
 ];
 type ManagerTab = ManagerSection;
 export const Route = createFileRoute("/manager")({
@@ -43,7 +45,7 @@ export const Route = createFileRoute("/manager")({
 function Manager() {
   const d = useAttendance();
   const navigate = useNavigate();
-  const tab = Route.useSearch().tab || "Tasks";
+  const tab = Route.useSearch().tab || "Overview";
   const setTab = (next: ManagerTab) => void navigate({ to: "/manager", search: { tab: next } });
   const [showJobForm, setShowJobForm] = useState(false);
   if (d.role !== "manager")

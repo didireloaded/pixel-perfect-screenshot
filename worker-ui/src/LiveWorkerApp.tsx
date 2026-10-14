@@ -1,4 +1,5 @@
 import { activeJobForShift } from "../../shared/active-job";
+import { displayDate } from "../../shared/display-date";
 import { jobDepartureBlock } from "./job-departure";
 import { checkinClosed } from "../../shared/checkin-cutoff";
 import { BrowserNotifications } from "../../shared/BrowserNotifications";
@@ -55,13 +56,6 @@ const eventLabels: Record<EventType, string> = {
   clock_out: "Clocked out",
 };
 const minutes = (n: number) => `${Math.floor(n / 60)}h ${String(n % 60).padStart(2, "0")}m`;
-const displayDate = (iso: string) =>
-  new Date(`${iso}T12:00:00Z`).toLocaleDateString([], {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    timeZone: "UTC",
-  });
 export default function LiveWorkerApp({
   onSignOut,
   onAccessChanged,
@@ -81,7 +75,11 @@ export default function LiveWorkerApp({
   }, []);
   const [data, setData] = useState<AttendanceSnapshot | null>(null);
   const [secondary, setSecondary] = useState<"profile" | "requests" | "notifications" | null>(() =>
-    new URLSearchParams(window.location.search).has("notification") ? "notifications" : null,
+    new URLSearchParams(window.location.search).has("notification")
+      ? "notifications"
+      : new URLSearchParams(window.location.search).get("view") === "requests"
+        ? "requests"
+        : null,
   );
   const [correction, setCorrection] = useState<Shift | null>(null);
   const [jobFilter, setJobFilter] = useState<"all" | "assigned" | "in_progress" | "completed">(
@@ -102,7 +100,11 @@ export default function LiveWorkerApp({
       window.removeEventListener("offline", update);
     };
   }, []);
-  const [tab, setTab] = useState<Tab>("today");
+  const [tab, setTab] = useState<Tab>(
+    () =>
+      tabs.find((item) => item.id === new URLSearchParams(window.location.search).get("view"))
+        ?.id ?? "today",
+  );
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -323,7 +325,7 @@ export default function LiveWorkerApp({
       checkinClosed(data.company.timezone, data.company.checkinCloseTime)
     ) {
       setError(
-        `Check-in closes at ${data.company.checkinCloseTime ?? "17:00"}. Contact your manager if you need a correction.`,
+        `Clock-in closes at ${data.company.checkinCloseTime ?? "17:00"}. Contact your manager if you need a correction.`,
       );
       return false;
     }
@@ -340,7 +342,7 @@ export default function LiveWorkerApp({
       return false;
     }
     if (!shift && type !== "clock_in") {
-      setError("Check in to start your workday first");
+      setError("Clock in to start your workday first");
       return false;
     }
     if (type !== "clock_in" && shift && outbox) {
@@ -731,6 +733,20 @@ export default function LiveWorkerApp({
                 </button>
               ))}
             </div>
+            {["not_clocked_in", "on_lunch", "on_personal"].includes(state) && (
+              <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-fill dark:bg-dfill text-xs">
+                <span>
+                  {state === "not_clocked_in"
+                    ? "Clock in on Today before departing for jobs."
+                    : state === "on_lunch"
+                      ? "Finish lunch before departing for jobs."
+                      : "Return to work before departing for jobs."}
+                </span>
+                <Action secondary onClick={() => switchTab("today")}>
+                  Go to Today
+                </Action>
+              </div>
+            )}
             {availablePlans.map((plan) => {
               const blocked = jobDepartureBlock(plan, {
                 today: data.today,
@@ -745,7 +761,7 @@ export default function LiveWorkerApp({
                 <Card key={plan.id}>
                   <h2 className="font-semibold">{plan.title}</h2>
                   <p className="text-sm mt-2">
-                    {plan.date} · {plan.address || "Location needs confirmation"}
+                    {displayDate(plan.date)} · {plan.address || "Location needs confirmation"}
                   </p>
                   <p className="mt-3 whitespace-pre-wrap">{plan.details}</p>
                   <p className="text-xs mt-2">
@@ -759,8 +775,8 @@ export default function LiveWorkerApp({
                       let eventId = planStartIds.current.get(plan.id);
                       if (!eventId) {
                         eventId = crypto.randomUUID();
-                        planStartIds.current.set(plan.id, eventId);
                       }
+                      planStartIds.current.set(plan.id, eventId);
                       void run(
                         "start_calendar_job",
                         { id: eventId, calendarJobId: plan.id },
@@ -773,14 +789,9 @@ export default function LiveWorkerApp({
                     Leave for this job
                   </Action>
                   {blocked && (
-                    <p className="mt-3 text-sm" role="status">
+                    <p className="mt-2 text-xs text-sub dark:text-dsub" role="status">
                       {blocked}
                     </p>
-                  )}
-                  {blocked && ["not_clocked_in", "on_lunch", "on_personal"].includes(state) && (
-                    <Action secondary onClick={() => switchTab("today")}>
-                      Go to Today
-                    </Action>
                   )}
                 </Card>
               );
@@ -851,7 +862,7 @@ export default function LiveWorkerApp({
           }}
         >
           <p className="worker-muted-copy">
-            Your check-in time is recorded when you confirm. Choose your expected finish so location
+            Your clock-in time is recorded when you confirm. Choose your expected finish so location
             sharing stops on time. The finish must be today; work across midnight is not supported
             yet.
           </p>
@@ -878,16 +889,19 @@ export default function LiveWorkerApp({
             </label>
             <p className="worker-muted-copy">
               Lunch is planned for 12:00–13:00. Tap Start lunch and End lunch to record your actual
-              break. Regular time uses the existing eight-hour rule; extra time needs approval.
+              break. Regular time is 8 hours; extra time needs approval.
             </p>
-            <label className="flex gap-2 my-4">
+            <label className="flex items-center gap-2.5 my-4 text-sm cursor-pointer">
               <input
                 type="checkbox"
+                className="accent-[#7351c5] h-4 w-4 rounded"
                 checked={shareDuringWork}
                 onChange={(event) => setShareDuringWork(event.target.checked)}
               />
-              Share my location while working. Pauses on lunch, personal time, clock-out or expected
-              finish.
+              <span>
+                Share my location while working. Pauses on lunch, personal time, clock-out or
+                expected finish.
+              </span>
             </label>
             {error && <p role="alert">{error}</p>}
             <button
@@ -899,7 +913,7 @@ export default function LiveWorkerApp({
                 checkinClosed(data.company.timezone, data.company.checkinCloseTime, cutoffNow)
               }
             >
-              {locating ? "Checking location…" : busy ? "Checking in…" : "Check in now"}
+              {locating ? "Checking location…" : busy ? "Clocking in…" : "Clock in now"}
             </button>
           </form>
         </WorkerSheet>

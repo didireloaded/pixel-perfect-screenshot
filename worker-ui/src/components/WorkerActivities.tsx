@@ -2,6 +2,7 @@ import { useRef, useState, type FormEvent } from "react";
 import type { AttendanceSnapshot, AttendanceState } from "../../../shared/attendance";
 import { ThemedSelect } from "../../../shared/ThemedSelect";
 import { WorkerCard } from "./WorkerUI";
+import { displayInstant } from "../../../shared/display-date";
 
 export function WorkerActivities({
   data,
@@ -51,8 +52,7 @@ export function WorkerActivities({
       form.reset();
     }
   };
-  const time = (value: string) =>
-    new Date(value).toLocaleString([], { timeZone: data.company.timezone });
+  const time = (value: string) => displayInstant(value, data.company.timezone);
   return (
     <div className="space-y-4 mt-5">
       {shift && ["working", "on_job"].includes(state) && (

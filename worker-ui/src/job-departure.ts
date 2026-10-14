@@ -24,7 +24,7 @@ export function jobDepartureBlock(
     return "This job is reserved for its assigned employees.";
   switch (context.state) {
     case "not_clocked_in":
-      return "Check in from Today before leaving for a job.";
+      return "Clock in from Today before leaving for a job.";
     case "clocked_out":
       return "Your workday has ended. You cannot leave for a job.";
     case "on_lunch":

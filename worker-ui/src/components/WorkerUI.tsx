@@ -76,7 +76,7 @@ export const formatHours = (minutes: number) =>
 export const formatTime = (time: number | undefined, zone: string) =>
   time === undefined
     ? "—:—"
-    : new Date(time).toLocaleTimeString("en-US", {
+    : new Date(time).toLocaleTimeString("en-GB", {
         hour: "2-digit",
         minute: "2-digit",
         timeZone: zone,

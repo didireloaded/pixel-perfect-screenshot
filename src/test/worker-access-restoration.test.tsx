@@ -93,8 +93,8 @@ it("does not submit a delayed GPS check-in after the account screen unmounts", a
   });
   api.snapshot.mockResolvedValue({ ...snapshot, policy: { require_gps_stamp: true } });
   const view = render(<LiveWorkerApp onSignOut={vi.fn()} />);
-  fireEvent.click(await screen.findByRole("button", { name: "Check in" }));
-  fireEvent.click(screen.getByRole("button", { name: "Check in now" }));
+  fireEvent.click(await screen.findByRole("button", { name: /clock in|check in/i }));
+  fireEvent.click(screen.getByRole("button", { name: /clock in now|check in now/i }));
   expect(getCurrentPosition).toHaveBeenCalledOnce();
   view.unmount();
   await act(async () => {
@@ -143,7 +143,7 @@ it("explains an unresolved previous workday instead of offering another check-in
   });
   render(<LiveWorkerApp onSignOut={vi.fn()} />);
   await screen.findByText("Previous workday needs review");
-  expect(screen.getByRole("button", { name: "Check in" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: /clock in|check in/i })).toBeDisabled();
   expect(screen.getByText("Needs review")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Review previous workday" })).toBeEnabled();
   expect(api.command).not.toHaveBeenCalled();

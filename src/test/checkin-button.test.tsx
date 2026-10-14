@@ -30,11 +30,11 @@ it("disables check-in at the cutoff without disabling clock-out", () => {
     onAcknowledge: vi.fn(),
   };
   const view = render(<WorkerHome {...props} state="not_clocked_in" />);
-  const button = screen.getByRole("button", { name: "Check in" });
+  const button = screen.getByRole("button", { name: /clock in|check in/i });
   expect(button).toBeEnabled();
   act(() => vi.advanceTimersByTime(1000));
   expect(button).toBeDisabled();
-  expect(button).toHaveTextContent("Check-in closed");
+  expect(button).toHaveTextContent(/(?:clock|check)-in closed/i);
   view.rerender(<WorkerHome {...props} state="working" />);
   expect(screen.getByRole("button", { name: "Clock out" })).toBeEnabled();
 });

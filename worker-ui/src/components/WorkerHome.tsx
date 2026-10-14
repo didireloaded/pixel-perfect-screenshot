@@ -1,4 +1,5 @@
 import { activeJobForShift } from "../../../shared/active-job";
+import { displayDate } from "../../../shared/display-date";
 import { NoticeCard } from "./NoticeDetails";
 import { useEffect, useState } from "react";
 import {
@@ -66,7 +67,7 @@ export function WorkerHome({
     lastLunch && lastReturn && lastReturn.capturedAt >= lastLunch.capturedAt,
   );
   const stateTitle = {
-    not_clocked_in: "Check In",
+    not_clocked_in: "Clock In",
     working: "Working",
     on_lunch: "On Break",
     on_job: "On Job",
@@ -99,7 +100,7 @@ export function WorkerHome({
     <>
       <div className="worker-time">
         <p>
-          {new Date(now).toLocaleDateString("en-US", {
+          {new Date(now).toLocaleDateString("en-GB", {
             month: "short",
             day: "numeric",
             year: "numeric",
@@ -108,7 +109,7 @@ export function WorkerHome({
           })}
         </p>
         <time>
-          {new Date(now).toLocaleTimeString("en-US", {
+          {new Date(now).toLocaleTimeString("en-GB", {
             hour: "2-digit",
             minute: "2-digit",
             timeZone: data.company.timezone,
@@ -117,8 +118,8 @@ export function WorkerHome({
       </div>
       <div className="worker-daily-stats">
         {[
-          ["Check In", formatTime(first?.capturedAt, data.company.timezone)],
-          ["Check Out", formatTime(last?.capturedAt, data.company.timezone)],
+          ["Clock In", formatTime(first?.capturedAt, data.company.timezone)],
+          ["Clock Out", formatTime(last?.capturedAt, data.company.timezone)],
           [work.estimated ? "Hours · estimate" : "Recorded Hours", formatHours(total)],
         ].map(([label, value]) => (
           <div key={label}>
@@ -162,6 +163,7 @@ export function WorkerHome({
         <button
           disabled={busy || (state !== "working" && state !== "on_job" && state !== "on_lunch")}
           onClick={() => onAction(state === "on_lunch" ? "end_lunch" : "start_lunch")}
+          title={state === "not_clocked_in" ? "Clock in first to start break" : undefined}
         >
           {state === "on_lunch" ? "End Lunch" : hasLunch ? "Start again" : "Start"}
         </button>
@@ -177,7 +179,7 @@ export function WorkerHome({
                 className="worker-orb press"
                 aria-label={
                   state === "not_clocked_in"
-                    ? "Check in"
+                    ? "Clock in"
                     : state === "on_lunch"
                       ? "End lunch"
                       : state === "on_job"
@@ -191,7 +193,7 @@ export function WorkerHome({
               >
                 <span>
                   {closed
-                    ? "Check-in closed"
+                    ? "Clock-in closed"
                     : checkInBlocked
                       ? "Needs review"
                       : busy
@@ -224,7 +226,7 @@ export function WorkerHome({
         <span className={`worker-status-dot ${state !== "not_clocked_in" ? "active" : ""}`} />
         {shift
           ? `${state === "not_clocked_in" ? "Your shift" : "Today’s shift"} · ${shift.start}–${shift.end}`
-          : "Ready to work? Check in to start your day."}
+          : "Ready to work? Clock in to start your day."}
       </div>
       {(state === "working" || state === "on_job") && (
         <div className="worker-active-actions">
@@ -259,7 +261,7 @@ export function WorkerHome({
                   "No worksite assigned")}
             </b>
             <p>
-              {shift ? `Shift ends at ${shift.end}` : "Your attendance starts when you check in"}
+              {shift ? `Shift ends at ${shift.end}` : "Your attendance starts when you clock in"}
             </p>
           </span>
         </div>
@@ -286,8 +288,8 @@ export function WorkerHome({
             <span>
               <b>{nextJob.title}</b>
               <small>
-                {nextJob.date === data.today ? "Today" : nextJob.date} · {nextJob.start}–
-                {nextJob.end}
+                {nextJob.date === data.today ? "Today" : displayDate(nextJob.date)} ·{" "}
+                {nextJob.start}–{nextJob.end}
               </small>
             </span>
             <ArrowUpRight size={18} />

@@ -1,4 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
+import { useState } from "react";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { JobAddressPicker } from "../components/app/JobAddressPicker";
 import { ManagerJobBrief } from "../components/app/ManagerJobBrief";
@@ -43,6 +44,32 @@ afterEach(() => {
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
   vi.clearAllMocks();
+});
+it("keeps manual coordinates expanded while both coordinates are entered", () => {
+  vi.stubEnv("VITE_MAPBOX_ACCESS_TOKEN", "pk.test");
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
+  function Form() {
+    const [value, setValue] = useState<{
+      address: string;
+      latitude: number | null;
+      longitude: number | null;
+    }>({ address: "", latitude: null, longitude: null });
+    return <JobAddressPicker value={value} onChange={setValue} />;
+  }
+  render(<Form />);
+  const details = screen.getByText("Advanced: enter confirmed coordinates").closest("details")!;
+  details.open = true;
+  fireEvent(details, new Event("toggle"));
+  fireEvent.change(screen.getByLabelText("latitude"), { target: { value: "-22.6" } });
+  fireEvent.change(screen.getByLabelText("longitude"), { target: { value: "17.08" } });
+  expect(details.open).toBe(true);
+  expect(screen.getByLabelText("longitude")).toHaveValue(17.08);
 });
 it("creates general jobs without a required employee shift", () => {
   render(<ManagerJobBrief onSaved={vi.fn()} />);

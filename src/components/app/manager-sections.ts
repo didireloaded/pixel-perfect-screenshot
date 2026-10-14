@@ -1,20 +1,19 @@
 import {
   House,
   BriefcaseBusiness,
+  LayoutGrid,
   CalendarDays,
-  ChevronDown,
   ClipboardList,
   Clock3,
   FileBarChart2,
   FileText,
-  LayoutGrid,
   MapPinned,
   Megaphone,
   MessageSquare,
   NotebookPen,
-  Search,
   ShieldCheck,
   Users,
+  UserCheck,
   CheckSquare,
   Monitor,
   Bell,
@@ -22,37 +21,42 @@ import {
 
 export const managerGroups = [
   {
-    label: "WORKSPACE",
+    label: "OPERATIONS",
     items: [
       { name: "Overview", icon: House },
+      { name: "Attendance", icon: Clock3 },
       { name: "Tasks", icon: ClipboardList },
       { name: "Calendar", icon: CalendarDays },
-      { name: "Notes", icon: NotebookPen },
-      { name: "Reports", icon: FileBarChart2 },
-      { name: "Workplace reports", icon: ShieldCheck },
+      { name: "Project management", icon: BriefcaseBusiness },
       { name: "Views", icon: LayoutGrid },
+      { name: "Map", icon: MapPinned },
     ],
   },
   {
-    label: "PROJECTS",
+    label: "PEOPLE & ACCESS",
     items: [
-      { name: "Project management", icon: BriefcaseBusiness },
-      { name: "Attendance", icon: Clock3 },
-      { name: "Map", icon: MapPinned },
+      { name: "Employees", icon: Users },
+      { name: "Team", icon: UserCheck },
+      { name: "Requests", icon: CheckSquare },
+      { name: "Employee Access", icon: Monitor },
       { name: "Messages", icon: MessageSquare },
     ],
   },
   {
-    label: "MANAGE",
+    label: "COMPLIANCE & RECORDS",
     items: [
-      { name: "Team", icon: Users },
-      { name: "Requests", icon: CheckSquare },
-      { name: "Announcements", icon: Megaphone },
-      { name: "Notifications", icon: Bell },
+      { name: "Reports", icon: FileBarChart2 },
+      { name: "Workplace reports", icon: ShieldCheck },
       { name: "Corrections", icon: FileText },
-      { name: "Employees", icon: Users },
-      { name: "Employee Access", icon: Monitor },
+      { name: "Announcements", icon: Megaphone },
+      { name: "Notes", icon: NotebookPen },
+      { name: "Notifications", icon: Bell },
     ],
   },
 ] as const;
-export type ManagerSection = (typeof managerGroups)[number]["items"][number]["name"] | "Settings";
+
+export type ManagerSection =
+  | (typeof managerGroups)[number]["items"][number]["name"]
+  | "Settings"
+  | "Project management"
+  | "Views";
