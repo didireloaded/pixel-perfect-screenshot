@@ -230,22 +230,24 @@ export function ManagerAttendance() {
                     <b>{name}</b> · {shift?.date} · {shift?.totals.workedMinutes || 0} worked
                     minutes
                   </p>
-                  <RecordForm
-                    title="Approve hours"
-                    action="approve_timesheet"
-                    label="Approve"
-                    extra={{ shiftId: sheet.shiftId }}
-                    fields={[
-                      {
-                        name: "overtimeMinutes",
-                        label: "Overtime approved (minutes)",
-                        type: "number",
-                        value: sheet.overtimeRequested,
-                        min: 0,
-                        max: sheet.overtimeRequested,
-                      },
-                    ]}
-                  />
+                  {(!d.accessRole || d.accessRole === "owner") && (
+                    <RecordForm
+                      title="Approve hours"
+                      action="approve_timesheet"
+                      label="Approve"
+                      extra={{ shiftId: sheet.shiftId }}
+                      fields={[
+                        {
+                          name: "overtimeMinutes",
+                          label: "Overtime approved (minutes)",
+                          type: "number",
+                          value: sheet.overtimeRequested,
+                          min: 0,
+                          max: sheet.overtimeRequested,
+                        },
+                      ]}
+                    />
+                  )}
                 </div>
               );
             })}

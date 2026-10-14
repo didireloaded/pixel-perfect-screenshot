@@ -4,6 +4,7 @@ export const backendMode = backend.configured ? "cloud" : "unconfigured";
 export const authenticated = backend.hasSession;
 export const {
   signIn,
+  signInWorker,
   signOut,
   snapshot,
   command,

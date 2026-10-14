@@ -11,9 +11,12 @@ import {
   X,
 } from "lucide-react";
 import { managerGroups, type ManagerSection } from "./manager-sections";
+import { canViewManagerSection } from "../../../shared/permissions";
+import type { AccessRole } from "../../../shared/attendance";
 
 export function ManagerFrame({
   active,
+  accessRole,
   onSelect,
   company = "Your company",
   logoUrl,
@@ -25,6 +28,7 @@ export function ManagerFrame({
   children,
 }: {
   active: ManagerSection;
+  accessRole?: AccessRole | undefined;
   onSelect: (section: ManagerSection) => void;
   company?: string;
   logoUrl?: string | undefined;
@@ -100,7 +104,11 @@ export function ManagerFrame({
   };
   const matches = managerGroups
     .flatMap((group) => group.items.map((item) => ({ name: item.name, icon: item.icon })))
-    .filter((item) => item.name.toLowerCase().includes(search.toLowerCase()));
+    .filter(
+      (item) =>
+        canViewManagerSection(accessRole, item.name) &&
+        item.name.toLowerCase().includes(search.toLowerCase()),
+    );
   return (
     <div className={`project-shell ${expanded ? "nav-expanded" : ""}`}>
       {expanded && (
@@ -132,20 +140,22 @@ export function ManagerFrame({
               <section key={group.label} className="project-nav-group">
                 <p className="project-group-heading">{group.label}</p>
                 <div className="project-nav-links">
-                  {group.items.map(({ name, icon: Icon }) => (
-                    <button
-                      type="button"
-                      key={name}
-                      onClick={() => select(name)}
-                      aria-label={name}
-                      title={name}
-                      aria-current={active === name ? "page" : undefined}
-                      className={`project-nav-link ${active === name ? "active" : ""}`}
-                    >
-                      <Icon size={19} strokeWidth={1.65} />
-                      <span>{name}</span>
-                    </button>
-                  ))}
+                  {group.items
+                    .filter((item) => canViewManagerSection(accessRole, item.name))
+                    .map(({ name, icon: Icon }) => (
+                      <button
+                        type="button"
+                        key={name}
+                        onClick={() => select(name)}
+                        aria-label={name}
+                        title={name}
+                        aria-current={active === name ? "page" : undefined}
+                        className={`project-nav-link ${active === name ? "active" : ""}`}
+                      >
+                        <Icon size={19} strokeWidth={1.65} />
+                        <span>{name}</span>
+                      </button>
+                    ))}
                 </div>
               </section>
             ))}
@@ -244,14 +254,16 @@ export function ManagerFrame({
                 {accountOpen && (
                   <div className="project-account-menu">
                     <b>{company}</b>
-                    <button
-                      onClick={() => {
-                        select("Settings");
-                        setAccountOpen(false);
-                      }}
-                    >
-                      Company settings
-                    </button>
+                    {canViewManagerSection(accessRole, "Settings") && (
+                      <button
+                        onClick={() => {
+                          select("Settings");
+                          setAccountOpen(false);
+                        }}
+                      >
+                        Company settings
+                      </button>
+                    )}
                     <button onClick={onSignOut}>{"Sign out"}</button>
                   </div>
                 )}

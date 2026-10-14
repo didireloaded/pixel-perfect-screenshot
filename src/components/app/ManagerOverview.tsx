@@ -2,6 +2,7 @@ import { Users, UserCheck, CalendarDays, Clock3, Megaphone, ArrowUpRight } from 
 import type { AttendanceSnapshot } from "../../../shared/attendance";
 import { hrSummary } from "../../../shared/hr-summary";
 import { calendarJobs } from "../../../shared/calendar-jobs";
+import { canViewManagerSection } from "../../../shared/permissions";
 import type { ManagerSection } from "./manager-sections";
 export function ManagerOverview({
   data,
@@ -187,12 +188,21 @@ export function ManagerOverview({
         <section className="project-panel">
           <div className="project-panel-head">
             <h2>Upcoming jobs</h2>
-            <button className="sl-map-tool" onClick={() => onSelect("Calendar")}>
+            <button
+              className="sl-map-tool"
+              disabled={!canViewManagerSection(data.accessRole, "Calendar")}
+              onClick={() => onSelect("Calendar")}
+            >
               Open calendar
             </button>
           </div>
           {upcoming.map((job) => (
-            <button className="overview-list-row" key={job.id} onClick={() => onSelect("Calendar")}>
+            <button
+              className="overview-list-row"
+              key={job.id}
+              disabled={!canViewManagerSection(data.accessRole, "Calendar")}
+              onClick={() => onSelect("Calendar")}
+            >
               <b>{job.title}</b>
               <span>
                 {job.date} ·{" "}

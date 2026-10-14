@@ -30,6 +30,7 @@ export type RequestStatus = "pending" | "approved" | "declined";
 export type RequestKind =
   "leave" | "personal_departure" | "missing_clocking" | "correction" | "emergency";
 export interface Employee {
+  accessRole?: AccessRole;
   id: string;
   no: string;
   name: string;
@@ -46,6 +47,16 @@ export interface Employee {
   bio?: string;
   photoUrl?: string;
   photoPath?: string;
+}
+export type AccessRole = "owner" | "hr" | "operations" | "worker";
+export type LeaveType = "annual" | "sick" | "personal" | "unpaid";
+export interface LeaveBalance {
+  employeeId: string;
+  year: number;
+  leaveType: Exclude<LeaveType, "unpaid">;
+  allowanceMinutes: number;
+  usedMinutes: number;
+  remainingMinutes: number;
 }
 export interface Site {
   id: string;
@@ -113,6 +124,7 @@ export interface Job {
   overtime?: boolean;
 }
 export interface Req {
+  leaveType?: LeaveType | null;
   leaveStart?: string | null;
   leaveEnd?: string | null;
   leaveStartTime?: string | null;
@@ -164,6 +176,9 @@ export interface CalendarJob {
   assignedNames: string[];
 }
 export interface AttendanceSnapshot {
+  accessRole?: AccessRole;
+  leaveSettings?: { workingDays: number[]; minutesPerDay: number; revision: number } | null;
+  leaveBalances?: LeaveBalance[];
   unreadNotificationCount?: number;
   workActivities?: WorkActivity[];
   incidents?: WorkplaceIncident[];

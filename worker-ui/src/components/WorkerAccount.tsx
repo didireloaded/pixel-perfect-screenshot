@@ -1,5 +1,6 @@
 import { ThemedSelect } from "../../../shared/ThemedSelect";
 import { prepareProfilePhoto } from "../profile-photo";
+import type { LeaveType } from "../../../shared/attendance";
 import { displayDate, displayInstant } from "../../../shared/display-date";
 import { useState, type FormEvent } from "react";
 import {
@@ -206,6 +207,7 @@ export function WorkerRequests({
   );
   const [detail, setDetail] = useState("");
   const [leaveStart, setLeaveStart] = useState(data.today);
+  const [leaveType, setLeaveType] = useState<LeaveType>("annual");
   const [leaveEnd, setLeaveEnd] = useState(data.today);
   const [hourly, setHourly] = useState(false);
   const [leaveStartTime, setLeaveStartTime] = useState("");
@@ -247,6 +249,7 @@ export function WorkerRequests({
                 summary: summary.trim(),
                 detail: detail.trim(),
                 leaveStart,
+                leaveType,
                 leaveEnd: hourly ? leaveStart : leaveEnd,
                 leaveStartTime: hourly ? leaveStartTime : null,
                 leaveEndTime: hourly ? leaveEndTime : null,
@@ -266,6 +269,29 @@ export function WorkerRequests({
   return (
     <>
       <section className="worker-card">
+        <h2 className="text-base font-semibold">My leave balances</h2>
+        <p className="worker-muted-copy">
+          Company-entered allowances in hours. Pending requests do not deduct hours. Unpaid leave
+          does not use an allowance.
+        </p>
+        {(data.leaveBalances ?? [])
+          .filter((balance) => balance.employeeId === data.me)
+          .map((balance) => (
+            <p
+              key={`${balance.year}-${balance.leaveType}`}
+              className="my-2 flex justify-between text-sm"
+            >
+              <span>
+                {balance.year} · {balance.leaveType}
+              </span>
+              <b>{balance.remainingMinutes / 60} h remaining</b>
+            </p>
+          ))}
+        {!data.leaveBalances?.length && (
+          <p className="text-sm">Your company has not entered any allowances yet.</p>
+        )}
+      </section>
+      <section className="worker-card">
         <h2 className="text-base font-semibold">New request</h2>
         <p className="worker-muted-copy">Send a request to your manager for review.</p>
         <form className="worker-request-form" onSubmit={(event) => void submit(event)}>
@@ -280,6 +306,19 @@ export function WorkerRequests({
           </label>
           {kind === "leave" && (
             <>
+              <label>
+                Leave type
+                <ThemedSelect
+                  aria-label="Leave type"
+                  value={leaveType}
+                  onValueChange={(value) => setLeaveType(value as LeaveType)}
+                >
+                  <option value="annual">Annual leave</option>
+                  <option value="sick">Sick leave</option>
+                  <option value="personal">Personal leave</option>
+                  <option value="unpaid">Unpaid leave</option>
+                </ThemedSelect>
+              </label>
               <label>
                 Leave duration
                 <ThemedSelect

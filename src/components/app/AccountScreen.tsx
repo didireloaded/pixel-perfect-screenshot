@@ -7,6 +7,7 @@ import {
   resetPassword,
   updatePassword,
   signIn,
+  signInWorker,
   uploadCompanyLogo,
 } from "@/lib/backend";
 import type { AttendanceSnapshot } from "../../../shared/attendance";
@@ -26,6 +27,7 @@ export function AccountScreen({
   logout: () => Promise<void>;
 }) {
   const [create, setCreate] = useState(false);
+  const [codeLogin, setCodeLogin] = useState(false);
   const [manager, setManager] = useState(true);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
@@ -55,7 +57,10 @@ export function AccountScreen({
       if (!signed) {
         let ok = false;
         try {
-          ok = await signIn(get("email"), String(form.get("password")), create);
+          ok =
+            codeLogin && !create
+              ? await signInWorker(get("employeeNo"), String(form.get("accessCode")))
+              : await signIn(get("email"), String(form.get("password")), create);
         } catch (err) {
           if (err instanceof Error && /not confirmed/i.test(err.message)) {
             setConfirmEmail(get("email"));
@@ -205,11 +210,20 @@ export function AccountScreen({
         <form onSubmit={submit} className="mt-5 space-y-4">
           {!signed ? (
             <>
-              {field("email", "Email", "email")}
-              {field(
-                "password",
-                create ? "Password (at least 12 characters)" : "Password",
-                "password",
+              {codeLogin && !create ? (
+                <>
+                  {field("employeeNo", "Employee number")}
+                  {field("accessCode", "Access code", "password")}
+                </>
+              ) : (
+                <>
+                  {field("email", "Email", "email")}
+                  {field(
+                    "password",
+                    create ? "Password (at least 12 characters)" : "Password",
+                    "password",
+                  )}
+                </>
               )}
             </>
           ) : manager ? (
@@ -250,6 +264,18 @@ export function AccountScreen({
           </Button>
         </form>
         {!signed && !create && (
+          <Button
+            variant="ghost"
+            className="mt-3 w-full"
+            onClick={() => {
+              setCodeLogin((value) => !value);
+              setMessage("");
+            }}
+          >
+            {codeLogin ? "Sign in with email" : "Sign in with employee number and access code"}
+          </Button>
+        )}
+        {!signed && !create && !codeLogin && (
           <Button
             variant="ghost"
             className="mt-3 w-full"

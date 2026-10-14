@@ -302,10 +302,12 @@ export function EmployeeDirectory() {
                     </p>
                   )}
                 </div>
-                <Button variant="soft" onClick={() => setEditing(true)}>
-                  <Pencil size={15} />
-                  Edit profile
-                </Button>
+                {d.accessRole !== "operations" && (
+                  <Button variant="soft" onClick={() => setEditing(true)}>
+                    <Pencil size={15} />
+                    Edit profile
+                  </Button>
+                )}
               </div>
             ))}
         </DialogContent>

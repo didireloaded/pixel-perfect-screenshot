@@ -3,6 +3,7 @@ import { RecordForm } from "./RecordForm";
 import { Button } from "@/components/ui/button";
 import { StatusPill } from "./EmployeeShell";
 import { CompanyProfile } from "./CompanyProfile";
+import { CompanyRoles } from "./CompanyRoles";
 const BOOL = [
   { value: "false", label: "Off" },
   { value: "true", label: "On" },
@@ -21,6 +22,7 @@ export function CompanySettings() {
   return (
     <div className="grid gap-5 lg:grid-cols-2">
       <div className="space-y-5">
+        <CompanyRoles />
         <CompanyProfile />
         <RecordForm
           title="Check-in cutoff"
@@ -60,22 +62,6 @@ export function CompanySettings() {
             </p>
           ))}
         </section>
-        {d.payrollAdmin && (
-          <RecordForm
-            title="Assign a payroll administrator"
-            action="set_payroll_role"
-            label="Grant payroll and manager access"
-            fields={[
-              {
-                name: "employeeId",
-                label: "Activated employee",
-                options: d.employees
-                  .filter((e) => e.id !== d.me && e.activated && !e.payrollAdmin)
-                  .map((e) => ({ value: e.id, label: e.name })),
-              },
-            ]}
-          />
-        )}
       </div>
       <div className="space-y-5">
         {d.sites.map((site) => (

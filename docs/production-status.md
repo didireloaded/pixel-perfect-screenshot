@@ -259,3 +259,25 @@ overnight migration is applied and existing workday windows pass validation.
 Remaining release gates: real-phone overnight/offline/GPS/push acceptance, backup
 restoration and monitoring/load verification. Native background tracking, granular
 HR permissions, leave balances and background AI remain outside this update.
+
+## Company roles and configured leave balances · 14 October 2026
+
+Owner, HR manager, Operations manager and Worker access roles now enforce separate
+command permissions, snapshot visibility, Storage authorization and code recovery.
+Existing managers retain their prior full authority as Owners. Only Owners assign
+roles, and an active signed-up Owner must remain. Promoted staff can sign in to the
+manager app with their employee number and access code. HR cannot reset privileged
+staff credentials or approve payable hours. Operations sees approved leave dates
+without private reasons, descriptions or leave categories.
+
+Owners and HR configure company weekdays and hours per full workday, then enter
+employee allowances by leave type and calendar year. Approved requests consume
+configured balances; pending requests do not. Hourly requests, cross-year periods,
+overlapping approval rejection and insufficient balances are tested. Stored deductions
+preserve the approval-time policy. Unpaid leave consumes no allowance. Existing
+approved unclassified requests are preserved; pending requests can be classified.
+
+No statutory allowances, automatic accrual, carryover or holiday exclusions are
+assumed. See `docs/company-roles-and-leave.md`. Real-company policy acceptance remains
+necessary. This update does not complete backup restoration, operational monitoring,
+real-phone acceptance or background AI integration.

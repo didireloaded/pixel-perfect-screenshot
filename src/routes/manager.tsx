@@ -1,4 +1,5 @@
 import { ManagerMap } from "@/components/app/ManagerMap";
+import { canViewManagerSection } from "../../shared/permissions";
 import { ManagerNotifications } from "@/components/app/ManagerNotifications";
 import { ManagerRequests } from "@/components/app/ManagerRequests";
 import { managerNotifications } from "../../shared/manager-notifications";
@@ -45,7 +46,8 @@ export const Route = createFileRoute("/manager")({
 function Manager() {
   const d = useAttendance();
   const navigate = useNavigate();
-  const tab = Route.useSearch().tab || "Overview";
+  const requestedTab = Route.useSearch().tab || "Overview";
+  const tab = canViewManagerSection(d.accessRole, requestedTab) ? requestedTab : "Overview";
   const setTab = (next: ManagerTab) => void navigate({ to: "/manager", search: { tab: next } });
   const [showJobForm, setShowJobForm] = useState(false);
   if (d.role !== "manager")
@@ -68,12 +70,14 @@ function Manager() {
 
   return (
     <ManagerFrame
+      accessRole={d.accessRole}
       active={tab}
       onSelect={setTab}
       company={d.company.name}
       logoUrl={d.company.logoUrl}
       managerName={d.employees.find((employee) => employee.id === d.me)?.name || "Manager"}
       insights={
+        (!d.accessRole || d.accessRole === "owner") &&
         ["Tasks", "Overview", "Views"].includes(tab) ? (
           <ManagerInsights data={d} onSelect={setTab} />
         ) : undefined
@@ -101,7 +105,7 @@ function Manager() {
       {tab === "Announcements" && <CompanyNotices />}
       {tab === "Messages" && <ManagerMessages />}
       {tab === "Notifications" && <ManagerNotifications onSelect={setTab} />}
-      {tab === "Employee Access" && <KioskDesk />}
+      {tab === "Employee Access" && (d.accessRole === "hr" ? <WorkerAccessPanel /> : <KioskDesk />)}
       {tab === "Views" && (
         <>
           <SetupChecklist />

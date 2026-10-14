@@ -99,7 +99,10 @@ test("profile photos enforce ownership, active access and company isolation", as
     await db.query("update public.sl_employees set access_status='pending' where id=$1", [
       invite.employeeId,
     ]);
-    await assert.rejects(call(worker, "save_profile_photo", { path }), /Active workplace/);
+    await assert.rejects(
+      call(worker, "save_profile_photo", { path }),
+      /Active workplace|awaiting manager approval/,
+    );
     assert.equal(
       (await storage(worker, "select * from storage.objects where bucket_id='employee-photos'", []))
         .rows.length,

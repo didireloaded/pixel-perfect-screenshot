@@ -10,7 +10,9 @@ export function WorkerAccessPanel() {
   const [issued, setIssued] = useState<(WorkerCredentials & { name: string }) | null>(null);
   const [resetting, setResetting] = useState(false);
   const [error, setError] = useState("");
-  const staff = d.employees.filter((employee) => employee.role === "employee");
+  const staff = d.employees.filter(
+    (employee) => employee.role === "employee" || (d.accessRole === "owner" && employee.codeLogin),
+  );
   return (
     <section className="card-surface p-5">
       <h2 className="text-lg font-bold">Your team</h2>

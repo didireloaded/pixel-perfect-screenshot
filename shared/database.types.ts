@@ -669,6 +669,7 @@ export type Database = {
       };
       sl_employees: {
         Row: {
+          access_role: string;
           access_status: string;
           activation_expires: string | null;
           activation_hash: string | null;
@@ -690,6 +691,7 @@ export type Database = {
           user_id: string | null;
         };
         Insert: {
+          access_role?: string;
           access_status?: string;
           activation_expires?: string | null;
           activation_hash?: string | null;
@@ -711,6 +713,7 @@ export type Database = {
           user_id?: string | null;
         };
         Update: {
+          access_role?: string;
           access_status?: string;
           activation_expires?: string | null;
           activation_hash?: string | null;
@@ -1994,8 +1997,150 @@ export type Database = {
           },
         ];
       };
+      sl_leave_settings: {
+        Row: {
+          company_id: string;
+          minutes_per_day: number;
+          revision: number;
+          working_days: number[];
+        };
+        Insert: {
+          company_id: string;
+          minutes_per_day: number;
+          revision?: number;
+          working_days: number[];
+        };
+        Update: {
+          company_id?: string;
+          minutes_per_day?: number;
+          revision?: number;
+          working_days?: number[];
+        };
+        Relationships: [
+          {
+            foreignKeyName: "sl_leave_settings_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: true;
+            referencedRelation: "sl_companies";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      sl_leave_allowances: {
+        Row: {
+          company_id: string;
+          employee_id: string;
+          leave_type: string;
+          minutes: number;
+          year: number;
+        };
+        Insert: {
+          company_id: string;
+          employee_id: string;
+          leave_type: string;
+          minutes: number;
+          year: number;
+        };
+        Update: {
+          company_id?: string;
+          employee_id?: string;
+          leave_type?: string;
+          minutes?: number;
+          year?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "sl_leave_allowances_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "sl_companies";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sl_leave_allowances_employee_id_company_id_fkey";
+            columns: ["employee_id", "company_id"];
+            isOneToOne: false;
+            referencedRelation: "sl_employees";
+            referencedColumns: ["id", "company_id"];
+          },
+          {
+            foreignKeyName: "sl_leave_allowances_employee_id_fkey";
+            columns: ["employee_id"];
+            isOneToOne: false;
+            referencedRelation: "sl_employees";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      sl_leave_charges: {
+        Row: {
+          calculation: Json;
+          company_id: string;
+          employee_id: string;
+          leave_type: string;
+          minutes: number;
+          request_id: string;
+          year: number;
+        };
+        Insert: {
+          calculation: Json;
+          company_id: string;
+          employee_id: string;
+          leave_type: string;
+          minutes: number;
+          request_id: string;
+          year: number;
+        };
+        Update: {
+          calculation?: Json;
+          company_id?: string;
+          employee_id?: string;
+          leave_type?: string;
+          minutes?: number;
+          request_id?: string;
+          year?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "sl_leave_charges_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "sl_companies";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sl_leave_charges_employee_id_company_id_fkey";
+            columns: ["employee_id", "company_id"];
+            isOneToOne: false;
+            referencedRelation: "sl_employees";
+            referencedColumns: ["id", "company_id"];
+          },
+          {
+            foreignKeyName: "sl_leave_charges_employee_id_fkey";
+            columns: ["employee_id"];
+            isOneToOne: false;
+            referencedRelation: "sl_employees";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sl_leave_charges_request_id_company_id_fkey";
+            columns: ["request_id", "company_id"];
+            isOneToOne: false;
+            referencedRelation: "sl_requests";
+            referencedColumns: ["id", "company_id"];
+          },
+          {
+            foreignKeyName: "sl_leave_charges_request_id_fkey";
+            columns: ["request_id"];
+            isOneToOne: false;
+            referencedRelation: "sl_requests";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       sl_requests: {
         Row: {
+          leave_type: string | null;
           approval_required: boolean;
           company_id: string;
           detail: string;
@@ -2014,6 +2159,7 @@ export type Database = {
           summary: string;
         };
         Insert: {
+          leave_type?: string | null;
           approval_required?: boolean;
           company_id: string;
           detail?: string;
@@ -2032,6 +2178,7 @@ export type Database = {
           summary: string;
         };
         Update: {
+          leave_type?: string | null;
           approval_required?: boolean;
           company_id?: string;
           detail?: string;

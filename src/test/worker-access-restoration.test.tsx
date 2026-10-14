@@ -47,6 +47,7 @@ it("removes company records and returns to approval when access is withdrawn", a
   const onAccessChanged = vi.fn();
   render(<LiveWorkerApp onSignOut={vi.fn()} onAccessChanged={onAccessChanged} />);
   await screen.findByRole("heading", { name: "Registered worker" });
+  await waitFor(() => expect(api.watch).toHaveBeenCalled());
   api.snapshot.mockResolvedValue({ onboarding: true, workerAccess: { status: "rejected" } });
   await act(async () => {
     await refresh();
