@@ -120,7 +120,9 @@ it("retrieves permanent address suggestions and fills the matching coordinates o
   });
   const url = new URL(fetch.mock.calls[0]![0]);
   expect(url.searchParams.get("permanent")).toBe("true");
-  expect(url.searchParams.get("types")).toBe("address,street");
+  expect(url.searchParams.get("country")).toBe("na");
+  expect(url.searchParams.get("types")).toBe("address,street,place,locality,neighborhood");
+  expect(url.searchParams.get("proximity")).toBe("17.08,-22.57");
 });
 it("keeps unmatched venue coordinates empty rather than guessing a job destination", async () => {
   vi.stubEnv("VITE_MAPBOX_ACCESS_TOKEN", "pk.test");

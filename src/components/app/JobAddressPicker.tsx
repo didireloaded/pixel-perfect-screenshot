@@ -60,7 +60,8 @@ export function JobAddressPicker({
           access_token: token,
           permanent: "true",
           autocomplete: "true",
-          types: "address,street",
+          country: "na",
+          types: "address,street,place,locality,neighborhood",
           limit: "5",
           proximity: `${centerLng},${centerLat}`,
         }).toString();
@@ -84,7 +85,7 @@ export function JobAddressPicker({
           setMessage(
             features.length
               ? ""
-              : "No address suggestions. Enter the destination name and confirm its pin on the map.",
+              : "No address suggestions in Namibia. Search the venue’s street, suburb or town, or enter its name and confirm its exact pin on the map.",
           );
         }
       } catch (cause) {
@@ -178,11 +179,12 @@ export function JobAddressPicker({
             onChange({ address: event.target.value, latitude: null, longitude: null });
           }}
           autoComplete="off"
+          placeholder="Search an address, suburb or town in Namibia"
         />
       </label>
       {searching && (
         <p role="status" className="text-xs">
-          Searching addresses…
+          Searching Namibia…
         </p>
       )}
       {suggestions.length > 0 && (
@@ -219,8 +221,9 @@ export function JobAddressPicker({
         </div>
       )}
       <p className="text-xs text-muted-foreground">
-        Check the pin before saving. For a venue name that is not listed, enter its name and click
-        its exact position on the map.
+        Suggestions are limited to Namibia. Search the physical venue’s address, suburb or town;
+        event names may not be listed. Check the pin before saving, or enter the venue name and
+        click its exact position on the map.
       </p>
       {token ? (
         <div
