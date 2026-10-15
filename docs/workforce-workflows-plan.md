@@ -20,8 +20,8 @@ crew and actions. Views must provide actionable operational navigation rather th
 setup labels. Employee lists group by the departments stored in company records.
 
 Overtime must preserve recorded timestamps and separate recorded time from approved pay.
-The decision about a late overtime start tap is pending user input. AI must never create
-attendance evidence; no live AI integration is claimed without a configured provider.
+Overtime starts at the actual tap. Earlier starts require an independent payroll owner review.
+AI must never create attendance evidence; no live AI integration is claimed without a configured provider.
 
 ## Implemented 15 October 2026
 
@@ -42,6 +42,10 @@ attendance evidence; no live AI integration is claimed without a configured prov
 - First-use phone setup explains location permission, denial recovery, foreground tracking
   and optional notifications. No GPS data is submitted merely to request permission.
 
-Overtime start/backdating policy remains pending. No new overtime timer or automatic hours
-adjustment was introduced in this release. Background AI remains unconnected. Physical device
+Overtime records its original start and reviewed earlier-start requests separately. Active work
+intervals exclude breaks and stop at the planned overtime finish. Starting overtime extends the
+tracking window only within the existing 24-hour workday maximum. Ending overtime clocks out.
+Timesheet requests cannot exceed recorded session minutes and still need pay approval.
+Workers receive a separate minimal company contact list; their private employee snapshot remains scoped.
+Background AI remains unconnected pending the secure API-key decision. Physical device
 GPS, push, offline recovery and mobile visual acceptance still require signed-in device testing.

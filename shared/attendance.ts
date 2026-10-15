@@ -180,6 +180,8 @@ export interface CalendarJob {
   assignedNames: string[];
 }
 export interface AttendanceSnapshot {
+  messageContacts?: Pick<Employee, "id" | "name" | "team" | "jobTitle" | "role">[];
+  overtimeSessions?: OvertimeSession[];
   accessRole?: AccessRole;
   leaveSettings?: { workingDays: number[]; minutesPerDay: number; revision: number } | null;
   leaveBalances?: LeaveBalance[];
@@ -231,6 +233,21 @@ export interface AttendanceSnapshot {
   sitePresence: SitePresence[];
   readRequestIds: string[];
   onboarding?: boolean;
+}
+export interface OvertimeSession {
+  id: string;
+  employeeId: string;
+  shiftId: string;
+  startedAt: string;
+  originalFinishAt: string;
+  plannedFinishAt: string;
+  endedAt: string | null;
+  requestedStartAt: string | null;
+  requestReason: string | null;
+  reviewStatus: "none" | "pending" | "approved" | "declined";
+  recordedSeconds: number;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
 }
 
 export interface WorkActivity {

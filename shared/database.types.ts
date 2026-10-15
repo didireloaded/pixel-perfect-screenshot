@@ -8,6 +8,69 @@ export type Database = {
   };
   public: {
     Tables: {
+      sl_overtime_sessions: {
+        Row: {
+          id: string;
+          company_id: string;
+          employee_id: string;
+          shift_id: string;
+          started_at: string;
+          original_finish_at: string;
+          planned_finish_at: string;
+          ended_at: string | null;
+          requested_start_at: string | null;
+          request_reason: string | null;
+          review_status: string;
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+        };
+        Insert: {
+          id: string;
+          company_id: string;
+          employee_id: string;
+          shift_id: string;
+          started_at?: string;
+          original_finish_at: string;
+          planned_finish_at: string;
+          ended_at?: string | null;
+          requested_start_at?: string | null;
+          request_reason?: string | null;
+          review_status?: string;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["sl_overtime_sessions"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "sl_overtime_sessions_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "sl_companies";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sl_overtime_sessions_employee_id_fkey";
+            columns: ["employee_id"];
+            isOneToOne: false;
+            referencedRelation: "sl_employees";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sl_overtime_sessions_shift_id_fkey";
+            columns: ["shift_id"];
+            isOneToOne: true;
+            referencedRelation: "sl_shifts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sl_overtime_sessions_reviewed_by_fkey";
+            columns: ["reviewed_by"];
+            isOneToOne: false;
+            referencedRelation: "sl_employees";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       sl_adjustments: {
         Row: {
           actor: string;

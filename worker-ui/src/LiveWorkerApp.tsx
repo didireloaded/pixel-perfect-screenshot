@@ -31,6 +31,7 @@ import { WorkerActivities } from "./components/WorkerActivities";
 import { jobPhase } from "../../shared/calendar-jobs";
 import { WorkerJobCalendar } from "./components/WorkerJobCalendar";
 import { WorkerPermissions } from "./components/WorkerPermissions";
+import { WorkerOvertime } from "./components/WorkerOvertime";
 import {
   WorkerCard as Card,
   WorkerAction as Action,
@@ -725,6 +726,13 @@ export default function LiveWorkerApp({
           />
         )}
         {!secondary && tab === "calendar" && <WorkerJobCalendar data={data} />}
+        {!secondary && tab === "today" && (
+          <WorkerOvertime
+            data={data}
+            busy={busy || !online || pendingAttendance.length > 0 || reviewPending}
+            run={run}
+          />
+        )}
         {!secondary && tab === "jobs" && (
           <WorkerActivities
             data={data}
@@ -1277,10 +1285,9 @@ function Inbox({
   const roots = data.messages.filter(
     (m) => m.id === m.threadId && (m.recipientId === data.me || m.senderId === data.me),
   );
-  const contacts = data.employees.filter(
+  const contacts = (data.messageContacts ?? data.employees).filter(
     (employee) =>
       employee.id !== data.me &&
-      (!employee.accessStatus || employee.accessStatus === "active") &&
       (employee.role === "manager" ||
         ["hr", "human resources", "finance"].includes(employee.team.toLowerCase())),
   );
@@ -1499,6 +1506,11 @@ function Hours({
       </Card>
       {shifts.map((s: Shift) => {
         const ts = data.timesheets.find((t) => t.shiftId === s.id);
+        const overtime = data.overtimeSessions?.find((item) => item.shiftId === s.id);
+        const requestedOvertime = Math.min(
+          s.totals.unapprovedOvertimeMinutes,
+          overtime ? Math.floor(overtime.recordedSeconds / 60) : s.totals.unapprovedOvertimeMinutes,
+        );
         return (
           <Card key={s.id}>
             <div className="flex items-center justify-between">
@@ -1542,22 +1554,28 @@ function Hours({
             {s.totals.complete && ts?.status === "open" && (
               <div className="mt-4">
                 <Action
-                  disabled={busy}
+                  disabled={busy || overtime?.reviewStatus === "pending"}
                   onClick={() =>
                     void run(
                       "submit_timesheet",
-                      { shiftId: s.id, overtimeMinutes: s.totals.unapprovedOvertimeMinutes },
+                      { shiftId: s.id, overtimeMinutes: requestedOvertime },
                       "Timesheet submitted for review",
                     )
                   }
                 >
-                  Submit timesheet · {minutes(s.totals.unapprovedOvertimeMinutes)} overtime
+                  Submit timesheet · {minutes(requestedOvertime)} overtime
                 </Action>
+                {overtime?.reviewStatus === "pending" && (
+                  <p className="text-xs mt-2">
+                    Your earlier overtime start needs review before submission.
+                  </p>
+                )}
               </div>
             )}
             {ts?.status === "submitted" && (
               <p className="mt-3 text-sm text-sub">Waiting for manager review.</p>
             )}
+            {overtime && <WorkerOvertime data={data} busy={busy} run={run} workdayId={s.id} />}
           </Card>
         );
       })}

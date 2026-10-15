@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { RecordForm } from "@/components/app/RecordForm";
 import { useAttendance } from "@/lib/app-store";
 import { STATE_LABEL } from "@/lib/attendance";
+import { ManagerOvertime } from "./ManagerOvertime";
+import { currentWorkday } from "../../../shared/workday";
 
 export function ManagerNotes() {
   const d = useAttendance();
@@ -164,6 +166,7 @@ export function ManagerAttendance() {
   const staff = d.employees.filter((employee) => employee.role === "employee");
   return (
     <div className="space-y-5">
+      <ManagerOvertime />
       <div className="project-panel">
         <p className="project-panel-kicker">
           <Clock3 size={16} /> LIVE ATTENDANCE
@@ -174,9 +177,7 @@ export function ManagerAttendance() {
         </p>
         <div className="project-attendance-grid">
           {staff.map((employee) => {
-            const shift = d.shifts.find(
-              (item) => item.employeeId === employee.id && item.date === d.today,
-            );
+            const shift = currentWorkday(d, employee.id);
             const events = d.events.filter((event) => event.shiftId === shift?.id);
             const state =
               d.states.find((item) => item.shiftId === shift?.id)?.state || "not_clocked_in";
