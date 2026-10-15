@@ -65,7 +65,9 @@ export function CompanySettings() {
         </section>
       </div>
       <div className="space-y-5">
-        {d.sites.map((site) => <WorkplacePin key={`${site.id}:${site.latitude}:${site.longitude}`} site={site} />)}
+        {d.sites.map((site) => (
+          <WorkplacePin key={`${site.id}:${site.latitude}:${site.longitude}`} site={site} />
+        ))}
         {d.sites.map((site) => (
           <RecordForm
             key={`${site.id}:${site.latitude}:${site.longitude}`}

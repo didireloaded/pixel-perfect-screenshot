@@ -74,6 +74,7 @@
         "npm:input-otp@^1.4.2",
         "npm:jsdom@^20.0.3",
         "npm:lucide-react@0.575",
+        "npm:mapbox-gl@3.32.0",
         "npm:nitro@3.0.260603-beta",
         "npm:prettier@^3.7.3",
         "npm:react-day-picker@^9.14.0",
@@ -93,7 +94,10 @@
         "npm:vite@8.1.5",
         "npm:vitest@^4.1.10",
         "npm:zod@^3.25.76"
-      ]
+      ],
+      "overrides": {
+        "rolldown": "1.2.1"
+      }
     }
   }
 }

@@ -90,7 +90,7 @@ test("owner, HR and operations permissions are enforced at RPC, snapshot and cre
     await call(ops, "create_calendar_job", job);
     await assert.rejects(
       call(hr, "create_calendar_job", { ...job, id: randomUUID() }),
-      /role cannot/,
+      /Manager access/,
     );
     for (const action of [
       "save_policy",

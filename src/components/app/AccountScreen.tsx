@@ -11,6 +11,7 @@ import {
   uploadCompanyLogo,
 } from "@/lib/backend";
 import type { AttendanceSnapshot } from "../../../shared/attendance";
+import { JobAddressPicker, type JobAddress } from "./JobAddressPicker";
 export function AccountScreen({
   signed,
   error,
@@ -35,6 +36,11 @@ export function AccountScreen({
   const [resendNote, setResendNote] = useState("");
   const [resending, setResending] = useState(false);
   const [email, setEmail] = useState("");
+  const [workplace, setWorkplace] = useState<JobAddress>({
+    address: "",
+    latitude: null,
+    longitude: null,
+  });
   const resend = async () => {
     setResending(true);
     setResendNote("");
@@ -78,7 +84,9 @@ export function AccountScreen({
                 company: get("company"),
                 name: get("name"),
                 site: get("site"),
-                address: get("address"),
+                address: workplace.address,
+                latitude: workplace.latitude,
+                longitude: workplace.longitude,
                 timezone: get("timezone"),
               }
             : { code: get("code") },
@@ -240,7 +248,16 @@ export function AccountScreen({
               </label>
               {field("name", "Your name")}
               {field("site", "Work site")}
-              {field("address", "Site address")}
+              <JobAddressPicker
+                label="Workplace address"
+                value={workplace}
+                onChange={setWorkplace}
+              />
+              {workplace.latitude == null && (
+                <p className="text-sm text-muted-foreground">
+                  Select the exact workplace pin to finish company setup.
+                </p>
+              )}
               {field("timezone", "Company timezone", "text", "Africa/Windhoek")}
             </>
           ) : (
@@ -251,7 +268,12 @@ export function AccountScreen({
               {message || error}
             </p>
           )}
-          <Button variant="hero" size="xl" className="w-full" disabled={pending || busy}>
+          <Button
+            variant="hero"
+            size="xl"
+            className="w-full"
+            disabled={pending || busy || (signed && manager && workplace.latitude == null)}
+          >
             {pending || busy
               ? "Saving…"
               : signed

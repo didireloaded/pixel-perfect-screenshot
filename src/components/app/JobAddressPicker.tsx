@@ -128,7 +128,10 @@ export function JobAddressPicker({
             : [centerLng, centerLat],
           zoom: validPoint(initial) ? 15 : 11,
           projection: "mercator",
-          maxBounds: [[11, -29.5], [26, -16.5]],
+          maxBounds: [
+            [11, -29.5],
+            [26, -16.5],
+          ],
           renderWorldCopies: false,
         });
         map.current = instance;

@@ -164,6 +164,10 @@ export interface Period {
   lockedAt: string;
 }
 export interface CalendarJob {
+  endDate?: string;
+  returnToOffice?: boolean;
+  lunchGuidance?: string;
+  completedAt?: string | null;
   address?: string;
   latitude?: number | null;
   longitude?: number | null;

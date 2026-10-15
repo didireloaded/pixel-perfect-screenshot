@@ -1178,6 +1178,7 @@ dialog.worker-sheet textarea {
 }
 .dark .worker-device {
   background: var(--color-dpage);
+  color: var(--color-ink);
 }
 .dark .worker-time time,
 .dark .worker-daily-stats b,

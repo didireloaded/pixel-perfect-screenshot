@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Map as MapboxMap, Marker, GeoJSONSource } from "mapbox-gl";
 import { geofencePolygon } from "../../../shared/geofence-polygon";
 import { currentWorkday, workPositionAllowed } from "../../../shared/workday";
+import { jobRunsOn } from "../../../shared/calendar-jobs";
 import { LocateFixed, MapPin, RefreshCw, Users, Briefcase, ShieldCheck } from "lucide-react";
 import { useAttendance } from "@/lib/app-store";
 import { STATE_LABEL } from "@/lib/attendance";
@@ -79,7 +80,8 @@ export function ManagerMap() {
       ? (d.calendarJobs ?? [])
           .filter(
             (plan) =>
-              plan.date === d.today &&
+              jobRunsOn(plan, d.today) &&
+              !plan.completedAt &&
               plan.latitude != null &&
               plan.longitude != null &&
               !d.jobs.some((job) => job.calendarJobId === plan.id && job.status !== "completed"),
@@ -149,7 +151,10 @@ export function ManagerMap() {
           center: first ? [first.longitude!, first.latitude!] : [17.5, -22.5],
           zoom: first ? 15 : 5,
           projection: "mercator",
-          maxBounds: [[11, -29.5], [26, -16.5]],
+          maxBounds: [
+            [11, -29.5],
+            [26, -16.5],
+          ],
           renderWorldCopies: false,
           attributionControl: false,
         });
@@ -357,10 +362,12 @@ export function ManagerMap() {
         />
         {!workplace && (
           <div className="sl-map-error" role="status">
-            Showing Namibia. Set your workplace's confirmed coordinates in company settings to
-            open the map at your office. An address alone does not establish a geofence.
+            Showing Namibia. Set your workplace's confirmed coordinates in company settings to open
+            the map at your office. An address alone does not establish a geofence.
             {d.employees.find((employee) => employee.id === d.me)?.accessRole === "owner" && (
-              <a href="/manager?tab=Settings" className="block mt-2 underline">Open company settings</a>
+              <a href="/manager?tab=Settings" className="block mt-2 underline">
+                Open company settings
+              </a>
             )}
           </div>
         )}
@@ -378,8 +385,22 @@ export function ManagerMap() {
         <button className="sl-map-tool" onClick={focusWorkplace} disabled={!ready || !workplace}>
           <MapPin size={16} /> Workplace
         </button>
-        <button className="sl-map-tool" aria-label="Zoom in" onClick={() => map.current?.zoomIn()} disabled={!ready}>+</button>
-        <button className="sl-map-tool" aria-label="Zoom out" onClick={() => map.current?.zoomOut()} disabled={!ready}>−</button>
+        <button
+          className="sl-map-tool"
+          aria-label="Zoom in"
+          onClick={() => map.current?.zoomIn()}
+          disabled={!ready}
+        >
+          +
+        </button>
+        <button
+          className="sl-map-tool"
+          aria-label="Zoom out"
+          onClick={() => map.current?.zoomOut()}
+          disabled={!ready}
+        >
+          −
+        </button>
         <button className="sl-map-tool" onClick={() => fit()} disabled={!ready}>
           <LocateFixed size={16} /> Fit all
         </button>

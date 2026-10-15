@@ -28,7 +28,9 @@ import type { AttendanceSnapshot, EventType, Job, Shift } from "../../shared/att
 import * as backend from "./backend";
 import { WorkerHome } from "./components/WorkerHome";
 import { WorkerActivities } from "./components/WorkerActivities";
+import { jobPhase } from "../../shared/calendar-jobs";
 import { WorkerJobCalendar } from "./components/WorkerJobCalendar";
+import { WorkerPermissions } from "./components/WorkerPermissions";
 import {
   WorkerCard as Card,
   WorkerAction as Action,
@@ -458,9 +460,8 @@ export default function LiveWorkerApp({
   const myJobs = data?.jobs.filter((j) => j.assignee === data.me) ?? [];
   const availablePlans = (data?.calendarJobs ?? []).filter(
     (plan) =>
-      ["all", "assigned"].includes(jobFilter) &&
-      !myJobs.some((job) => job.calendarJobId === plan.id) &&
-      (jobFilter !== "assigned" || plan.date >= (data?.today ?? "")),
+      (jobFilter === "all" || jobPhase(plan, data?.today ?? "") === jobFilter) &&
+      !myJobs.some((job) => job.calendarJobId === plan.id && job.shiftId === shift?.id),
   );
   const activeJob = data ? activeJobForShift(data.events, myJobs, shift?.id) : undefined;
   const unread = data?.messages.filter((m) => m.recipientId === data.me && !m.readAt).length ?? 0;
@@ -690,6 +691,18 @@ export default function LiveWorkerApp({
           </div>
         )}
         {!secondary && tab === "today" && (
+          <WorkerPermissions
+            employeeId={data.me}
+            companyId={data.company.id}
+            required={data.policy?.require_gps_stamp ?? false}
+            onEnabled={() => {
+              setLocationEnabled(true);
+              localStorage.setItem(monitorKey, "on");
+            }}
+            onNotifications={() => setSecondary("notifications")}
+          />
+        )}
+        {!secondary && tab === "today" && (
           <WorkerHome
             onAcknowledge={(id) => run("ack_notice", { id }, "Acknowledged")}
             data={data}
@@ -712,7 +725,7 @@ export default function LiveWorkerApp({
           />
         )}
         {!secondary && tab === "calendar" && <WorkerJobCalendar data={data} />}
-        {!secondary && tab === "today" && (
+        {!secondary && tab === "jobs" && (
           <WorkerActivities
             data={data}
             state={state}
@@ -771,6 +784,17 @@ export default function LiveWorkerApp({
                     {displayDate(plan.date)} · {plan.address || "Location needs confirmation"}
                   </p>
                   <p className="mt-3 whitespace-pre-wrap">{plan.details}</p>
+                  {plan.endDate && plan.endDate !== plan.date && (
+                    <p className="text-sm">Until {displayDate(plan.endDate)}</p>
+                  )}
+                  <p className="text-sm mt-2">
+                    {plan.returnToOffice === false
+                      ? "Finish at the job site; no office return required."
+                      : "Return to the office after this job."}
+                  </p>
+                  {plan.lunchGuidance && (
+                    <p className="text-sm mt-2">Breaks and travel: {plan.lunchGuidance}</p>
+                  )}
                   <p className="text-xs mt-2">
                     {plan.assignedNames.length
                       ? `Required employees: ${plan.assignedNames.join(", ")}`
@@ -1249,7 +1273,17 @@ function Inbox({
 }) {
   const [section, setSection] = useState<"messages" | "news" | "events">("messages");
   const [reply, setReply] = useState<Record<string, string>>({});
-  const roots = data.messages.filter((m) => m.id === m.threadId && m.recipientId === data.me);
+  const [recipient, setRecipient] = useState("");
+  const roots = data.messages.filter(
+    (m) => m.id === m.threadId && (m.recipientId === data.me || m.senderId === data.me),
+  );
+  const contacts = data.employees.filter(
+    (employee) =>
+      employee.id !== data.me &&
+      (!employee.accessStatus || employee.accessStatus === "active") &&
+      (employee.role === "manager" ||
+        ["hr", "human resources", "finance"].includes(employee.team.toLowerCase())),
+  );
   const notices = data.notices.filter((n) => n.kind !== "event");
   const events = data.notices.filter((n) => n.kind === "event");
   return (
@@ -1269,6 +1303,66 @@ function Inbox({
           ))}
         </div>
       </Card>
+      {section === "messages" && (
+        <Card>
+          <h2 className="font-semibold">Start a conversation</h2>
+          <form
+            className="mt-3 space-y-3"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              const form = event.currentTarget;
+              const fields = new FormData(form);
+              if (
+                await run(
+                  "send_message",
+                  {
+                    recipientId: recipient,
+                    title: String(fields.get("title") || ""),
+                    body: String(fields.get("body") || ""),
+                  },
+                  "Message sent",
+                )
+              ) {
+                form.reset();
+                setRecipient("");
+              }
+            }}
+          >
+            <ThemedSelect
+              aria-label="Message recipient"
+              value={recipient}
+              onValueChange={setRecipient}
+              required
+            >
+              <option value="">Choose manager, HR or finance</option>
+              {contacts.map((contact) => (
+                <option key={contact.id} value={contact.id}>
+                  {contact.name} · {contact.team || contact.jobTitle || "Manager"}
+                </option>
+              ))}
+            </ThemedSelect>
+            <input
+              name="title"
+              aria-label="Message subject"
+              required
+              maxLength={100}
+              placeholder="Subject"
+              className="w-full rounded-xl bg-fill p-3 dark:bg-dfill"
+            />
+            <textarea
+              name="body"
+              aria-label="New message"
+              required
+              maxLength={2000}
+              placeholder="How can we help?"
+              className="w-full rounded-xl bg-fill p-3 dark:bg-dfill"
+            />
+            <button type="submit" className="worker-action" disabled={busy || !recipient}>
+              Send message
+            </button>
+          </form>
+        </Card>
+      )}
       {section === "messages" &&
         (roots.length ? (
           roots.map((root) => {
@@ -1336,7 +1430,7 @@ function Inbox({
         ) : (
           <Card>
             <p className="text-sm text-sub">
-              No conversations yet. Your manager can start one here.
+              No conversations yet. Choose a company contact above to start one.
             </p>
           </Card>
         ))}

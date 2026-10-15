@@ -334,6 +334,10 @@ export type Database = {
       };
       sl_calendar_jobs: {
         Row: {
+          end_date: string;
+          return_to_office: boolean;
+          lunch_guidance: string;
+          completed_at: string | null;
           address: string;
           company_id: string;
           created_at: string;
@@ -348,6 +352,10 @@ export type Database = {
           title: string;
         };
         Insert: {
+          end_date?: string;
+          return_to_office?: boolean;
+          lunch_guidance?: string;
+          completed_at?: string | null;
           address?: string;
           company_id: string;
           created_at?: string;
@@ -362,6 +370,10 @@ export type Database = {
           title: string;
         };
         Update: {
+          end_date?: string;
+          return_to_office?: boolean;
+          lunch_guidance?: string;
+          completed_at?: string | null;
           address?: string;
           company_id?: string;
           created_at?: string;

@@ -51,7 +51,13 @@ export async function handleWorkerAccess(request: Request) {
     if (body.action === "register") {
       if (typeof body.fullName !== "string" || typeof body.phone !== "string")
         return reply({ error: "Enter your name and phone number" }, 400);
-      const profile = normalizeWorkerProfile({ fullName: body.fullName, phone: body.phone });
+      const profile = normalizeWorkerProfile({
+        fullName: body.fullName,
+        phone: body.phone,
+        ...(body.jobTitle !== undefined
+          ? { jobTitle: typeof body.jobTitle === "string" ? body.jobTitle : "" }
+          : {}),
+      });
       const companyCode =
         typeof body.companyCode === "string" ? body.companyCode.trim().toUpperCase() : "";
       if (!/^[0-9A-F]{16}$/.test(companyCode))

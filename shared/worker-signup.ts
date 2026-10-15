@@ -1,6 +1,7 @@
 export interface WorkerProfile {
   fullName: string;
   phone: string;
+  jobTitle?: string;
 }
 
 export interface WorkerCredentials {
@@ -27,5 +28,8 @@ export function normalizeWorkerProfile(profile: WorkerProfile): WorkerProfile {
     throw new Error("Enter your full name (up to 100 characters).");
   if (!/^\+[1-9][0-9]{6,14}$/.test(phone))
     throw new Error("Enter your phone number with the country code, for example +264811234567.");
-  return { fullName, phone };
+  const jobTitle = profile.jobTitle?.trim();
+  if (profile.jobTitle !== undefined && (!jobTitle || jobTitle.length > 100))
+    throw new Error("Enter your job title (up to 100 characters).");
+  return { fullName, phone, ...(jobTitle ? { jobTitle } : {}) };
 }

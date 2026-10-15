@@ -21,6 +21,7 @@ export function CalendarJobForm({ date, onSaved }: { date: string; onSaved: () =
       await d.command("create_calendar_job", {
         ...fields,
         ...location,
+        returnToOffice: fields["returnToOffice"] === "on",
         radiusM: Number(fields["radiusM"]),
         id,
         employeeIds: selected,
@@ -39,6 +40,22 @@ export function CalendarJobForm({ date, onSaved }: { date: string; onSaved: () =
         <Input name="title" maxLength={100} required />
       </label>
       <label className="block text-sm">
+        Last day of job
+        <Input name="endDate" type="date" defaultValue={date} required />
+      </label>
+      <label className="flex items-center gap-2 text-sm">
+        <input name="returnToOffice" type="checkbox" defaultChecked /> Return to the office after
+        this job
+      </label>
+      <label className="block text-sm">
+        Lunch and travel arrangements
+        <Textarea
+          name="lunchGuidance"
+          maxLength={1000}
+          placeholder="Break arrangements, travel dates and reporting instructions"
+        />
+      </label>
+      <label className="block text-sm">
         Job details
         <Textarea name="details" maxLength={4000} required placeholder="What needs to be done?" />
       </label>
@@ -48,7 +65,7 @@ export function CalendarJobForm({ date, onSaved }: { date: string; onSaved: () =
           Everyone can see this job. Select people only when specific employees are needed.
         </p>
         {d.employees
-          .filter((e) => e.role === "employee" && (!e.accessStatus || e.accessStatus === "active"))
+          .filter((e) => !e.accessStatus || e.accessStatus === "active")
           .map((e) => (
             <label className="flex gap-2 text-sm" key={e.id}>
               <input

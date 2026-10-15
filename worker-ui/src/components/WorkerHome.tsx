@@ -93,6 +93,7 @@ export function WorkerHome({
     )
     .sort((a, b) => `${a.date}${a.start}`.localeCompare(`${b.date}${b.start}`))[0];
   const activeJob = activeJobForShift(data.events, data.jobs, shift?.id);
+  const activePlan = data.calendarJobs?.find((plan) => plan.id === activeJob?.calendarJobId);
   const site = data.sites.find((item) => item.id === shift?.siteId);
   const notice = data.notices.filter(
     (item) => item.startsOn <= data.today && item.endsOn >= data.today,
@@ -257,7 +258,11 @@ export function WorkerHome({
             <MapPin size={18} />
           </span>
           <span>
-            <small>CURRENT WORKSITE</small>
+            <small>
+              {["not_clocked_in", "clocked_out"].includes(state)
+                ? "USUAL WORKPLACE"
+                : "CURRENT WORKSITE"}
+            </small>
             <b>
               {activeJob
                 ? activeJob.destination
@@ -274,6 +279,13 @@ export function WorkerHome({
                 ? `Expected finish ${shift.end}${shift.finishDate && shift.finishDate !== shift.date ? ` · ${displayDate(shift.finishDate)}` : ""}`
                 : "Your attendance starts when you clock in"}
             </p>
+            {activePlan && (
+              <p>
+                {activePlan.returnToOffice === false
+                  ? "Finish at this job site"
+                  : "Return to office when finished"}
+              </p>
+            )}
           </span>
         </div>
         {(activeJob ? activeJob.latitude != null : site?.latitude != null) && (
@@ -283,6 +295,22 @@ export function WorkerHome({
           </button>
         )}
       </WorkerCard>
+      {!nextJob &&
+        (data.calendarJobs ?? []).some(
+          (plan) => !plan.completedAt && (plan.endDate ?? plan.date) >= data.today,
+        ) && (
+          <WorkerCard className="worker-next-job">
+            <div className="worker-section-heading">
+              <h2>Company jobs</h2>
+              <button onClick={onJobs}>
+                View jobs <ChevronRight size={14} />
+              </button>
+            </div>
+            <p className="p-4 text-sm">
+              See upcoming assignments, your crew and travel instructions in Jobs.
+            </p>
+          </WorkerCard>
+        )}
       {nextJob && (
         <WorkerCard className="worker-next-job">
           <div className="worker-section-heading">

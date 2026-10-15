@@ -6,7 +6,11 @@ import { Button } from "@/components/ui/button";
 
 export function WorkplacePin({ site }: { site: Site }) {
   const d = useAttendance();
-  const [position, setPosition] = useState({ address: site.address, latitude: site.latitude, longitude: site.longitude });
+  const [position, setPosition] = useState({
+    address: site.address,
+    latitude: site.latitude,
+    longitude: site.longitude,
+  });
   return (
     <section className="card-surface space-y-4 p-5">
       <h2 className="text-lg font-bold">Confirm workplace pin · {site.name}</h2>
@@ -15,11 +19,19 @@ export function WorkplacePin({ site }: { site: Site }) {
         confirms the workplace coordinates used for tracking and its existing geofence settings.
       </p>
       <JobAddressPicker value={position} onChange={setPosition} label="Workplace address search" />
-      <Button disabled={d.busy || !d.online || position.latitude == null || position.longitude == null}
-        onClick={() => void d.command("set_geofence", {
-          siteId: site.id, latitude: position.latitude, longitude: position.longitude,
-          mode: site.geofenceMode, radiusM: site.radiusM, maxAccuracyM: site.maxAccuracyM,
-        })}>
+      <Button
+        disabled={d.busy || !d.online || position.latitude == null || position.longitude == null}
+        onClick={() =>
+          void d.command("set_geofence", {
+            siteId: site.id,
+            latitude: position.latitude,
+            longitude: position.longitude,
+            mode: site.geofenceMode,
+            radiusM: site.radiusM,
+            maxAccuracyM: site.maxAccuracyM,
+          })
+        }
+      >
         Save confirmed workplace pin
       </Button>
     </section>

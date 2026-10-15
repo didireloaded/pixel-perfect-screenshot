@@ -66,7 +66,7 @@ export function WorkerProfile({
         )}
         <h2>{me.name}</h2>
         <p>
-          {me.team || "Employee"} · {me.no}
+          {me.jobTitle || me.team || "Employee"} · {me.no}
         </p>
         <small>{data.company.name}</small>
         <label className="block mt-4 text-sm">
@@ -100,7 +100,6 @@ export function WorkerProfile({
             }}
           />
         </label>
-        <p className="mt-2 text-xs">Visible to your company. JPEG, PNG or WebP, up to 10 MB.</p>
         {photoMessage && (
           <p role="status" className="mt-2 text-sm">
             {photoMessage}

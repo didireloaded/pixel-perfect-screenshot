@@ -1,4 +1,5 @@
 import { ManagerMap } from "@/components/app/ManagerMap";
+import { currentWorkday } from "../../shared/workday";
 import { canViewManagerSection } from "../../shared/permissions";
 import { ManagerNotifications } from "@/components/app/ManagerNotifications";
 import { ManagerRequests } from "@/components/app/ManagerRequests";
@@ -100,7 +101,12 @@ function Manager() {
           <ManagerJobTools />
         </div>
       )}
-      {tab === "Settings" && <CompanySettings />}
+      {tab === "Settings" && (
+        <>
+          <SetupChecklist />
+          <CompanySettings />
+        </>
+      )}
       {tab === "Corrections" && <CorrectionReview />}
       {tab === "Announcements" && <CompanyNotices />}
       {tab === "Messages" && <ManagerMessages />}
@@ -108,7 +114,6 @@ function Manager() {
       {tab === "Employee Access" && (d.accessRole === "hr" ? <WorkerAccessPanel /> : <KioskDesk />)}
       {tab === "Views" && (
         <>
-          <SetupChecklist />
           <div className="mb-5">
             <SiteAlerts />
           </div>
@@ -121,16 +126,20 @@ function Manager() {
             ].map(([Icon, label, count], index) => {
               const I = Icon as typeof Users;
               return (
-                <section
+                <button
+                  type="button"
+                  onClick={() =>
+                    setTab((["Employees", "Requests", "Reports", "Attendance"] as const)[index]!)
+                  }
                   key={String(label)}
-                  className={`card-surface p-5 ${index === 0 ? "manager-lime-card" : ""}`}
+                  className={`card-surface p-5 text-left ${index === 0 ? "manager-lime-card" : ""}`}
                 >
                   <I className="h-5 w-5" />
                   <p className="mt-5 text-xs font-semibold opacity-70">{String(label)}</p>
                   <p className="mt-1 text-[2.2rem] font-bold leading-none tracking-tight">
                     {String(count)}
                   </p>
-                </section>
+                </button>
               );
             })}
           </div>
@@ -146,7 +155,7 @@ function Manager() {
                   <p className="text-sm text-muted-foreground">Add your first employee in Team.</p>
                 )}
                 {staff.map((e) => {
-                  const shift = d.shifts.find((s) => s.employeeId === e.id && s.date === d.today);
+                  const shift = currentWorkday(d, e.id);
                   const state =
                     d.states.find((s) => s.shiftId === shift?.id)?.state || "not_clocked_in";
                   return (
@@ -157,7 +166,7 @@ function Manager() {
                       <div>
                         <p className="text-sm font-semibold">{e.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {shift ? `${shift.start}–${shift.end}` : "No shift assigned"}
+                          {shift ? `${shift.start}–${shift.end}` : "No workday recorded"}
                         </p>
                       </div>
                       <StatusPill tone={state === "working" ? "ok" : "muted"}>

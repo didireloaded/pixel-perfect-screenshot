@@ -17,7 +17,9 @@ export function jobDepartureBlock(
   if (!context.online) return "Connect to the internet to leave for this job.";
   if (context.pendingAttendance) return "Wait for your attendance to finish syncing.";
   if (context.reviewPending) return "Your attendance needs manager review before departure.";
-  if (plan.date !== context.today) return `Departure is available on ${plan.date}.`;
+  if (plan.completedAt) return "This job has been completed.";
+  if (context.today < plan.date || context.today > (plan.endDate ?? plan.date))
+    return `Departure is available from ${plan.date} to ${plan.endDate ?? plan.date}.`;
   if (!plan.address || plan.latitude == null || plan.longitude == null)
     return "Your manager needs to confirm this job’s address and map pin before departure.";
   if (plan.employeeIds.length && !plan.employeeIds.includes(context.employeeId))

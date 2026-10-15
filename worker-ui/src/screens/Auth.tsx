@@ -175,6 +175,7 @@ export function SignIn() {
 export function CreateAccount() {
   const { setPhase, toast } = useApp();
   const [fullName, setFullName] = useState("");
+  const [jobTitle, setJobTitle] = useState("");
   const [phone, setPhone] = useState("");
   const [companyCode, setCompanyCode] = useState("");
   const [credentials, setCredentials] = useState<WorkerCredentials | null>(null);
@@ -289,7 +290,9 @@ export function CreateAccount() {
             setLoading(true);
             setErr("");
             try {
-              setCredentials(await backend.registerWorker({ fullName, phone }, companyCode));
+              setCredentials(
+                await backend.registerWorker({ fullName, phone, jobTitle }, companyCode),
+              );
             } catch (error) {
               setErr(error instanceof Error ? error.message : "Account creation failed");
             } finally {
@@ -320,6 +323,18 @@ export function CreateAccount() {
               maxLength={100}
               autoComplete="name"
               required
+            />
+          </Field>
+          <Field label="Job title" htmlFor="signup-title">
+            <input
+              id="signup-title"
+              className={inputCls}
+              value={jobTitle}
+              onChange={(event) => setJobTitle(event.target.value)}
+              required
+              maxLength={100}
+              autoComplete="organization-title"
+              placeholder="For example, Lighting technician"
             />
           </Field>
           <Field label="Phone number" htmlFor="signup-phone" error={err || undefined}>

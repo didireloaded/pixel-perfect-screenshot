@@ -29,6 +29,9 @@ const fill = () => {
     target: { value: "ABCDEF1234567890" },
   });
   fireEvent.change(screen.getByLabelText("Full name"), { target: { value: "Worker Name" } });
+  fireEvent.change(screen.getByLabelText("Job title"), {
+    target: { value: "Lighting technician" },
+  });
   fireEvent.change(screen.getByLabelText("Phone number"), { target: { value: "+264811234567" } });
 };
 describe("worker onboarding", () => {
@@ -45,6 +48,7 @@ describe("worker onboarding", () => {
       {
         fullName: "Worker Name",
         phone: "+264811234567",
+        jobTitle: "Lighting technician",
       },
       "ABCDEF1234567890",
     );

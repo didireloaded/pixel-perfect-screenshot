@@ -11,7 +11,9 @@ export function ManagerMessages() {
   const [recipientId, setRecipientId] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [reply, setReply] = useState("");
-  const roots = d.messages.filter((m) => m.id === m.threadId && m.senderId === d.me);
+  const roots = d.messages.filter(
+    (m) => m.id === m.threadId && (m.senderId === d.me || m.recipientId === d.me),
+  );
   const threads = roots
     .map((root) => ({
       root,
@@ -21,7 +23,12 @@ export function ManagerMessages() {
     }))
     .sort((a, b) => b.messages.at(-1)!.sentAt.localeCompare(a.messages.at(-1)!.sentAt));
   const active = threads.find((t) => t.root.id === selected) ?? threads[0];
-  const worker = active && d.employees.find((e) => e.id === active.root.recipientId);
+  const worker =
+    active &&
+    d.employees.find(
+      (e) =>
+        e.id === (active.root.senderId === d.me ? active.root.recipientId : active.root.senderId),
+    );
   const send = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -66,7 +73,9 @@ export function ManagerMessages() {
               >
                 <span className="flex justify-between gap-2 font-semibold">
                   <span>
-                    {d.employees.find((e) => e.id === root.recipientId)?.name ?? "Employee"}
+                    {d.employees.find(
+                      (e) => e.id === (root.senderId === d.me ? root.recipientId : root.senderId),
+                    )?.name ?? "Company contact"}
                   </span>
                   {unread > 0 && (
                     <span className="rounded-full bg-primary px-2 text-xs text-white">
@@ -135,7 +144,7 @@ export function ManagerMessages() {
           >
             <option value="">Choose worker</option>
             {d.employees
-              .filter((e) => e.role === "employee")
+              .filter((e) => e.id !== d.me && (!e.accessStatus || e.accessStatus === "active"))
               .map((e) => (
                 <option key={e.id} value={e.id}>
                   {e.name}
@@ -143,7 +152,7 @@ export function ManagerMessages() {
               ))}
           </ThemedSelect>
         </label>
-        <Input name="title" required maxLength={120} placeholder="Subject" />
+        <Input name="title" required maxLength={100} placeholder="Subject" />
         <Textarea name="body" required maxLength={2000} placeholder="Message" />
         <Button className="w-full" disabled={d.busy || !d.online || !recipientId}>
           Start conversation

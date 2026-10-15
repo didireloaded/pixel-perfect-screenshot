@@ -33,11 +33,11 @@ test("manager messages, job progress, team and events remain scoped", async () =
     });
     await assert.rejects(
       call(worker, "send_message", { recipientId: two.employeeId, title: "No", body: "No" }),
-      /Manager access/,
+      /Choose a manager, HR or finance/,
     );
     await assert.rejects(
       call(outsider, "send_message", { recipientId: one.employeeId, title: "No", body: "No" }),
-      /Choose an employee/,
+      /Choose an active company contact/,
     );
     const sent = await call(manager, "send_message", {
       recipientId: one.employeeId,

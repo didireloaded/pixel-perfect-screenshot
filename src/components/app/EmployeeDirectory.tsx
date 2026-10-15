@@ -116,35 +116,49 @@ export function EmployeeDirectory() {
         </div>
       </section>
       <div className="space-y-3">
-        {filtered.map((e) => (
-          <button
-            key={e.id}
-            className="project-panel flex w-full flex-wrap items-center justify-between gap-4 text-left transition hover:border-[#cfc0fa]"
-            onClick={() => {
-              setSelected(e.id);
-              setEditing(false);
-            }}
-          >
-            <div className="flex items-center gap-4">
-              <EmployeePhoto employee={e} />
-              <div>
-                <h3 className="font-semibold">{e.name}</h3>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {e.jobTitle || (e.role === "manager" ? "Manager" : "Employee")}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {e.team || "Unassigned department"}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-6 text-xs">
-              <span>{e.no}</span>
-              <span className="rounded-full bg-muted px-2 py-1 capitalize">
-                {e.accessStatus || "active"}
-              </span>
-            </div>
-          </button>
-        ))}
+        {departments
+          .filter((group) => filtered.some((e) => (e.team || "Unassigned") === group))
+          .map((group) => (
+            <section key={group} className="space-y-3">
+              <h2 className="font-semibold text-lg">
+                {group}{" "}
+                <span className="text-sm text-muted-foreground">
+                  · {filtered.filter((e) => (e.team || "Unassigned") === group).length} people
+                </span>
+              </h2>
+              {filtered
+                .filter((e) => (e.team || "Unassigned") === group)
+                .map((e) => (
+                  <button
+                    key={e.id}
+                    className="project-panel flex w-full flex-wrap items-center justify-between gap-4 text-left transition hover:border-[#cfc0fa]"
+                    onClick={() => {
+                      setSelected(e.id);
+                      setEditing(false);
+                    }}
+                  >
+                    <div className="flex items-center gap-4">
+                      <EmployeePhoto employee={e} />
+                      <div>
+                        <h3 className="font-semibold">{e.name}</h3>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {e.jobTitle || (e.role === "manager" ? "Manager" : "Employee")}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {e.team || "Unassigned department"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-6 text-xs">
+                      <span>{e.no}</span>
+                      <span className="rounded-full bg-muted px-2 py-1 capitalize">
+                        {e.accessStatus || "active"}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+            </section>
+          ))}
       </div>
       {!filtered.length && (
         <p className="project-panel text-sm text-muted-foreground">

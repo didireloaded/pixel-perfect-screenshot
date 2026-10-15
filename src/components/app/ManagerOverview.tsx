@@ -20,7 +20,7 @@ export function ManagerOverview({
   const name = (id: string) =>
     data.employees.find((employee) => employee.id === id)?.name ?? "Employee";
   const upcoming = calendarJobs(data)
-    .filter((job) => job.date >= data.today)
+    .filter((job) => !job.completedAt && (job.endDate ?? job.date) >= data.today)
     .slice(0, 5);
   const notices = data.notices.filter(
     (notice) => notice.startsOn <= data.today && notice.endsOn >= data.today,

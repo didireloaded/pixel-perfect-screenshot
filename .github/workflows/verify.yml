@@ -30,6 +30,7 @@ jobs:
       - run: npm run test:database
       - run: npm run test:overnight
       - run: npm run test:hr
+      - run: npm run test:workforce
       - run: npm run test:tenancy
       - run: npx vitest run src/calc/overtime.test.ts
         working-directory: worker-ui

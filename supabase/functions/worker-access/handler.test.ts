@@ -69,6 +69,8 @@ Deno.test(
         request({
           action: "register",
           fullName: " Worker ",
+          jobTitle: "Lighting technician",
+          companyCode: "ABCDEF1234567890",
           phone: "+264 (81) 123-4567",
           role: "manager",
           companyId: "forged",
@@ -86,7 +88,11 @@ Deno.test(
       assertEquals(create.body.password, data.accessCode);
       assertEquals(create.body.phone, undefined);
       const register = calls.find((c) => c.path.endsWith("sl_worker_register"))!;
-      assertEquals(register.body.p_profile, { fullName: "Worker", phone: "+264811234567" });
+      assertEquals(register.body.p_profile, {
+        fullName: "Worker",
+        phone: "+264811234567",
+        jobTitle: "Lighting technician",
+      });
       assertEquals(register.body.p_company_id, "company");
       assertEquals(
         calls.some((c) => c.path.endsWith("/signup")),
@@ -104,7 +110,12 @@ Deno.test(
     mockFetch("register");
     try {
       const response = await handleWorkerAccess(
-        request({ action: "register", fullName: "Worker", phone: "+264811234567" }),
+        request({
+          action: "register",
+          fullName: "Worker",
+          phone: "+264811234567",
+          companyCode: "ABCDEF1234567890",
+        }),
       );
       assertEquals(response.status, 400);
       assertEquals((await response.json()).error, "Phone already registered");

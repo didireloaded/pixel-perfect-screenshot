@@ -7,6 +7,7 @@ import { ThemedSelect } from "../../../shared/ThemedSelect";
 import type { Job } from "../../../shared/attendance";
 import { CalendarJobForm } from "./CalendarJobForm";
 import { JobPlanLocationForm } from "./JobPlanLocationForm";
+import { jobPhase } from "../../../shared/calendar-jobs";
 export function ManagerJobBrief({ job, onSaved }: { job?: Job; onSaved: () => void }) {
   const d = useAttendance();
   const [id] = useState(() => crypto.randomUUID());
@@ -137,66 +138,128 @@ export function ManagerJobBrief({ job, onSaved }: { job?: Job; onSaved: () => vo
 export function ManagerJobBriefs({ onAdd }: { onAdd: () => void }) {
   const d = useAttendance();
   const [selected, setSelected] = useState("");
+  const [phase, setPhase] = useState("all");
+  const plans = d.calendarJobs ?? [];
   const job = d.jobs.find((j) => j.id === selected);
   const plan = d.calendarJobs?.find((item) => item.id === selected);
   return (
     <section className="project-panel">
       <div className="project-panel-head">
         <div>
-          <h2>Job briefs</h2>
+          <h2>Project workspace</h2>
           <p className="project-panel-sub">
             Locations, lunch plans and instructions shared with workers.
           </p>
         </div>
         <Button onClick={onAdd}>New job</Button>
       </div>
+      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {(
+          [
+            ["all", "All projects"],
+            ["assigned", "Upcoming"],
+            ["in_progress", "Active"],
+            ["completed", "Completed"],
+          ] as const
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            className={`rounded-2xl border p-4 text-left ${phase === value ? "bg-primary-soft border-primary" : "bg-muted border-border"}`}
+            aria-pressed={phase === value}
+            onClick={() => setPhase(value)}
+          >
+            <span className="block text-sm">{label}</span>
+            <b className="block text-2xl mt-2">
+              {plans.filter((plan) => value === "all" || jobPhase(plan, d.today) === value).length}
+            </b>
+          </button>
+        ))}
+      </div>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        {(d.calendarJobs ?? []).map((plan) => (
-          <article key={plan.id} className="rounded-2xl border border-border p-4">
-            <h3 className="font-semibold">{plan.title}</h3>
-            <p className="text-xs mt-1">
-              {plan.date} · {plan.address || "Location needs confirmation"}
-            </p>
-            <p className="text-xs mt-2">
-              {plan.assignedNames.length
-                ? plan.assignedNames.join(", ")
-                : "Open to company workers"}
-            </p>
-            <p className="mt-3 whitespace-pre-wrap text-sm">{plan.details}</p>
-            <Button
-              className="mt-3"
-              variant="soft"
-              disabled={d.jobs.some((job) => job.calendarJobId === plan.id)}
-              onClick={() => setSelected(plan.id)}
-            >
-              Edit job location
-            </Button>
-          </article>
-        ))}
-        {d.jobs.map((j) => (
-          <article key={j.id} className="rounded-2xl border border-border p-4">
-            <h3 className="font-semibold">{j.title}</h3>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {j.destination} · {j.date} · {j.start}–{j.end}
-            </p>
-            <p className="mt-2 text-xs">
-              {j.lunchOption === "none" ? "No scheduled lunch" : "Shift lunch schedule"}
-              {j.overtime ? " · Overtime job" : ""}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {j.latitude == null ? "Job location still needed" : `${j.latitude}, ${j.longitude}`}
-            </p>
-            <p className="mt-3 whitespace-pre-wrap text-sm">{j.instructions}</p>
-            <Button
-              className="mt-3"
-              variant="soft"
-              disabled={j.status !== "assigned"}
-              onClick={() => setSelected(j.id)}
-            >
-              Edit job location & plan
-            </Button>
-          </article>
-        ))}
+        {plans
+          .filter((plan) => phase === "all" || jobPhase(plan, d.today) === phase)
+          .map((plan) => (
+            <article key={plan.id} className="rounded-2xl border border-border p-4">
+              <h3 className="font-semibold">{plan.title}</h3>
+              <p className="mt-2 text-xs font-semibold">
+                {plan.completedAt
+                  ? "Completed"
+                  : plan.date > d.today
+                    ? "Upcoming"
+                    : (plan.endDate ?? plan.date) < d.today
+                      ? "Past planned finish · review completion"
+                      : "Active project"}
+              </p>
+              <p className="text-xs mt-1">
+                {plan.date} · {plan.address || "Location needs confirmation"}
+              </p>
+              <p className="text-xs mt-2">
+                {plan.assignedNames.length
+                  ? plan.assignedNames.join(", ")
+                  : "Open to company workers"}
+              </p>
+              <p className="mt-3 whitespace-pre-wrap text-sm">{plan.details}</p>
+              <p className="mt-2 text-sm">
+                Through {plan.endDate ?? plan.date} ·{" "}
+                {plan.returnToOffice === false ? "Finish on site" : "Return to office"}
+              </p>
+              {plan.lunchGuidance && <p className="mt-2 text-sm">{plan.lunchGuidance}</p>}
+              <p className="mt-3 text-xs text-muted-foreground">
+                {
+                  new Set(
+                    d.jobs
+                      .filter((job) => job.calendarJobId === plan.id)
+                      .map((job) => job.assignee),
+                  ).size
+                }{" "}
+                employees have recorded work on this project
+              </p>
+              <Button
+                className="mt-3"
+                variant="soft"
+                disabled={d.jobs.some((job) => job.calendarJobId === plan.id)}
+                onClick={() => setSelected(plan.id)}
+              >
+                Edit job location
+              </Button>
+              {!plan.completedAt && (
+                <Button
+                  variant="soft"
+                  className="mt-3 ml-2"
+                  disabled={d.busy || !d.online}
+                  onClick={() => void d.command("complete_calendar_job", { id: plan.id })}
+                >
+                  Mark project completed
+                </Button>
+              )}
+            </article>
+          ))}
+        {d.jobs
+          .filter((j) => !j.calendarJobId)
+          .map((j) => (
+            <article key={j.id} className="rounded-2xl border border-border p-4">
+              <h3 className="font-semibold">{j.title}</h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {j.destination} · {j.date} · {j.start}–{j.end}
+              </p>
+              <p className="mt-2 text-xs">
+                {j.lunchOption === "none" ? "No scheduled lunch" : "Shift lunch schedule"}
+                {j.overtime ? " · Overtime job" : ""}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {j.latitude == null ? "Job location still needed" : `${j.latitude}, ${j.longitude}`}
+              </p>
+              <p className="mt-3 whitespace-pre-wrap text-sm">{j.instructions}</p>
+              <Button
+                className="mt-3"
+                variant="soft"
+                disabled={j.status !== "assigned"}
+                onClick={() => setSelected(j.id)}
+              >
+                Edit job location & plan
+              </Button>
+            </article>
+          ))}
       </div>
       {!d.jobs.length && !(d.calendarJobs ?? []).length && (
         <p className="mt-5 text-sm text-muted-foreground">

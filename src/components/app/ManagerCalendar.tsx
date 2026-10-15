@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, Plus, Users } from "lucide-react";
 import { ThemedSelect } from "../../../shared/ThemedSelect";
-import { calendarJobs } from "../../../shared/calendar-jobs";
+import { calendarJobs, jobRunsOn } from "../../../shared/calendar-jobs";
 import type { AttendanceSnapshot } from "../../../shared/attendance";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { CalendarJobForm } from "./CalendarJobForm";
@@ -31,7 +31,7 @@ export function ManagerCalendar({
       setSelected(next.toISOString().slice(0, 10));
     }
   };
-  const daily = jobs.filter((job) => job.date === selected);
+  const daily = jobs.filter((job) => jobRunsOn(job, selected));
   return (
     <section className="manager-calendar">
       <div className="manager-calendar-toolbar">
@@ -88,7 +88,7 @@ export function ManagerCalendar({
             </button>
             <div className="manager-week-items">
               {jobs
-                .filter((job) => job.date === date)
+                .filter((job) => jobRunsOn(job, date))
                 .map((job) => (
                   <button className="calendar-job" key={job.id} onClick={() => setSelected(date)}>
                     <b>{job.title}</b>
@@ -120,6 +120,12 @@ export function ManagerCalendar({
             <div className="w-full">
               <b>{job.title}</b>
               <p className="my-3 whitespace-pre-wrap text-sm">{job.details}</p>
+              <p className="my-2 text-sm">
+                {job.address} · {job.date}–{job.endDate ?? job.date}
+              </p>
+              {job.lunchGuidance && (
+                <p className="my-2 text-sm">Breaks and travel: {job.lunchGuidance}</p>
+              )}
               <small className="flex items-center gap-2">
                 <Users size={14} />
                 {job.assignedNames.length

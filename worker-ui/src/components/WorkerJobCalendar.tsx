@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, Users } from "lucide-react";
 import type { AttendanceSnapshot } from "../../../shared/attendance";
-import { calendarJobs } from "../../../shared/calendar-jobs";
+import { calendarJobs, jobRunsOn } from "../../../shared/calendar-jobs";
 import { displayDate } from "../../../shared/display-date";
 import { EmptyState, WorkerCard, WorkerSheet } from "./WorkerUI";
 const day = (date: string) => new Date(`${date}T12:00:00Z`);
@@ -23,7 +23,7 @@ export function WorkerJobCalendar({ data }: { data: AttendanceSnapshot }) {
     next.setUTCMonth(next.getUTCMonth() + direction);
     setSelected(next.toISOString().slice(0, 10));
   };
-  const daily = jobs.filter((job) => job.date === selected);
+  const daily = jobs.filter((job) => jobRunsOn(job, selected));
   return (
     <>
       <section className="worker-calendar-card">
@@ -58,7 +58,7 @@ export function WorkerJobCalendar({ data }: { data: AttendanceSnapshot }) {
               onClick={() => setSelected(date)}
             >
               <span>{day(date).getUTCDate()}</span>
-              {jobs.some((job) => job.date === date) && <i aria-label="Job planned" />}
+              {jobs.some((job) => jobRunsOn(job, date)) && <i aria-label="Job planned" />}
             </button>
           ))}
         </div>
@@ -102,8 +102,19 @@ export function WorkerJobCalendar({ data }: { data: AttendanceSnapshot }) {
       {detail && (
         <WorkerSheet title={detail.title} onClose={() => setDetailId(null)}>
           <p className="worker-muted-copy">{displayDate(detail.date)}</p>
+          {detail.endDate && detail.endDate !== detail.date && (
+            <p className="worker-muted-copy">Through {displayDate(detail.endDate)}</p>
+          )}
           <p className="my-4 whitespace-pre-wrap">{detail.details}</p>
           {detail.address && <p className="my-3">Job destination: {detail.address}</p>}
+          <p className="my-3">
+            {detail.returnToOffice === false
+              ? "Finish at the job site; no office return required."
+              : "Return to the office after this job."}
+          </p>
+          {detail.lunchGuidance && (
+            <p className="my-3">Breaks and travel: {detail.lunchGuidance}</p>
+          )}
           <h3 className="worker-sheet-section">Assigned team</h3>
           <p>
             {detail.assignedNames.length

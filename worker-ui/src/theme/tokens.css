@@ -27,3 +27,13 @@
   --sl-accent-soft: #eee9fe;
   --sl-shadow: 0 2px 10px rgba(34, 22, 65, 0.025);
 }
+.dark {
+  color-scheme: dark;
+  --color-page: #14111c;
+  --color-card: #211c2c;
+  --color-fill: #30293f;
+  --color-ink: #f4effa;
+  --color-sub: #bcb3c9;
+  --color-sep: #44394f;
+  --color-brand-soft: #352651;
+}

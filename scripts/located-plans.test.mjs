@@ -121,7 +121,7 @@ test("general jobs need no shifts; starting attaches verified destinations to ac
     );
     await assert.rejects(
       call(outsider, "start_calendar_job", { id: randomUUID(), calendarJobId: plan.id }),
-      /Worker access/,
+      /not available/,
     );
     assert.equal((await call(manager, null)).jobs[0].destination, plan.address);
   } finally {
