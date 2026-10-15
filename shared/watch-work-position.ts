@@ -65,10 +65,14 @@ export function watchWorkPosition(
         }
       });
   };
-  const unavailable = (observedGeneration: number) => {
+  const unavailable = (observedGeneration: number, error: GeolocationPositionError) => {
     if (!disposed && observedGeneration === generation && allowed()) {
       clear();
-      onError("Location sharing is paused because location is unavailable.");
+      onError(error.code === 1
+        ? "Location permission is blocked. Allow location for this app in your browser or phone settings, then turn work location sharing off and on."
+        : error.code === 3
+          ? "GPS timed out. Move near a window or outdoors and keep the app open; location sharing will retry."
+          : "Your device cannot get a GPS position. Turn on phone location services and keep the app open; location sharing will retry.");
     }
   };
   const update = () => {
@@ -90,7 +94,7 @@ export function watchWorkPosition(
         const currentGeneration = generation;
         navigator.geolocation.getCurrentPosition(
           (position) => report(position, currentGeneration),
-          () => unavailable(currentGeneration),
+          (error) => unavailable(currentGeneration, error),
           options,
         );
       }
@@ -100,7 +104,7 @@ export function watchWorkPosition(
     const currentGeneration = generation;
     watch = navigator.geolocation.watchPosition(
       (position) => report(position, currentGeneration),
-      () => unavailable(currentGeneration),
+      (error) => unavailable(currentGeneration, error),
       options,
     );
   };

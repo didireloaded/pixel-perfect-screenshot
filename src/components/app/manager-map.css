@@ -18,7 +18,7 @@
 }
 .sl-map-stage {
   position: relative;
-  height: clamp(420px, 62vh, 760px);
+  height: clamp(480px, 72dvh, 900px);
   background: #f2f1f7;
 }
 .sl-map-canvas {
@@ -39,7 +39,7 @@
 .sl-map-legend {
   position: absolute;
   left: 16px;
-  bottom: 20px;
+  bottom: 38px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -91,6 +91,8 @@
   border-bottom: 1px solid var(--sl-line);
 }
 .sl-map-tool {
+  min-height: 44px;
+  justify-content: center;
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -99,6 +101,15 @@
   border-radius: 10px;
   background: #fff;
   font-size: 12px;
+}
+@media (max-width: 640px) {
+  .sl-map-page > header { padding: 16px; align-items: flex-start; }
+  .sl-map-stage { height: 65dvh; min-height: 380px; }
+  .sl-map-controls { flex-wrap: nowrap; overflow-x: auto; padding: 12px; }
+  .sl-map-tool { flex-shrink: 0; }
+  .sl-map-team { display: grid; grid-template-columns: 1fr; padding: 12px; }
+  .sl-map-legend { left: 8px; padding: 8px; gap: 5px; }
+  .sl-map-page footer { align-items: flex-start; }
 }
 .sl-map-tool.selected,
 .sl-map-tool[aria-pressed="true"] {

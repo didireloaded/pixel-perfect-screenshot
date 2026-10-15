@@ -106,6 +106,15 @@ export function ManagerMap() {
   ];
   const pointsRef = useRef(points);
   pointsRef.current = points;
+  const workplace = d.sites.find((site) => site.latitude != null && site.longitude != null);
+  const workplaceRef = useRef(workplace);
+  workplaceRef.current = workplace;
+  const focusWorkplace = () => {
+    const site = workplaceRef.current;
+    if (!map.current || !site) return;
+    boundsSet.current = true;
+    map.current.flyTo({ center: [site.longitude!, site.latitude!], zoom: 15, duration: 600 });
+  };
   const fit = (workersOnly = false) => {
     const all = pointsRef.current.filter((point) => !workersOnly || point.kind === "worker");
     if (!map.current || !all.length) return;
@@ -132,23 +141,25 @@ export function ManagerMap() {
     void import("mapbox-gl")
       .then(({ default: mapboxgl }) => {
         if (disposed || !container.current) return;
-        const first = pointsRef.current[0];
+        const first = workplaceRef.current;
         instance = new mapboxgl.Map({
           container: container.current,
           accessToken: token,
           style: "mapbox://styles/mapbox/light-v11",
-          center: first ? [first.lng, first.lat] : [0, 0],
-          zoom: first ? 15 : 1,
-          attributionControl: true,
+          center: first ? [first.longitude!, first.latitude!] : [17.5, -22.5],
+          zoom: first ? 15 : 5,
+          projection: "mercator",
+          maxBounds: [[11, -29.5], [26, -16.5]],
+          renderWorldCopies: false,
+          attributionControl: false,
         });
         map.current = instance;
-        instance.addControl(new mapboxgl.NavigationControl(), "top-right");
-        instance.addControl(new mapboxgl.FullscreenControl(), "top-right");
+        instance.addControl(new mapboxgl.AttributionControl({ compact: true }), "bottom-right");
         instance.on("load", () => {
           if (!disposed) {
             setReady(true);
             setError("");
-            fit();
+            focusWorkplace();
           }
         });
         instance.on("error", () => {
@@ -169,6 +180,12 @@ export function ManagerMap() {
       boundsSet.current = false;
     };
   }, [token]);
+  useEffect(() => {
+    if (!ready || !container.current || !map.current) return;
+    const observer = new ResizeObserver(() => map.current?.resize());
+    observer.observe(container.current);
+    return () => observer.disconnect();
+  }, [ready]);
   const pointsKey = JSON.stringify(points);
   useEffect(() => {
     if (!ready || !map.current) return;
@@ -270,7 +287,7 @@ export function ManagerMap() {
           .addTo(map.current!);
         markers.current.set(id, marker);
       });
-      if (!boundsSet.current && pointsRef.current.length) fit();
+      if (!boundsSet.current && workplaceRef.current) focusWorkplace();
     });
     return () => {
       disposed = true;
@@ -338,6 +355,15 @@ export function ManagerMap() {
           className="sl-map-canvas"
           aria-label="Map of current on-duty employee locations"
         />
+        {!workplace && (
+          <div className="sl-map-error" role="status">
+            Showing Namibia. Set your workplace's confirmed coordinates in company settings to
+            open the map at your office. An address alone does not establish a geofence.
+            {d.employees.find((employee) => employee.id === d.me)?.accessRole === "owner" && (
+              <a href="/manager?tab=Settings" className="block mt-2 underline">Open company settings</a>
+            )}
+          </div>
+        )}
         {(!token || error) && (
           <div className="sl-map-error" role="alert">
             {error || "Add VITE_MAPBOX_ACCESS_TOKEN to enable the map."}
@@ -349,6 +375,11 @@ export function ManagerMap() {
         </div>
       </div>
       <div className="sl-map-controls">
+        <button className="sl-map-tool" onClick={focusWorkplace} disabled={!ready || !workplace}>
+          <MapPin size={16} /> Workplace
+        </button>
+        <button className="sl-map-tool" aria-label="Zoom in" onClick={() => map.current?.zoomIn()} disabled={!ready}>+</button>
+        <button className="sl-map-tool" aria-label="Zoom out" onClick={() => map.current?.zoomOut()} disabled={!ready}>−</button>
         <button className="sl-map-tool" onClick={() => fit()} disabled={!ready}>
           <LocateFixed size={16} /> Fit all
         </button>
@@ -397,7 +428,7 @@ export function ManagerMap() {
           .map((e) => {
             const shift = currentWorkday(d, e.id);
             const state = d.states.find((s) => s.shiftId === shift?.id)?.state;
-            const current = workers.find((p) => p.employeeId === e.id);
+            const current = presence.find((p) => p.employeeId === e.id);
             return (
               <button
                 key={e.id}
@@ -430,7 +461,7 @@ export function ManagerMap() {
                       : state === "working" || state === "on_job"
                         ? shift && !workPositionAllowed(shift, d.company.timezone, now)
                           ? "Tracking ended · clock-out pending"
-                          : "Location unavailable"
+                          : "No recent GPS · worker must enable sharing and keep app open"
                         : state
                           ? STATE_LABEL[state]
                           : "Off duty"}

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { StatusPill } from "./EmployeeShell";
 import { CompanyProfile } from "./CompanyProfile";
 import { CompanyRoles } from "./CompanyRoles";
+import { WorkplacePin } from "./WorkplacePin";
 const BOOL = [
   { value: "false", label: "Off" },
   { value: "true", label: "On" },
@@ -64,9 +65,10 @@ export function CompanySettings() {
         </section>
       </div>
       <div className="space-y-5">
+        {d.sites.map((site) => <WorkplacePin key={`${site.id}:${site.latitude}:${site.longitude}`} site={site} />)}
         {d.sites.map((site) => (
           <RecordForm
-            key={site.id}
+            key={`${site.id}:${site.latitude}:${site.longitude}`}
             title={`Geofence · ${site.name}`}
             action="set_geofence"
             extra={{ siteId: site.id }}

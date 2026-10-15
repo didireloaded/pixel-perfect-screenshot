@@ -921,6 +921,12 @@ export default function LiveWorkerApp({
                 expected finish.
               </span>
             </label>
+            <p className="worker-muted-copy">
+              Allow precise location when your browser asks and turn on your phone's location
+              services. Keep Shiftline open and connected while working. Home-screen installation
+              does not enable background GPS. If permission was blocked, allow location in your
+              browser's site settings before enabling sharing again.
+            </p>
             {error && <p role="alert">{error}</p>}
             <button
               className="worker-action mt-5"

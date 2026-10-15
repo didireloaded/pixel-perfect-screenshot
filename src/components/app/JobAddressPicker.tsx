@@ -23,10 +23,12 @@ export function JobAddressPicker({
   value,
   onChange,
   proximity,
+  label = "Job address or destination",
 }: {
   value: JobAddress;
   onChange: (value: JobAddress) => void;
   proximity?: [number, number] | undefined;
+  label?: string;
 }) {
   const token = import.meta.env["VITE_MAPBOX_ACCESS_TOKEN"] as string | undefined;
   const container = useRef<HTMLDivElement>(null);
@@ -125,6 +127,9 @@ export function JobAddressPicker({
             ? [initial.longitude!, initial.latitude!]
             : [centerLng, centerLat],
           zoom: validPoint(initial) ? 15 : 11,
+          projection: "mercator",
+          maxBounds: [[11, -29.5], [26, -16.5]],
+          renderWorldCopies: false,
         });
         map.current = instance;
         instance.addControl(new mapbox.NavigationControl());
@@ -169,7 +174,7 @@ export function JobAddressPicker({
   return (
     <div className="space-y-3">
       <label className="block text-sm">
-        Job address or destination
+        {label}
         <input
           required
           maxLength={200}
