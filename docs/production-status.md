@@ -1,4 +1,11 @@
-# Production status — 13 October 2026
+# Production status — updated 16 October 2026
+
+Latest operational evidence and launch requirements are in
+[service-readiness.md](service-readiness.md). New report-text summaries now use a
+private queued OpenAI processor; see [workplace-reports.md](workplace-reports.md).
+The dated entries below retain the implementation history and earlier limits;
+later entries supersede earlier ones. Production email delivery, a tested recovery
+plan and physical-device acceptance remain unresolved launch gates.
 
 Both web applications now use the same configured Supabase project. Runtime sample datasets, preview screens, simulated sync, local account APIs and automatic test identities have been removed. Empty workspaces show setup and empty states. SQL fixtures exist only in automated tests and are not deployed.
 

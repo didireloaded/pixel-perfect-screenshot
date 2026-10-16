@@ -1,0 +1,29 @@
+name: Production availability
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/availability.yml
+      - scripts/check-production.mjs
+  schedule:
+    - cron: "7,22,37,52 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-availability
+  cancel-in-progress: false
+
+jobs:
+  availability:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/check-production.mjs
