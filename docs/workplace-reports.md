@@ -47,8 +47,7 @@ can be retried or confirmed from the report screen.
 Original files remain in private Storage. Generated access links expire after
 60 seconds. Browser validation checks the PDF header or plain UTF-8 text; it is
 not a malware scanner or a guarantee that every PDF is structurally valid. No
-document is parsed, executed or sent to an external intelligence provider in this
-stage. Do not upload medical documents to this operational flow. Sensitive leave
+document is parsed, executed or sent to an external intelligence provider. Do not upload medical documents to this operational flow. Sensitive leave
 attachments require separate restricted roles and a dedicated access policy.
 
 ## Proof and limits
@@ -65,7 +64,32 @@ The live manager screen was checked with real company data and its empty states.
 A real signed-in PDF/TXT upload and a physical workday activity run still need
 acceptance using legitimate company records. No demo incidents were added.
 
-Background extraction, category suggestions, document interpretation, durable
-processing queues, push delivery and operational summaries belong to later
-stages. There is no external processing, automatic classification or automatic
-attendance/pay adjustment in this implementation.
+## Background report interpretation
+
+New workplace reports enqueue a private, company-scoped interpretation job in
+`sl_report_interpretations`. Once a minute, a Vault-authenticated scheduler calls
+the `report-interpretation` Edge Function. It sends only the report's title,
+description, kind and incident timestamps to OpenAI, with `store: false` and the
+pinned `gpt-4.1-mini-2025-04-14` model. Provider retention policies still apply;
+`store: false` is not a guarantee of zero provider retention. No historical
+reports are backfilled. Supporting documents, employee lists, GPS and attendance
+records are not sent. The report form discloses external processing and warns
+against sensitive personal or medical details.
+
+Suggested summaries and questions are separate from the original evidence.
+Owners and Operations managers can view them; workers, HR-only accounts and
+other companies cannot. The manager must review the original evidence. The
+processor cannot approve an explanation, change an incident, or adjust hours or
+pay. It receives no tools and treats report contents as untrusted evidence.
+
+Jobs use five-minute leases and at most three attempts. Failed provider calls
+retain the original report and do not block attendance or manual review. Crashed
+jobs are reclaimed; stale leases cannot overwrite newer results. A terminal
+failure is shown to the manager without exposing provider errors. Maximum batch
+size is three. `OPENAI_API_KEY` stays in Edge Function secrets; the Google key is
+not used. Deleting the `shiftline-report-interpretation` cron job pauses delivery
+without deleting evidence or pending work.
+
+PDF/TXT extraction, event/category suggestions, policy interpretation and daily
+operational summaries remain unimplemented. Summaries are suggestions, not
+independent verification or an automated attendance decision.

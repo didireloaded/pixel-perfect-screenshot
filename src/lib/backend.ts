@@ -17,4 +17,5 @@ export const {
   uploadReport,
   uploadCompanyLogo,
   reportDocumentUrl,
+  reportInterpretation,
 } = backend;

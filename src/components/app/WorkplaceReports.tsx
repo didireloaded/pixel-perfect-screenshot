@@ -3,6 +3,7 @@ import { useAttendance } from "@/lib/app-store";
 import * as backend from "@/lib/backend";
 import { ThemedSelect } from "../../../shared/ThemedSelect";
 import { Button } from "@/components/ui/button";
+import { ReportInterpretation } from "./ReportInterpretation";
 
 export function WorkplaceReports() {
   const data = useAttendance();
@@ -85,6 +86,11 @@ export function WorkplaceReports() {
       </p>
       <form onSubmit={save} className="project-panel project-note-form">
         <h2>New workplace report</h2>
+        <p className="text-xs text-muted-foreground">
+          Report text is processed by OpenAI to prepare a suggested summary for manager review. Do
+          not include medical or other sensitive personal details. Documents are not sent for
+          automated processing.
+        </p>
         <div className="grid gap-4 sm:grid-cols-2">
           <label>
             Report type
@@ -210,6 +216,7 @@ export function WorkplaceReports() {
           {incident && (
             <div className="space-y-4 mt-4">
               <p className="whitespace-pre-wrap">{incident.description}</p>
+              <ReportInterpretation key={incident.id} incidentId={incident.id} />
               <p className="text-sm">
                 {time(incident.starts_at)} – {time(incident.ends_at)}
               </p>

@@ -213,6 +213,13 @@ export function createBackend(app: "manager" | "worker") {
       await hydrateCompanyLogo(data["snapshot"]);
     return data as T;
   }
+  async function reportInterpretation(incidentId: string) {
+    const { data, error } = await requireClient().rpc("sl_report_interpretation", {
+      p_incident: incidentId,
+    });
+    check(error);
+    return data as { status: string; suggestion: { summary: string; questions: string[] } | null };
+  }
   function onAuthChange(callback: (event: AuthChangeEvent, userId: string | null) => void) {
     if (!client) return () => {};
     const { data } = client.auth.onAuthStateChange((event, session) =>
@@ -323,5 +330,6 @@ export function createBackend(app: "manager" | "worker") {
     uploadCompanyLogo,
     uploadProfilePhoto,
     reportDocumentUrl,
+    reportInterpretation,
   };
 }
