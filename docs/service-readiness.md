@@ -19,6 +19,11 @@
 
 `Production availability` in GitHub Actions checks the public pages, JavaScript
 assets and rejection behavior every 15 minutes, with manual dispatch available.
+**Activation blocked:** the first hosted run and the verification workflow were
+rejected before any steps ran: "The job was not started because your account is
+locked due to a billing issue." The same availability script passed locally.
+Resolve the GitHub account billing restriction, then rerun and confirm a successful
+Actions run before relying on scheduled checks. No billing settings were changed.
 It uses no credentials, reads no employee records and performs no mutations.
 GitHub may delay schedules; this is basic pilot monitoring, not a guaranteed
 incident response service. Failure notifications depend on the repository owner's
