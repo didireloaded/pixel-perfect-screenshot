@@ -5,6 +5,7 @@ import { StatusPill } from "./EmployeeShell";
 import { CompanyProfile } from "./CompanyProfile";
 import { CompanyRoles } from "./CompanyRoles";
 import { WorkplacePin } from "./WorkplacePin";
+import { PunctualitySettings } from "./Punctuality";
 const BOOL = [
   { value: "false", label: "Off" },
   { value: "true", label: "On" },
@@ -25,6 +26,7 @@ export function CompanySettings() {
       <div className="space-y-5">
         <CompanyRoles />
         <CompanyProfile />
+        <PunctualitySettings />
         <RecordForm
           title="Check-in cutoff"
           action="set_checkin_cutoff"

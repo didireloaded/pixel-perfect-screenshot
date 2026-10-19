@@ -49,6 +49,28 @@ export interface Employee {
   photoPath?: string;
 }
 export type AccessRole = "owner" | "hr" | "operations" | "worker";
+export interface PunctualityData {
+  policy: {
+    enabled: boolean;
+    weekdays: number[];
+    start: string;
+    end: string;
+    employeeIds: string[];
+    startsOn: string;
+  } | null;
+  records: {
+    id: string;
+    employeeId: string;
+    date: string;
+    scheduledAt: string;
+    expectedAt: string;
+    clockInAt: string | null;
+    originalClockInAt: string | null;
+    lateSeconds: number | null;
+    status: "expected" | "no_checkin" | "on_time" | "late" | "excused";
+    exemption: string | null;
+  }[];
+}
 export type LeaveType = "annual" | "sick" | "personal" | "unpaid";
 export interface LeaveBalance {
   employeeId: string;

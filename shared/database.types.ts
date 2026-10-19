@@ -2969,6 +2969,7 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      sl_punctuality: { Args: { action: string; payload?: Json }; Returns: Json };
       sl_report_interpretation: { Args: { p_incident: string }; Returns: Json };
       sl_command: { Args: { p_action: string; p_data: Json }; Returns: Json };
       sl_notifications_api: {

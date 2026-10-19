@@ -13,6 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:reports": "node --test scripts/workplace-reports.test.mjs scripts/report-interpretation.test.mjs",
+    "test:punctuality": "node --test scripts/punctuality.test.mjs",
     "test:overnight": "node --test scripts/overnight.test.mjs",
     "test:hr": "node --test scripts/roles-leave.test.mjs",
     "test:workforce": "node --test scripts/workforce-workflows.test.mjs scripts/overtime-sessions.test.mjs",

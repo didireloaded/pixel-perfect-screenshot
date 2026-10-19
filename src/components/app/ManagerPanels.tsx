@@ -3,6 +3,7 @@ import { CalendarClock, Clock3, NotebookPen, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RecordForm } from "@/components/app/RecordForm";
 import { useAttendance } from "@/lib/app-store";
+import { PunctualityHistory } from "./Punctuality";
 import { STATE_LABEL } from "@/lib/attendance";
 import { ManagerOvertime } from "./ManagerOvertime";
 import { currentWorkday } from "../../../shared/workday";
@@ -167,6 +168,7 @@ export function ManagerAttendance() {
   return (
     <div className="space-y-5">
       <ManagerOvertime />
+      <PunctualityHistory />
       <div className="project-panel">
         <p className="project-panel-kicker">
           <Clock3 size={16} /> LIVE ATTENDANCE

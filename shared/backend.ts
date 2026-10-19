@@ -1,6 +1,6 @@
 import { createClient, type AuthChangeEvent } from "@supabase/supabase-js";
 import type { Database, Json } from "./database.types";
-import type { AttendanceSnapshot } from "./attendance";
+import type { AttendanceSnapshot, PunctualityData } from "./attendance";
 import { startLiveSync } from "./live-sync";
 import { readSupabaseConfig } from "./supabase-config";
 import {
@@ -220,6 +220,14 @@ export function createBackend(app: "manager" | "worker") {
     check(error);
     return data as { status: string; suggestion: { summary: string; questions: string[] } | null };
   }
+  async function punctuality(action: "list" | "configure", payload: Record<string, unknown> = {}) {
+    const { data, error } = await requireClient().rpc("sl_punctuality", {
+      action,
+      payload: payload as Json,
+    });
+    check(error);
+    return data as unknown as PunctualityData;
+  }
   function onAuthChange(callback: (event: AuthChangeEvent, userId: string | null) => void) {
     if (!client) return () => {};
     const { data } = client.auth.onAuthStateChange((event, session) =>
@@ -331,5 +339,6 @@ export function createBackend(app: "manager" | "worker") {
     uploadProfilePhoto,
     reportDocumentUrl,
     reportInterpretation,
+    punctuality,
   };
 }
