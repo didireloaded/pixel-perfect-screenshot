@@ -20,6 +20,17 @@ import {
 import type { AttendanceSnapshot, EventType, RequestKind, Shift } from "../../../shared/attendance";
 import { useApp } from "../state";
 import { EmptyState, formatTime } from "./WorkerUI";
+import { LeaveChanges } from "./LeaveChanges";
+import { AttendanceIssues } from "../../../shared/AttendanceIssues";
+import {
+  leaveChanges,
+  attendanceContext,
+  punctuality,
+  availability,
+  profileChanges,
+} from "../backend";
+import { ProfileChangeRequests } from "../../../shared/ProfileChangeRequests";
+import { EmployeeAvailability } from "../../../shared/EmployeeAvailability";
 export type WorkerRun = (
   action: string,
   payload: Record<string, unknown>,
@@ -28,6 +39,8 @@ export type WorkerRun = (
 export function WorkerProfile({
   data,
   onRequests,
+  onKnowledge,
+  onProfileChanged,
   onSignOut,
   onMonitoring,
   monitoring,
@@ -35,6 +48,8 @@ export function WorkerProfile({
 }: {
   data: AttendanceSnapshot;
   onRequests: () => void;
+  onKnowledge?: () => void;
+  onProfileChanged?: () => void;
   onSignOut: () => void;
   onMonitoring: () => void;
   monitoring: boolean;
@@ -120,6 +135,13 @@ export function WorkerProfile({
           <span>My requests</span>
           <ChevronRight size={17} />
         </button>
+        {onKnowledge && (
+          <button onClick={onKnowledge}>
+            <FileText size={19} />
+            <span>Company knowledge and policies</span>
+            <ChevronRight size={17} />
+          </button>
+        )}
         <div className="worker-account-info">
           <User size={19} />
           <span>Employee number</span>
@@ -182,6 +204,12 @@ export function WorkerProfile({
           </div>
         )}
       </div>
+      <ProfileChangeRequests
+        key={`${data.company.id}:${data.me}`}
+        rpc={profileChanges}
+        onChanged={() => onProfileChanged?.()}
+        refreshKey={data.employees}
+      />
       <button className="worker-signout" onClick={onSignOut}>
         <LogOut size={17} />
         Sign out
@@ -265,8 +293,22 @@ export function WorkerRequests({
   const requests = data.requests
     .filter((request) => request.employeeId === data.me)
     .sort((a, b) => b.submittedAt - a.submittedAt);
+  const [revision, setRevision] = useState(0);
   return (
     <>
+      <AttendanceIssues data={data} rpc={attendanceContext} readPunctuality={punctuality} />
+      <EmployeeAvailability
+        rpc={availability}
+        onChanged={() => setRevision((n) => n + 1)}
+        refreshKey={data.requests}
+      />
+      <LeaveChanges
+        key={`${data.me}:${revision}`}
+        refreshKey={data.requests}
+        rpc={leaveChanges}
+        onChanged={() => setRevision((n) => n + 1)}
+        requests={requests}
+      />
       <section className="worker-card">
         <h2 className="text-base font-semibold">My leave balances</h2>
         <p className="worker-muted-copy">

@@ -309,10 +309,10 @@ export function EmployeeDirectory() {
                       {employee.email}
                     </p>
                   )}
-                  {employee.phone && (
+                  {(employee.contactPhone || employee.phone) && (
                     <p className="flex gap-2">
                       <Phone size={16} />
-                      {employee.phone}
+                      {employee.contactPhone || employee.phone}
                     </p>
                   )}
                 </div>

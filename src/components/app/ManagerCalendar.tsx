@@ -5,6 +5,8 @@ import { calendarJobs, jobRunsOn } from "../../../shared/calendar-jobs";
 import type { AttendanceSnapshot } from "../../../shared/attendance";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { CalendarJobForm } from "./CalendarJobForm";
+import { JobAcknowledgements } from "./JobAcknowledgements";
+import { jobAcknowledgements } from "@/lib/backend";
 const day = (value: string) => new Date(`${value}T12:00:00Z`);
 const add = (value: string, count: number) => {
   const date = day(value);
@@ -14,7 +16,7 @@ const add = (value: string, count: number) => {
 export function ManagerCalendar({
   data,
 }: {
-  data: Pick<AttendanceSnapshot, "today" | "jobs" | "employees" | "calendarJobs">;
+  data: Pick<AttendanceSnapshot, "today" | "jobs" | "employees" | "calendarJobs" | "accessRole">;
 }) {
   const [selected, setSelected] = useState(data.today);
   const [mode, setMode] = useState<"month" | "week">("month");
@@ -132,6 +134,15 @@ export function ManagerCalendar({
                   ? job.assignedNames.join(", ")
                   : "No specific employees assigned"}
               </small>
+              {data.calendarJobs?.some((item) => item.id === job.id) && (
+                <JobAcknowledgements
+                  refreshKey={data.calendarJobs}
+                  jobId={job.id}
+                  employees={data.employees.filter((e) => job.employeeIds.includes(e.id))}
+                  rpc={jobAcknowledgements}
+                  canManage={!data.accessRole || ["owner", "operations"].includes(data.accessRole)}
+                />
+              )}
             </div>
           </article>
         ))}

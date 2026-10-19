@@ -6,6 +6,9 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { RecordForm } from "./RecordForm";
 import { StatusPill } from "./EmployeeShell";
 import { CompanyLeave } from "./CompanyLeave";
+import { LeaveChanges } from "./LeaveChanges";
+import { leaveChanges, profileChanges } from "@/lib/backend";
+import { ProfileChangeRequests } from "../../../shared/ProfileChangeRequests";
 export function ManagerRequests() {
   const d = useAttendance();
   const [status, setStatus] = useState("pending"),
@@ -28,6 +31,22 @@ export function ManagerRequests() {
   return (
     <>
       <CompanyLeave />
+      {(!d.accessRole || ["owner", "hr"].includes(d.accessRole)) && (
+        <ProfileChangeRequests
+          rpc={profileChanges}
+          manager
+          onChanged={() => void d.refresh()}
+          refreshKey={d.employees}
+        />
+      )}
+      {(!d.accessRole || ["owner", "hr"].includes(d.accessRole)) && (
+        <LeaveChanges
+          refreshKey={d.requests}
+          rpc={leaveChanges}
+          onChanged={() => void d.refresh()}
+          employees={d.employees}
+        />
+      )}
       <section className="project-panel">
         <div className="project-panel-head">
           <div>
@@ -43,6 +62,7 @@ export function ManagerRequests() {
             ["pending", "Pending"],
             ["approved", "Approved"],
             ["declined", "Declined"],
+            ["cancelled", "Cancelled"],
             ["", "All"],
           ].map(([value, label]) => (
             <button

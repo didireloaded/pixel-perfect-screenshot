@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button";
 import { RecordForm } from "@/components/app/RecordForm";
 import { useAttendance } from "@/lib/app-store";
 import { PunctualityHistory } from "./Punctuality";
+import { AttendanceIssues } from "../../../shared/AttendanceIssues";
+import { attendanceContext, punctuality, availability } from "@/lib/backend";
+import { EmployeeAvailability } from "../../../shared/EmployeeAvailability";
 import { STATE_LABEL } from "@/lib/attendance";
 import { ManagerOvertime } from "./ManagerOvertime";
 import { currentWorkday } from "../../../shared/workday";
@@ -169,6 +172,20 @@ export function ManagerAttendance() {
     <div className="space-y-5">
       <ManagerOvertime />
       <PunctualityHistory />
+      <AttendanceIssues
+        key={d.company.id}
+        data={d}
+        rpc={attendanceContext}
+        readPunctuality={punctuality}
+        manager
+      />
+      <EmployeeAvailability
+        rpc={availability}
+        manager
+        employees={d.employees}
+        onChanged={() => void d.refresh()}
+        refreshKey={d.requests}
+      />
       <div className="project-panel">
         <p className="project-panel-kicker">
           <Clock3 size={16} /> LIVE ATTENDANCE

@@ -39,6 +39,7 @@ import {
   EmptyState,
 } from "./components/WorkerUI";
 import { WorkerProfile, WorkerRequests, WorkerNotifications } from "./components/WorkerAccount";
+import { KnowledgeCentre } from "../../shared/KnowledgeCentre";
 
 type Result = { snapshot: AttendanceSnapshot; status?: string; reason?: string };
 type Tab = "today" | "calendar" | "jobs" | "inbox" | "hours";
@@ -78,12 +79,16 @@ export default function LiveWorkerApp({
     };
   }, []);
   const [data, setData] = useState<AttendanceSnapshot | null>(null);
-  const [secondary, setSecondary] = useState<"profile" | "requests" | "notifications" | null>(() =>
+  const [secondary, setSecondary] = useState<
+    "profile" | "requests" | "notifications" | "knowledge" | null
+  >(() =>
     new URLSearchParams(window.location.search).has("notification")
       ? "notifications"
       : new URLSearchParams(window.location.search).get("view") === "requests"
         ? "requests"
-        : null,
+        : new URLSearchParams(window.location.search).get("view") === "knowledge"
+          ? "knowledge"
+          : null,
   );
   const [correction, setCorrection] = useState<Shift | null>(null);
   const [jobFilter, setJobFilter] = useState<"all" | "assigned" | "in_progress" | "completed">(
@@ -576,7 +581,9 @@ export default function LiveWorkerApp({
                 ? "Profile"
                 : secondary === "requests"
                   ? "My Requests"
-                  : "Notifications"}
+                  : secondary === "knowledge"
+                    ? "Company knowledge"
+                    : "Notifications"}
             </h1>
             <span className="worker-header-spacer" />
           </>
@@ -865,6 +872,8 @@ export default function LiveWorkerApp({
         {secondary === "profile" && (
           <WorkerProfile
             data={data}
+            onKnowledge={() => setSecondary("knowledge")}
+            onProfileChanged={() => void refresh()}
             onPhotoUpload={async (photo) => {
               const path = await backend.uploadProfilePhoto(data.company.id, data.me, photo);
               return run("save_profile_photo", { path }, "Profile photo saved");
@@ -880,6 +889,13 @@ export default function LiveWorkerApp({
               setLocationEnabled(next);
               localStorage.setItem(monitorKey, next ? "on" : "off");
             }}
+          />
+        )}
+        {secondary === "knowledge" && (
+          <KnowledgeCentre
+            rpc={backend.knowledge}
+            onChanged={() => void refresh()}
+            refreshKey={data.requests}
           />
         )}
         {secondary === "requests" && (

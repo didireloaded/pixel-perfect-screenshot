@@ -19,4 +19,11 @@ export const {
   reportDocumentUrl,
   reportInterpretation,
   punctuality,
+  jobAcknowledgements,
+  leaveChanges,
+  attendanceContext,
+  availability,
+  taskTemplates,
+  knowledge,
+  profileChanges,
 } = backend;

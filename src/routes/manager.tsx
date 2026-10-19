@@ -18,6 +18,9 @@ import { STATE_LABEL } from "@/lib/attendance";
 import { CompanySettings, SetupChecklist } from "@/components/app/CompanySettings";
 import { CorrectionReview } from "@/components/app/CorrectionReview";
 import { CompanyNotices, SiteAlerts } from "@/components/app/WorkdayOperations";
+import { TaskTemplates } from "@/components/app/TaskTemplates";
+import { taskTemplates, knowledge } from "@/lib/backend";
+import { KnowledgeCentre } from "../../shared/KnowledgeCentre";
 import { WorkerAccessPanel } from "@/components/app/WorkerAccessPanel";
 import { KioskDesk } from "@/components/app/KioskDesk";
 import { ManagerJobTools, ManagerMessages } from "@/components/app/TeamComms";
@@ -108,7 +111,17 @@ function Manager() {
         </>
       )}
       {tab === "Corrections" && <CorrectionReview />}
-      {tab === "Announcements" && <CompanyNotices />}
+      {tab === "Announcements" && (
+        <div className="space-y-5">
+          <CompanyNotices />
+          <KnowledgeCentre
+            rpc={knowledge}
+            manager={!d.accessRole || ["owner", "hr"].includes(d.accessRole)}
+            onChanged={() => void d.refresh()}
+            refreshKey={d.requests}
+          />
+        </div>
+      )}
       {tab === "Messages" && <ManagerMessages />}
       {tab === "Notifications" && <ManagerNotifications onSelect={setTab} />}
       {tab === "Employee Access" && (d.accessRole === "hr" ? <WorkerAccessPanel /> : <KioskDesk />)}
@@ -245,6 +258,13 @@ function Manager() {
       {tab === "Calendar" && <ManagerCalendar data={d} />}
       {tab === "Tasks" && (
         <div className="space-y-5">
+          {(!d.accessRole || ["owner", "operations"].includes(d.accessRole)) && (
+            <TaskTemplates
+              rpc={taskTemplates}
+              jobs={d.jobs.filter((job) => job.status !== "completed")}
+              onApplied={() => void d.refresh()}
+            />
+          )}
           <ManagerJobBriefs onAdd={() => setShowJobForm(true)} />
           <ManagerJobBoard
             jobs={d.jobs}

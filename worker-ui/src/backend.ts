@@ -15,4 +15,11 @@ export const {
   signInWorker,
   registerWorker,
   uploadProfilePhoto,
+  punctuality,
+  jobAcknowledgements,
+  leaveChanges,
+  attendanceContext,
+  availability,
+  knowledge,
+  profileChanges,
 } = backend;

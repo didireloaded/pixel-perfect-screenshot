@@ -33,6 +33,7 @@ jobs:
       - run: npm run test:workforce
       - run: npm run test:reports
       - run: npm run test:punctuality
+      - run: npm run test:platform
       - run: node --test scripts/check-production.test.mjs
       - run: npm run test:tenancy
       - run: npx vitest run src/calc/overtime.test.ts

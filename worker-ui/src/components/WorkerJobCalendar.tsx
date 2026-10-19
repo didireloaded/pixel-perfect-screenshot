@@ -4,6 +4,8 @@ import type { AttendanceSnapshot } from "../../../shared/attendance";
 import { calendarJobs, jobRunsOn } from "../../../shared/calendar-jobs";
 import { displayDate } from "../../../shared/display-date";
 import { EmptyState, WorkerCard, WorkerSheet } from "./WorkerUI";
+import { JobAcknowledgements } from "./JobAcknowledgements";
+import { jobAcknowledgements } from "../backend";
 const day = (date: string) => new Date(`${date}T12:00:00Z`);
 export function WorkerJobCalendar({ data }: { data: AttendanceSnapshot }) {
   const [selected, setSelected] = useState(data.today);
@@ -121,6 +123,13 @@ export function WorkerJobCalendar({ data }: { data: AttendanceSnapshot }) {
               ? detail.assignedNames.join(", ")
               : "No specific employees assigned"}
           </p>
+          {data.calendarJobs?.some((job) => job.id === detail.id) && (
+            <JobAcknowledgements
+              refreshKey={data.calendarJobs}
+              jobId={detail.id}
+              rpc={jobAcknowledgements}
+            />
+          )}
         </WorkerSheet>
       )}
     </>

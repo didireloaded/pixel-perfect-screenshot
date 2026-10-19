@@ -26,7 +26,7 @@ export interface AttendanceEvent {
 }
 
 export type LocationStatus = "inactive" | "active" | "paused" | "unavailable";
-export type RequestStatus = "pending" | "approved" | "declined";
+export type RequestStatus = "pending" | "approved" | "declined" | "cancelled";
 export type RequestKind =
   "leave" | "personal_departure" | "missing_clocking" | "correction" | "emergency";
 export interface Employee {
@@ -41,6 +41,7 @@ export interface Employee {
   payrollAdmin: boolean;
   email?: string;
   phone?: string;
+  contactPhone?: string;
   accessStatus?: "active" | "pending" | "rejected";
   codeLogin?: boolean;
   jobTitle?: string;

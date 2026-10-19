@@ -1,6 +1,13 @@
 import { createClient, type AuthChangeEvent } from "@supabase/supabase-js";
 import type { Database, Json } from "./database.types";
 import type { AttendanceSnapshot, PunctualityData } from "./attendance";
+import type { JobAcknowledgementData } from "./job-acknowledgements";
+import type { LeaveChangesResponse } from "./leave-changes";
+import type { AttendanceContextData } from "./attendance-context";
+import type { AvailabilityResponse } from "./availability";
+import type { TaskTemplateData } from "./task-templates";
+import type { KnowledgeResponse } from "./knowledge";
+import type { ProfileChangeData } from "./profile-change-requests";
 import { startLiveSync } from "./live-sync";
 import { readSupabaseConfig } from "./supabase-config";
 import {
@@ -228,6 +235,62 @@ export function createBackend(app: "manager" | "worker") {
     check(error);
     return data as unknown as PunctualityData;
   }
+  async function jobAcknowledgements(action: string, payload: Record<string, unknown> = {}) {
+    const { data, error } = await requireClient().rpc("sl_job_acknowledgements", {
+      action,
+      payload: payload as Json,
+    });
+    check(error);
+    return data as unknown as JobAcknowledgementData;
+  }
+  async function leaveChanges(action: string, payload: Record<string, unknown> = {}) {
+    const { data, error } = await requireClient().rpc("sl_leave_changes", {
+      p_action: action,
+      p_data: payload as Json,
+    });
+    check(error);
+    return data as unknown as LeaveChangesResponse;
+  }
+  async function attendanceContext(action: string, payload: Record<string, unknown> = {}) {
+    const { data, error } = await requireClient().rpc("sl_attendance_context", {
+      action,
+      payload: payload as Json,
+    });
+    check(error);
+    return data as unknown as AttendanceContextData;
+  }
+  async function availability(action: string, payload: Record<string, unknown> = {}) {
+    const { data, error } = await requireClient().rpc("sl_availability", {
+      p_action: action,
+      p_data: payload as Json,
+    });
+    check(error);
+    return data as unknown as AvailabilityResponse;
+  }
+  async function taskTemplates(action: string, payload: Record<string, unknown> = {}) {
+    const { data, error } = await requireClient().rpc("sl_task_templates", {
+      action,
+      payload: payload as Json,
+    });
+    check(error);
+    return data as unknown as TaskTemplateData;
+  }
+  async function knowledge(action: string, payload: Record<string, unknown> = {}) {
+    const { data, error } = await requireClient().rpc("sl_knowledge", {
+      p_action: action,
+      p_data: payload as Json,
+    });
+    check(error);
+    return data as unknown as KnowledgeResponse;
+  }
+  async function profileChanges(action: string, payload: Record<string, unknown> = {}) {
+    const { data, error } = await requireClient().rpc("sl_profile_change_requests", {
+      p_action: action,
+      p_data: payload as Json,
+    });
+    check(error);
+    return data as unknown as ProfileChangeData;
+  }
   function onAuthChange(callback: (event: AuthChangeEvent, userId: string | null) => void) {
     if (!client) return () => {};
     const { data } = client.auth.onAuthStateChange((event, session) =>
@@ -340,5 +403,12 @@ export function createBackend(app: "manager" | "worker") {
     reportDocumentUrl,
     reportInterpretation,
     punctuality,
+    jobAcknowledgements,
+    leaveChanges,
+    attendanceContext,
+    availability,
+    taskTemplates,
+    knowledge,
+    profileChanges,
   };
 }

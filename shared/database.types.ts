@@ -2969,6 +2969,13 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      sl_profile_change_requests: { Args: { p_action: string; p_data?: Json }; Returns: Json };
+      sl_knowledge: { Args: { p_action: string; p_data?: Json }; Returns: Json };
+      sl_availability: { Args: { p_action: string; p_data?: Json }; Returns: Json };
+      sl_task_templates: { Args: { action: string; payload?: Json }; Returns: Json };
+      sl_job_acknowledgements: { Args: { action: string; payload?: Json }; Returns: Json };
+      sl_leave_changes: { Args: { p_action: string; p_data?: Json }; Returns: Json };
+      sl_attendance_context: { Args: { action: string; payload?: Json }; Returns: Json };
       sl_punctuality: { Args: { action: string; payload?: Json }; Returns: Json };
       sl_report_interpretation: { Args: { p_incident: string }; Returns: Json };
       sl_command: { Args: { p_action: string; p_data: Json }; Returns: Json };
